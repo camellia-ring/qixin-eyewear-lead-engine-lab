@@ -8,6 +8,13 @@
       "when": 1786571787024,
       "tag": "0000_lead_engine_v1",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1786573821723,
+      "tag": "0001_normalized-lead-model",
+      "breakpoints": true
     }
   ]
 }

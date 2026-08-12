@@ -1,0 +1,58 @@
+{
+  "records": [
+    {
+      "companyName": "",
+      "website": "",
+      "country": "",
+      "companyType": "",
+      "productTrack": "optical_lenses",
+      "recommendedProducts": [],
+      "analysisSummary": "",
+      "analysisConfidence": "low",
+      "sources": [
+        {
+          "sourceUrl": "",
+          "sourceType": "company_website",
+          "pageTitle": "",
+          "retrievedAt": "",
+          "evidenceSummary": "",
+          "confidence": "low"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_fit",
+          "claimSummary": "",
+          "evidenceKind": "unknown",
+          "confidence": "low"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "",
+      "evidenceCoverage": 0,
+      "scoreConfidence": "low",
+      "productMatchScore": 0,
+      "productMatchPositiveReason": "",
+      "productMatchNegativeReason": "",
+      "customerTypeScore": 0,
+      "customerTypePositiveReason": "",
+      "customerTypeNegativeReason": "",
+      "purchasingSignalsScore": 0,
+      "purchasingSignalsPositiveReason": "",
+      "purchasingSignalsNegativeReason": "",
+      "marketMoqFitScore": 0,
+      "marketMoqFitPositiveReason": "",
+      "marketMoqFitNegativeReason": "",
+      "contactabilityScore": 0,
+      "contactabilityPositiveReason": "",
+      "contactabilityNegativeReason": "",
+      "accountPotentialScore": 0,
+      "accountPotentialPositiveReason": "",
+      "accountPotentialNegativeReason": "",
+      "dataQualityScore": 0,
+      "dataQualityPositiveReason": "",
+      "dataQualityNegativeReason": ""
+    }
+  ]
+}

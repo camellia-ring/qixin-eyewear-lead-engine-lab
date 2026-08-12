@@ -13,22 +13,56 @@ async function render(path = "/") {
   );
 }
 
-test("renders the isolated Lead Engine shell", async () => {
+test("renders the complete isolated Lead Engine shell", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /QIXIN Lead Engine Lab/);
-  assert.match(html, /客户开发实验室/);
+  assert.match(html, /可审计的销售机会/);
   assert.match(html, /生产系统未连接/);
-  assert.match(html, /只有已批准记录才能导出/);
+  assert.match(html, /新建完整 Campaign/);
+  assert.match(html, /批准后才能生成 CRM 文件/);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
-test("keeps the persistence and CRM handoff isolated", async () => {
-  const [hosting, schema, exportRoute, packageJson] = await Promise.all([
-    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+test("implements the normalized, evidence-first V1 model", async () => {
+  const [schema, importRoute, workspaceRoute, reviewRoute, exportRoute, leadEngine] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/reviews/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/lead-engine.ts", import.meta.url), "utf8"),
+  ]);
+  for (const table of [
+    "prospect_companies", "campaign_leads", "company_domains", "company_domain_links",
+    "lead_sources", "evidence_claims", "lead_score_runs", "lead_score_dimensions",
+    "lead_import_runs", "lead_review_decisions", "crm_export_runs", "crm_export_items",
+  ]) assert.match(schema, new RegExp(table));
+  assert.match(schema, /uq_campaign_lead_company/);
+  assert.match(schema, /uq_lead_import_campaign_key/);
+  assert.match(importRoute, /idempotencyKey/);
+  assert.match(importRoute, /evidence_claim_required/);
+  assert.match(importRoute, /score_reason_required/);
+  assert.match(importRoute, /companyNamesLikelySame/);
+  assert.match(workspaceRoute, /buildSearchKeywords/);
+  assert.match(workspaceRoute, /researchBrief/);
+  assert.match(reviewRoute, /hard_gate_not_passed/);
+  assert.match(reviewRoute, /evidenceCoverage < 40/);
+  assert.match(reviewRoute, /observed_evidence_required/);
+  assert.match(exportRoute, /workflowStatus, "approved"/);
+  assert.match(exportRoute, /crmExportRuns/);
+  assert.doesNotMatch(exportRoute, /fetch\(|CRM_API|Authorization/i);
+  assert.match(leadEngine, /RUBRIC_VERSION = "qixin-v1\.1"/);
+  assert.match(leadEngine, /companyNamesLikelySame/);
+  assert.match(leadEngine, /Local-language discovery/);
+  assert.match(leadEngine, /observed \/ inferred \/ unknown/);
+});
+
+test("keeps Sites, storage, and CRM handoff isolated", async () => {
+  const [hosting, agents, packageJson] = await Promise.all([
+    readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
   const hostingConfig = JSON.parse(hosting);
@@ -36,11 +70,7 @@ test("keeps the persistence and CRM handoff isolated", async () => {
   assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, null);
-  assert.match(schema, /candidate_companies/);
-  assert.match(schema, /evidence_items/);
-  assert.match(schema, /review_decisions/);
-  assert.match(exportRoute, /reviewStatus, "approved"/);
-  assert.match(exportRoute, /lead_engine_lab/);
-  assert.doesNotMatch(exportRoute, /fetch\(|CRM_API|Authorization/i);
+  assert.match(agents, /Never read from or write to the production QIXIN D1\/R2 bindings/);
+  assert.match(agents, /Do not add a production CRM write credential/);
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });
