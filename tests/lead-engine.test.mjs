@@ -31,7 +31,11 @@ test("keeps the persistence and CRM handoff isolated", async () => {
     readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
   ]);
-  assert.deepEqual(JSON.parse(hosting), { d1: "DB", r2: null });
+  const hostingConfig = JSON.parse(hosting);
+  assert.equal(hostingConfig.project_id, "appgprj_6a7cee692ee48191bf4ce6ce38403734");
+  assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
+  assert.equal(hostingConfig.d1, "DB");
+  assert.equal(hostingConfig.r2, null);
   assert.match(schema, /candidate_companies/);
   assert.match(schema, /evidence_items/);
   assert.match(schema, /review_decisions/);
