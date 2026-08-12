@@ -9,6 +9,8 @@ This directory contains the first real-company validation pack for the isolated 
 - Expected import result: 25 Campaign Leads, 26 Sources, 50 Claims, 25 score runs, and 175 score dimensions.
 - Expected gates: 21 `needs_review`, 4 `fail`, 0 approved, and 0 exportable until the owner reviews the evidence.
 
+Open `REVIEW.md` for the compact owner decision sheet. It links every company to its primary official source and makes clear that approving the pack authorizes only upload to the isolated lab, not Lead approval, CRM export, enrichment, or outreach.
+
 Regenerate the derived JSON after editing the reviewed source list:
 
 ```bash

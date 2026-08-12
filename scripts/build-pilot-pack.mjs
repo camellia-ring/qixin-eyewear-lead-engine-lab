@@ -420,4 +420,43 @@ const here = dirname(fileURLToPath(import.meta.url));
 const outputPath = resolve(here, "../pilot/uk-optical-frames-pilot-25.review.json");
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, `${JSON.stringify(output, null, 2)}\n`, "utf8");
+
+function grade(record) {
+  if (record.hardGateStatus === "fail") return "Reject";
+  const total = ["productMatch", "customerType", "purchasingSignals", "marketMoqFit", "contactability", "accountPotential", "dataQuality"]
+    .reduce((sum, prefix) => sum + record[`${prefix}Score`], 0);
+  if (total >= 85 && record.scoreConfidence === "high") return "S";
+  if (total >= 75) return "A";
+  if (total >= 60) return "B";
+  return "C";
+}
+
+const reviewLines = [
+  "# UK optical-frames pilot — owner review",
+  "",
+  "> Prepared 2026-08-13 from public company-level sources. No personal contacts, paid intelligence credits, enrichment, or outreach were used.",
+  "",
+  "## Decision requested",
+  "",
+  "- [ ] Approve uploading this 25-company candidate pack to the owner-only Lead Engine.",
+  "- [ ] Keep all 21 viable candidates in `needs_review`; do not approve or export any lead automatically.",
+  "- [ ] Keep the 4 direct-manufacturing/captive-supply conflicts rejected.",
+  "",
+  "| # | Company | Total | Grade | Gate | Primary evidence | Main risk |",
+  "| ---: | --- | ---: | --- | --- | --- | --- |",
+  ...output.records.map((record, index) => {
+    const total = ["productMatch", "customerType", "purchasingSignals", "marketMoqFit", "contactability", "accountPotential", "dataQuality"]
+      .reduce((sum, prefix) => sum + record[`${prefix}Score`], 0);
+    const risk = record.riskSummary.replaceAll("|", "/");
+    return `| ${index + 1} | ${record.companyName} | ${total} | ${grade(record)} | ${record.hardGateStatus} | [Official source](${record.sources[0].sourceUrl}) | ${risk} |`;
+  }),
+  "",
+  "## What approval does and does not mean",
+  "",
+  "Approval here authorizes only a deliberate upload into the independent private Lead Engine D1. It does not approve any company as a sales lead, does not export to the production CRM, and does not authorize search-credit use, personal-contact access, enrichment, email generation, or outreach.",
+  "",
+];
+const reviewPath = resolve(here, "../pilot/REVIEW.md");
+await writeFile(reviewPath, `${reviewLines.join("\n")}\n`, "utf8");
 console.log(`Wrote ${output.records.length} records to ${outputPath}`);
+console.log(`Wrote owner review sheet to ${reviewPath}`);
