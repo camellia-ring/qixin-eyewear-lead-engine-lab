@@ -1,0 +1,2131 @@
+{
+  "metadata": {
+    "name": "UK optical frames public-source pilot",
+    "createdAt": "2026-08-13T08:00:00.000Z",
+    "recordCount": 25,
+    "reviewStatus": "candidate_pack_not_user_approved",
+    "safety": "Company-level public evidence only. No paid intelligence credits, personal-contact access, enrichment or messaging."
+  },
+  "records": [
+    {
+      "companyName": "Wolf Eyewear",
+      "website": "https://www.wolfeyewear.com",
+      "country": "United Kingdom",
+      "city": "Leighton Buzzard",
+      "companyType": "Eyewear Brand / Wholesaler",
+      "businessModel": "B2B eyewear brand supplying independent opticians",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Kids eyewear"
+      ],
+      "brands": [
+        "Wolf Eyewear",
+        "Alpha Eyewear",
+        "Wolf Cubs"
+      ],
+      "wholesaleSignal": "Official site says the company supplies independent opticians in the UK and overseas and offers stockist/distributor routes.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "British family-run eyewear brand with an explicit independent-optician channel and a broad frame catalogue.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "sales@wolfeyewear.com",
+      "contactChannel": "https://www.wolfeyewear.com/contact/",
+      "sources": [
+        {
+          "sourceUrl": "https://www.wolfeyewear.com/about-us/",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Wolf Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes a British family-run brand founded in 2009 that supplies independent opticians across several international markets.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes a British family-run brand founded in 2009 that supplies independent opticians across several international markets.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: British family-run eyewear brand with an explicit independent-optician channel and a broad frame catalogue.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 78,
+      "scoreConfidence": "medium",
+      "riskSummary": "Existing supplier relationships, commercial terms, target price and MOQ are unknown; keep under human review.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "Official catalogue covers optical, sun and children's frames, closely matching QIXIN frame capabilities.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 19,
+      "customerTypePositiveReason": "Official evidence identifies an eyewear brand and supplier to independent opticians.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 14,
+      "purchasingSignalsPositiveReason": "Stockist/distributor routes and a large catalogue are direct B2B distribution signals.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK head office and international distribution are observed; supplier MOQ acceptance is not published.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 10,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "International independent-optician reach suggests repeat collection potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "William Morris London",
+      "website": "https://www.williammorris.co.uk",
+      "country": "United Kingdom",
+      "city": "Hatfield Heath",
+      "companyType": "Eyewear Brand / Distributor",
+      "businessModel": "Global eyewear brand distributed through optical partners",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "William Morris London",
+        "Black Label",
+        "Charles Stone New York"
+      ],
+      "wholesaleSignal": "Official site states global distribution in more than 50 countries and work with export partners and independent opticians.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Established UK eyewear brand with global distribution, acquired by Design Eyewear Group in 2022.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "info.uk@designeyeweargroup.com",
+      "contactChannel": "https://www.williammorris.co.uk/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://www.williammorris.co.uk/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About us - William Morris London",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official history describes multiple eyewear collections, global distribution and acquisition by Design Eyewear Group.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official history describes multiple eyewear collections, global distribution and acquisition by Design Eyewear Group.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Established UK eyewear brand with global distribution, acquired by Design Eyewear Group in 2022.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 80,
+      "scoreConfidence": "medium",
+      "riskSummary": "Group-level procurement and incumbent factories may make supplier entry difficult; no supplier onboarding route is published.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "Official collections include multiple optical-frame lines and sun eyewear.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "The company is an established eyewear brand serving optical partners globally.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 12,
+      "purchasingSignalsPositiveReason": "Global production and distribution imply recurring procurement, but the group sourcing model is not published.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 10,
+      "marketMoqFitPositiveReason": "UK operation and export activity are observed; MOQ compatibility is unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 10,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Multi-country distribution and several collections indicate material account potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Eyespace Eyewear",
+      "website": "https://www.eyespace-eyewear.co.uk",
+      "country": "United Kingdom",
+      "city": "Towcester",
+      "companyType": "Eyewear Brand House / Distributor",
+      "businessModel": "B2B eyewear design and distribution",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Kids eyewear"
+      ],
+      "brands": [
+        "Eyespace",
+        "ARHLO",
+        "Land Rover Eyewear"
+      ],
+      "wholesaleSignal": "Official history presents global distribution and multiple branded eyewear launches.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "UK eyewear brand house with global-distribution evidence and several optical collections.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.eyespace-eyewear.co.uk/contact/",
+      "sources": [
+        {
+          "sourceUrl": "https://www.eyespace-eyewear.co.uk/about/",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Eyespace",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page records branded collection launches and expansion into global distribution.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page records branded collection launches and expansion into global distribution.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: UK eyewear brand house with global-distribution evidence and several optical collections.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 72,
+      "scoreConfidence": "medium",
+      "riskSummary": "Licensing, incumbent manufacturing and supplier qualification requirements need confirmation.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "The official brand portfolio is directly relevant to optical and sun frames.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 19,
+      "customerTypePositiveReason": "Brand-house and distribution activity match the target B2B customer profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 13,
+      "purchasingSignalsPositiveReason": "Multiple collections and global distribution are strong recurring-product signals; sourcing structure is undisclosed.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK base and global activity are observed; MOQ and target cost are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 8,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Portfolio breadth and distribution reach suggest repeat collection potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Continental Eyewear",
+      "website": "https://continental-eyewear.com",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Spectacle Frame Distributor",
+      "businessModel": "B2B frame distribution",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Kids eyewear"
+      ],
+      "brands": [
+        "Continental Eyewear",
+        "Lazer Junior",
+        "Zenith"
+      ],
+      "wholesaleSignal": "Official page describes the company as a leading UK spectacle-frame distributor established over 35 years ago.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Long-established UK frame distributor with an explicit sales contact and broad product range.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "sales@continental-eyewear.co.uk",
+      "contactChannel": "mailto:sales@continental-eyewear.co.uk",
+      "sources": [
+        {
+          "sourceUrl": "https://eu.continental-eyewear.com/pages/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Continental Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page identifies a UK-based spectacle-frame distributor with more than 35 years of history.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page identifies a UK-based spectacle-frame distributor with more than 35 years of history.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Long-established UK frame distributor with an explicit sales contact and broad product range.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 82,
+      "scoreConfidence": "medium",
+      "riskSummary": "Current supplier base, price architecture and openness to new OEM partners are not public.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "Spectacle frames and sun/kids lines align directly with QIXIN's frame catalogue.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 20,
+      "customerTypePositiveReason": "The official page explicitly identifies a UK distributor.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 14,
+      "purchasingSignalsPositiveReason": "A long-running distributor with multiple house ranges is a strong recurring-purchase signal.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK market and distributor fit are clear; order volume and MOQ remain unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 10,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Portfolio breadth and operating history suggest strong repeat-order potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Independent Eyewear",
+      "website": "https://www.independenteyewear.co.uk",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Distributor",
+      "businessModel": "Distribution of independent luxury eyewear brands to opticians",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "LA Eyeworks",
+        "Masunaga"
+      ],
+      "wholesaleSignal": "Official page says it brings curated eyewear brands to independent opticians in London and beyond.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Family-owned UK distributor focused on exclusive independent eyewear brands.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "jdeanearmstrong@gmail.com",
+      "contactChannel": "https://www.independenteyewear.co.uk/about/",
+      "sources": [
+        {
+          "sourceUrl": "https://www.independenteyewear.co.uk/about/",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Independent Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes distribution relationships with independent opticians and named luxury eyewear brands.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes distribution relationships with independent opticians and named luxury eyewear brands.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Family-owned UK distributor focused on exclusive independent eyewear brands.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 72,
+      "scoreConfidence": "medium",
+      "riskSummary": "May be an agency/distribution partner rather than an OEM buyer; verify commercial model before outreach.",
+      "productMatchScore": 20,
+      "productMatchPositiveReason": "The distributed portfolio is directly within optical frames, though it may not include private-label development.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 20,
+      "customerTypePositiveReason": "Official evidence clearly identifies a B2B distributor to independent opticians.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 10,
+      "purchasingSignalsPositiveReason": "Distribution activity is observed, but the company may represent finished brands rather than commission OEM ranges.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 10,
+      "marketMoqFitPositiveReason": "UK channel fit is strong; MOQ and private-label appetite are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 9,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "A focused distributor could open optician access, but direct manufacturing demand is unverified.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "London Eyewear",
+      "website": "https://londoneyewear.co.uk",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Designer / Distributor",
+      "businessModel": "In-house frame design and distribution through agents and optical partners",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "London Eyewear",
+        "Catch London"
+      ],
+      "wholesaleSignal": "Official page states in-house design and distribution through agents, distributors and global optical partners.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "UK-designed eyewear portfolio with explicit B2B distribution channels.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://londoneyewear.co.uk/pages/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://londoneyewear.co.uk/pages/about",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - London Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes in-house frame development and a UK/global sales network.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes in-house frame development and a UK/global sales network.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: UK-designed eyewear portfolio with explicit B2B distribution channels.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 74,
+      "scoreConfidence": "medium",
+      "riskSummary": "Existing brand ownership and manufacturing arrangements require human qualification.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "In-house designed frame collections match QIXIN optical-frame capabilities.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 19,
+      "customerTypePositiveReason": "The company operates as an eyewear portfolio owner and distributor.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 13,
+      "purchasingSignalsPositiveReason": "A managed portfolio and sales network imply collection replenishment, although factory arrangements are not disclosed.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK and international optical channels are explicit; MOQ fit is unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 8,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Portfolio and channel reach indicate repeat collection potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Specs Addict",
+      "website": "https://specsaddict.co.uk",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Independent Eyewear Wholesaler",
+      "businessModel": "Wholesale frames for independent optical practices",
+      "products": [
+        "Optical frames"
+      ],
+      "brands": [
+        "Specs Addict"
+      ],
+      "wholesaleSignal": "Official page offers wholesale accounts and says frames are sourced directly from manufacturers in Italy, Thailand and China.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Small family-run UK wholesaler with explicit direct-manufacturer sourcing and an independent-optician channel.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "office@specsaddict.co.uk",
+      "contactChannel": "https://specsaddict.co.uk/about-us/",
+      "sources": [
+        {
+          "sourceUrl": "https://specsaddict.co.uk/about-us/",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Specs Addict",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes a wholesale account model and direct sourcing from manufacturers, including China.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes a wholesale account model and direct sourcing from manufacturers, including China.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Small family-run UK wholesaler with explicit direct-manufacturer sourcing and an independent-optician channel.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 88,
+      "scoreConfidence": "medium",
+      "riskSummary": "Small-company order volume and willingness to add a new factory are unknown; retain human approval gate.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "The business sells acetate and metal optical frames, a direct QIXIN product match.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 20,
+      "customerTypePositiveReason": "It explicitly wholesales to independent optical practices.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 15,
+      "purchasingSignalsPositiveReason": "Direct manufacturer sourcing and wholesale-account onboarding are strong observed purchasing signals.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 12,
+      "marketMoqFitPositiveReason": "UK independent-optician positioning fits; exact MOQ and target price need confirmation.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 10,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "A growing own-label wholesale range suggests repeat replenishment potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Eyewear Café",
+      "website": "https://eyewearcafe.co.uk",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Eyewear Wholesaler",
+      "businessModel": "Wholesale spectacle frames for independent opticians",
+      "products": [
+        "Optical frames"
+      ],
+      "brands": [],
+      "wholesaleSignal": "Official site describes wholesale spectacle-frame supply to independent opticians.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "UK frame wholesaler serving independent opticians.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://eyewearcafe.co.uk/",
+      "sources": [
+        {
+          "sourceUrl": "https://eyewearcafe.co.uk/",
+          "sourceType": "company_website",
+          "pageTitle": "Eyewear Café - Wholesale spectacle frames for opticians",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official site presents the business as a wholesale spectacle-frame supplier for independent opticians.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official site presents the business as a wholesale spectacle-frame supplier for independent opticians.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: UK frame wholesaler serving independent opticians.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 70,
+      "scoreConfidence": "medium",
+      "riskSummary": "Limited public company-scale and procurement detail; business contact route needs confirmation.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "Wholesale spectacle frames directly match QIXIN optical frames.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 20,
+      "customerTypePositiveReason": "The stated channel is independent opticians, fitting the target wholesaler profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 14,
+      "purchasingSignalsPositiveReason": "Wholesale frame supply is explicit, while sourcing geography and cadence are not published.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK channel fit is observed; MOQ and order size are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 7,
+      "accountPotentialPositiveReason": "A specialist wholesaler may support repeat orders, subject to scale validation.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 4,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Lloyd Eyewear",
+      "website": "https://lloyd-eyewear.com",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Eyewear Distributor / Consultancy",
+      "businessModel": "Curated eyewear brands for independent opticians",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [],
+      "wholesaleSignal": "Official site says it supports independent opticians with design-led collections and wholesale experience.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "UK eyewear consultancy and distributor with an independent-optician focus.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://lloyd-eyewear.com/",
+      "sources": [
+        {
+          "sourceUrl": "https://lloyd-eyewear.com/",
+          "sourceType": "company_website",
+          "pageTitle": "Lloyd Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official site describes a curated eyewear portfolio, wholesale experience and support for independent opticians.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official site describes a curated eyewear portfolio, wholesale experience and support for independent opticians.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: UK eyewear consultancy and distributor with an independent-optician focus.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 65,
+      "scoreConfidence": "medium",
+      "riskSummary": "May represent third-party brands rather than purchase own-label frames; verify role before contact.",
+      "productMatchScore": 20,
+      "productMatchPositiveReason": "The portfolio is optical eyewear, but demand for private-label production is not shown.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 19,
+      "customerTypePositiveReason": "Distributor/consultancy activity to independent opticians matches a channel partner profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 10,
+      "purchasingSignalsPositiveReason": "Wholesale experience is observed; direct procurement responsibility is not confirmed.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 10,
+      "marketMoqFitPositiveReason": "UK optical-market fit is clear; MOQ compatibility is unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Could be a channel or brand-introduction account, with uncertain direct volume.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 4,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "FINLAY",
+      "website": "https://www.finlayandco.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Independent Eyewear Brand / Retailer",
+      "businessModel": "Own-brand eyewear with retail stores",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "FINLAY"
+      ],
+      "wholesaleSignal": "Official page identifies an independent British eyewear brand with its own collections and London stores.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Independent UK brand with optical and sunglasses collections and physical retail presence.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "care@finlayandco.com",
+      "contactChannel": "mailto:care@finlayandco.com",
+      "sources": [
+        {
+          "sourceUrl": "https://www.finlayandco.com/pages/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - FINLAY",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes an independent British brand founded in 2012, with London stores and own eyewear collections.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes an independent British brand founded in 2012, with London stores and own eyewear collections.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Independent UK brand with optical and sunglasses collections and physical retail presence.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 75,
+      "scoreConfidence": "medium",
+      "riskSummary": "Customer-service email may not reach procurement; existing frame makers and supplier entry are unknown.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "Own optical and sun collections align with QIXIN frame categories.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Independent brand status matches the target customer definition.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 11,
+      "purchasingSignalsPositiveReason": "Own collections imply procurement, but factory and wholesale strategy are not public.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK brand/store presence is clear; MOQ and target cost remain unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 9,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 7,
+      "accountPotentialPositiveReason": "Established stores and brand recognition suggest repeat seasonal potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Cubitts",
+      "website": "https://cubitts.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Brand / Manufacturer / Retailer",
+      "businessModel": "Own-brand eyewear with owned workshops and retail stores",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Cubitts"
+      ],
+      "wholesaleSignal": "Official page says core acetate frames are produced in the company's own Jiangsu workshop and other frames in London and Japan.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Strong product fit, but the company states that it owns frame-manufacturing capacity including a workshop in China.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "info@cubitts.com",
+      "contactChannel": "https://cubitts.com/pages/help",
+      "sources": [
+        {
+          "sourceUrl": "https://cubitts.com/pages/frames-and-accessories",
+          "sourceType": "company_website",
+          "pageTitle": "Frames and accessories - Cubitts",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page explains materials and says Cubitts uses its own London and Jiangsu workshops plus an independent Japanese factory.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page explains materials and says Cubitts uses its own London and Jiangsu workshops plus an independent Japanese factory.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Strong product fit, but the company states that it owns frame-manufacturing capacity including a workshop in China.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "fail",
+      "hardGateReason": "Official evidence indicates owned frame manufacturing, including a workshop in China; this matches the campaign exclusion for direct manufacturing competitors.",
+      "evidenceCoverage": 85,
+      "scoreConfidence": "medium",
+      "riskSummary": "Direct manufacturing competitor under the campaign rules; rejected unless the campaign owner explicitly changes the exclusion.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "The product range closely matches QIXIN frames.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 16,
+      "customerTypePositiveReason": "It is an eyewear brand, but also an owned manufacturer and therefore fails the target-customer hard gate.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 8,
+      "purchasingSignalsPositiveReason": "Some external production is observed, but own manufacturing lowers outsourced OEM fit.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 8,
+      "marketMoqFitPositiveReason": "UK market fit exists; supplier need and MOQ are not applicable until the competitor exclusion is resolved.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 9,
+      "contactabilityPositiveReason": "A public generic business email and/or contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 5,
+      "accountPotentialPositiveReason": "Brand scale is meaningful, but competitor status overrides account potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "bloobloom",
+      "website": "https://bloobloom.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Brand / Retailer",
+      "businessModel": "Direct-to-consumer own-brand eyewear with boutiques",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "bloobloom"
+      ],
+      "wholesaleSignal": "Official story says the company creates its own designs and spends months selecting factories and materials.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Own-design eyewear brand with explicit external-factory selection evidence.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://bloobloom.com/gb/pages/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://bloobloom.com/pages/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "Our Story - bloobloom",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page says the brand creates its own designs, sources materials globally and selects factories.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page says the brand creates its own designs, sources materials globally and selects factories.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Own-design eyewear brand with explicit external-factory selection evidence.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 82,
+      "scoreConfidence": "medium",
+      "riskSummary": "Existing factories, compliance requirements and target price are undisclosed; procurement contact is not public.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "Large optical and sunglass collections directly match QIXIN categories.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Own-design eyewear brand fits the private-label/OEM customer profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 15,
+      "purchasingSignalsPositiveReason": "Explicit factory-selection activity is a strong observed outsourced-manufacturing signal.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 12,
+      "marketMoqFitPositiveReason": "UK retail presence and external sourcing are clear; MOQ and commercial fit are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 8,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Broad collections and boutiques suggest repeat development potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Taylor Morris London",
+      "website": "https://taylormorriseyewear.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Independent Eyewear Brand",
+      "businessModel": "Own-brand eyewear sold through direct and stockist channels",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Taylor Morris"
+      ],
+      "wholesaleSignal": "Official page describes optical and sun collections stocked in international markets.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Independent London eyewear brand with own optical/sun collections and stockist reach.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://taylormorriseyewear.com/pages/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://taylormorriseyewear.com/pages/about",
+          "sourceType": "company_website",
+          "pageTitle": "About - Taylor Morris London",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes a London brand founded in 2013, international stockists and an optical collection launched in 2020.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes a London brand founded in 2013, international stockists and an optical collection launched in 2020.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Independent London eyewear brand with own optical/sun collections and stockist reach.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 73,
+      "scoreConfidence": "medium",
+      "riskSummary": "No public supplier-onboarding or procurement contact; incumbent factory relationships need validation.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "Optical and sun collections match QIXIN frame categories.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Independent own-brand eyewear is a target customer type.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 12,
+      "purchasingSignalsPositiveReason": "Own collections and stockists imply procurement, but factory strategy is not published.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK brand and international stockists are observed; MOQ fit is unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 7,
+      "accountPotentialPositiveReason": "Established brand and multi-market stockists suggest seasonal repeat potential.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Kirk & Kirk",
+      "website": "https://kirkandkirk.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Independent Eyewear Brand",
+      "businessModel": "Designer eyewear sold through opticians",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Kirk & Kirk"
+      ],
+      "wholesaleSignal": "Official site has optician stockist content and states frames are handmade in France from bespoke Italian acrylic.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Established independent brand with optical-channel distribution, but stated French production and specialist acrylic reduce near-term factory fit.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://kirkandkirk.com/contact/",
+      "sources": [
+        {
+          "sourceUrl": "https://kirkandkirk.com/about-us/our-story/",
+          "sourceType": "company_website",
+          "pageTitle": "Our Story - Kirk & Kirk",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official story describes a long optical heritage and frames handcrafted in France from bespoke Italian acrylic.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official story describes a long optical heritage and frames handcrafted in France from bespoke Italian acrylic.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Established independent brand with optical-channel distribution, but stated French production and specialist acrylic reduce near-term factory fit.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 72,
+      "scoreConfidence": "medium",
+      "riskSummary": "Made-in-France and specialist acrylic positioning may disqualify a China OEM proposal; keep as a near match only.",
+      "productMatchScore": 18,
+      "productMatchPositiveReason": "Optical frames match broadly, but the specialist acrylic/French-made positioning may not match QIXIN's current offer.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Independent eyewear brand and optician channel fit the customer profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 8,
+      "purchasingSignalsPositiveReason": "A recurring collection is visible, yet stated production appears tied to France.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 7,
+      "marketMoqFitPositiveReason": "UK brand relevance is clear; manufacturing geography and MOQ fit are weak.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Recognised brand, but material and origin positioning constrain opportunity.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Cutler and Gross",
+      "website": "https://www.cutlerandgross.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Luxury Eyewear Brand / Retailer",
+      "businessModel": "Luxury own-brand eyewear with global stockists",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Cutler and Gross"
+      ],
+      "wholesaleSignal": "Official page states collections are made in Italy and Japan and sold through more than 2,000 stockists in 50 countries.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Large luxury eyewear brand with global stockists, but explicit Italy/Japan production positioning.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.cutlerandgross.com/pages/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://www.cutlerandgross.com/en-ca/pages/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Cutler and Gross",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes over 55 years in eyewear, production in Italy and Japan, and global stockist reach.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes over 55 years in eyewear, production in Italy and Japan, and global stockist reach.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Large luxury eyewear brand with global stockists, but explicit Italy/Japan production positioning.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 80,
+      "scoreConfidence": "medium",
+      "riskSummary": "Luxury Italy/Japan production positioning and incumbent ateliers make China OEM fit uncertain.",
+      "productMatchScore": 19,
+      "productMatchPositiveReason": "Luxury optical and sunglass frames match the category but not necessarily QIXIN's current origin/positioning.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "A global eyewear brand is a target type.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 9,
+      "purchasingSignalsPositiveReason": "Large distribution implies procurement, but the official production story centres on Italy and Japan.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 6,
+      "marketMoqFitPositiveReason": "UK/global market fit is strong while manufacturing-origin fit is weak.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "Scale is substantial, but supplier entry likelihood appears low.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Oliver Goldsmith",
+      "website": "https://www.olivergoldsmith.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Luxury Eyewear Brand",
+      "businessModel": "Heritage own-brand eyewear",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Oliver Goldsmith"
+      ],
+      "wholesaleSignal": "Official history shows a century-long eyewear brand and current optical and sunglass collections.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Heritage luxury brand with strong product relevance but no public external-sourcing or supplier-onboarding evidence.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.olivergoldsmith.com/pages/contact",
+      "sources": [
+        {
+          "sourceUrl": "https://www.olivergoldsmith.com/en-nz/pages/about",
+          "sourceType": "company_website",
+          "pageTitle": "About Oliver Goldsmith",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official history traces the brand from 1926 and documents its optical-frame and sunglass design heritage.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official history traces the brand from 1926 and documents its optical-frame and sunglass design heritage.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Heritage luxury brand with strong product relevance but no public external-sourcing or supplier-onboarding evidence.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 68,
+      "scoreConfidence": "medium",
+      "riskSummary": "Luxury provenance, factory requirements and procurement route are unknown; research remains incomplete.",
+      "productMatchScore": 21,
+      "productMatchPositiveReason": "The brand's optical and sunglass ranges match QIXIN categories.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 17,
+      "customerTypePositiveReason": "Own-brand eyewear fits the target type.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 7,
+      "purchasingSignalsPositiveReason": "Collection production is implied, but no current factory or sourcing signal is published.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 7,
+      "marketMoqFitPositiveReason": "UK brand fit is clear; MOQ, origin and commercial fit are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Heritage value is high, while near-term qualified opportunity is unproven.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Linda Farrow",
+      "website": "https://lindafarrow.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Luxury Eyewear Brand / Wholesaler",
+      "businessModel": "Luxury own-brand and designer-collaboration eyewear",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Linda Farrow",
+        "Black Series"
+      ],
+      "wholesaleSignal": "Official page cites more than 500 global wholesalers but positions production as handcrafted in Japan.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Global luxury brand with significant wholesale reach, but explicit made-in-Japan production positioning.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://lindafarrow.com/pages/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://lindafarrow.com/en-eu/pages/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Linda Farrow",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes a London luxury brand, designer collaborations, wholesale reach and Japanese production.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes a London luxury brand, designer collaborations, wholesale reach and Japanese production.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Global luxury brand with significant wholesale reach, but explicit made-in-Japan production positioning.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 82,
+      "scoreConfidence": "medium",
+      "riskSummary": "Made-in-Japan luxury positioning and incumbent specialist workshops make the opportunity unlikely without a separate product brief.",
+      "productMatchScore": 20,
+      "productMatchPositiveReason": "Optical and sun products match, but luxury Japanese manufacturing differs from QIXIN's current positioning.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "The company is a large eyewear brand and wholesaler.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 9,
+      "purchasingSignalsPositiveReason": "Wholesale scale implies recurring production, while the official story ties products to Japan.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 5,
+      "marketMoqFitPositiveReason": "UK/global market access is strong; manufacturing-origin fit is weak.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 8,
+      "accountPotentialPositiveReason": "High account value is offset by low supplier-entry probability.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Hot Futures",
+      "website": "https://hotfutures.co.uk",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Independent Eyewear Brand",
+      "businessModel": "Direct-to-consumer independent eyewear brand",
+      "products": [
+        "Sunglasses",
+        "Optical frames"
+      ],
+      "brands": [
+        "Hot Futures"
+      ],
+      "wholesaleSignal": "Official page says products are handmade from high-grade cellulose acetate and use optical-quality lenses.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Independent East London brand with handmade acetate eyewear and sustainability positioning.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://hotfutures.co.uk/pages/contact",
+      "sources": [
+        {
+          "sourceUrl": "https://hotfutures.co.uk/pages/ourstory",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Hot Futures",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes an independent East London brand and handmade acetate eyewear with optical-quality lenses.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes an independent East London brand and handmade acetate eyewear with optical-quality lenses.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Independent East London brand with handmade acetate eyewear and sustainability positioning.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 72,
+      "scoreConfidence": "medium",
+      "riskSummary": "Small brand scale, sustainability standards and incumbent workshop relationships require qualification.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "Acetate optical/sun eyewear aligns with QIXIN categories.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Independent own-brand eyewear is a target customer type.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 11,
+      "purchasingSignalsPositiveReason": "Handmade product implies external production, but factory and buying cadence are not published.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 11,
+      "marketMoqFitPositiveReason": "UK brand fit is clear; MOQ, origin and target cost need confirmation.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Distinct design positioning suggests collection work, with unverified volume.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "WELCOME Eyewear",
+      "website": "https://welcomeeyewear.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Independent Eyewear Brand / Retailer",
+      "businessModel": "Own-brand optical frames with retail presence",
+      "products": [
+        "Optical frames"
+      ],
+      "brands": [
+        "WELCOME Eyewear"
+      ],
+      "wholesaleSignal": "Official page states frames are handmade in small series in workshops in Northern Italy and Southeastern China.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Independent London eyewear brand with explicit small-series production in China and Italy.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://welcomeeyewear.com/contact/",
+      "sources": [
+        {
+          "sourceUrl": "https://welcomeeyewear.com/about/",
+          "sourceType": "company_website",
+          "pageTitle": "About - WELCOME Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page identifies a central-London independent brand and production workshops in Italy and China.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page identifies a central-London independent brand and production workshops in Italy and China.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Independent London eyewear brand with explicit small-series production in China and Italy.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 86,
+      "scoreConfidence": "medium",
+      "riskSummary": "Current workshop satisfaction, order scale and materials/compliance brief are unknown; no procurement contact is published.",
+      "productMatchScore": 24,
+      "productMatchPositiveReason": "Handmade optical frames directly match QIXIN frame development.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 18,
+      "customerTypePositiveReason": "Independent own-brand status fits the target profile.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 15,
+      "purchasingSignalsPositiveReason": "Explicit use of small-series Chinese and Italian workshops is a strong outsourced-production signal.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 12,
+      "marketMoqFitPositiveReason": "UK market and China production are observed; MOQ and pricing still need confirmation.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 7,
+      "accountPotentialPositiveReason": "Existing small-series production suggests a realistic development conversation, subject to volume.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Eyewear Ltd",
+      "website": "https://itseyewear.com",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Manufacturer / Lens Lab",
+      "businessModel": "UK small-batch manufacturing, glazing and training",
+      "products": [
+        "Optical frames",
+        "Optical lenses"
+      ],
+      "brands": [
+        "Eyewear Ltd"
+      ],
+      "wholesaleSignal": "Official site describes UK manufacturing, prototyping, private-label production and glazing services.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Product relevance is high, but the company is itself a frame manufacturer and private-label producer.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://itseyewear.com/",
+      "sources": [
+        {
+          "sourceUrl": "https://itseyewear.com/",
+          "sourceType": "company_website",
+          "pageTitle": "British Eyewear Manufacturer, Bespoke Glasses and Courses",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official site presents an East London eyewear manufacturing house, lens lab and private-label production service.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official site presents an East London eyewear manufacturing house, lens lab and private-label production service.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Product relevance is high, but the company is itself a frame manufacturer and private-label producer.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "fail",
+      "hardGateReason": "The official site identifies the company as an eyewear manufacturer and private-label producer, matching the campaign's direct-competitor exclusion.",
+      "evidenceCoverage": 80,
+      "scoreConfidence": "medium",
+      "riskSummary": "Direct manufacturing competitor; reject from this buyer campaign unless a separate partnership campaign is approved.",
+      "productMatchScore": 23,
+      "productMatchPositiveReason": "Capabilities overlap closely with QIXIN.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 9,
+      "customerTypePositiveReason": "Manufacturer/private-label producer status fails the selected buyer-type hard gate.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 5,
+      "purchasingSignalsPositiveReason": "Possible component demand is not evidenced; primary business is competing production.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 7,
+      "marketMoqFitPositiveReason": "UK fit exists, but the direct-competitor exclusion overrides market fit.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 6,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 4,
+      "accountPotentialPositiveReason": "Potential partnership is speculative and outside this campaign's customer definition.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "INSPECS Group",
+      "website": "https://www.inspecs.com",
+      "country": "United Kingdom",
+      "city": "Bath",
+      "companyType": "Global Eyewear Manufacturer / Distributor",
+      "businessModel": "Vertically integrated design, manufacture and distribution",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Protective eyewear",
+        "Optical lenses"
+      ],
+      "brands": [
+        "INSPECS",
+        "Botaniq",
+        "Titanflex",
+        "Savile Row"
+      ],
+      "wholesaleSignal": "Official site reports owned/partner factories, manufacturing sites and distribution to more than 70,000 retail outlets.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Large vertically integrated eyewear group with its own factories; direct competitor under the campaign rules.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.inspecs.com/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://www.inspecs.com/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - INSPECS Group PLC",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes design, manufacturing and distribution across 80 countries with owned manufacturing bases.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes design, manufacturing and distribution across 80 countries with owned manufacturing bases.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Large vertically integrated eyewear group with its own factories; direct competitor under the campaign rules.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "fail",
+      "hardGateReason": "Official evidence identifies owned eyewear manufacturing in several countries; this is a direct manufacturing competitor excluded by the campaign.",
+      "evidenceCoverage": 90,
+      "scoreConfidence": "medium",
+      "riskSummary": "Direct competitor with owned factories; automatically reject for the buyer campaign.",
+      "productMatchScore": 25,
+      "productMatchPositiveReason": "Product overlap is extensive.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 8,
+      "customerTypePositiveReason": "Vertically integrated manufacturer status fails the target buyer hard gate.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 6,
+      "purchasingSignalsPositiveReason": "Partner factories exist, but the group is primarily a competing manufacturer and supplier.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 8,
+      "marketMoqFitPositiveReason": "Global scale is strong; competitor exclusion overrides fit.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 5,
+      "accountPotentialPositiveReason": "Large scale does not compensate for disqualification in this campaign.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "International Eyewear",
+      "website": "https://intleyewear.com",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Eyewear Importer / Distributor",
+      "businessModel": "Import and distribution of luxury eyewear",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [],
+      "wholesaleSignal": "Official site presents the company as an importer connecting international eyewear talent; Companies House classifies the UK entity in wholesale trade.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "UK eyewear importer/distributor with a wholesale-trade entity, but limited public procurement detail.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://intleyewear.com/",
+      "sources": [
+        {
+          "sourceUrl": "https://intleyewear.com/",
+          "sourceType": "company_website",
+          "pageTitle": "International Eyewear",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official site describes importing luxury eyewear and connecting international brands.",
+          "confidence": "high"
+        },
+        {
+          "sourceUrl": "https://find-and-update.company-information.service.gov.uk/company/02221216",
+          "sourceType": "company_registry",
+          "pageTitle": "International Eyewear Limited overview",
+          "evidenceSummary": "UK Companies House lists International Eyewear Limited and its wholesale-trade classification.",
+          "confidence": "high",
+          "retrievedAt": "2026-08-13T08:00:00.000Z"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official site describes importing luxury eyewear and connecting international brands.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: UK eyewear importer/distributor with a wholesale-trade entity, but limited public procurement detail.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 72,
+      "scoreConfidence": "medium",
+      "riskSummary": "Official public detail is sparse; verify legal entity, current brands and procurement responsibility before approval.",
+      "productMatchScore": 20,
+      "productMatchPositiveReason": "Imported luxury eyewear is within the frame category, though private-label demand is unverified.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 20,
+      "customerTypePositiveReason": "Importer/distributor is a target customer type and registry evidence supports wholesale activity.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 11,
+      "purchasingSignalsPositiveReason": "Import activity is observed, but own-brand or OEM procurement is not shown.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 10,
+      "marketMoqFitPositiveReason": "UK entity and import role fit; MOQ and commercial scope are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 6,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Could be a distributor/channel lead, with uncertain direct manufacturing volume.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Specsavers",
+      "website": "https://www.specsavers.co.uk",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Optical Retail Chain",
+      "businessModel": "International optometry and optical retail partnership network",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Optical lenses"
+      ],
+      "brands": [
+        "Specsavers"
+      ],
+      "wholesaleSignal": "Official page says the group operates thousands of stores and an international supply chain.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Very large optical chain with product demand, but supplier access is likely centralized and no onboarding route is public.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.specsavers.co.uk/help-and-faqs/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://www.specsavers.co.uk/about?page=1",
+          "sourceType": "company_website",
+          "pageTitle": "About Specsavers",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes a family-run international optical business with thousands of stores, more than 45,000 people and a global supply chain.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes a family-run international optical business with thousands of stores, more than 45,000 people and a global supply chain.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Very large optical chain with product demand, but supplier access is likely centralized and no onboarding route is public.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 76,
+      "scoreConfidence": "medium",
+      "riskSummary": "Centralized procurement, incumbent suppliers and absence of a supplier-onboarding route require senior manual qualification.",
+      "productMatchScore": 22,
+      "productMatchPositiveReason": "Optical retail creates demand for frames and lenses, but private-label procurement is not evidenced on the source page.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 14,
+      "customerTypePositiveReason": "Large chain is in scope, though it is not an importer/wholesaler lead with an open route.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 10,
+      "purchasingSignalsPositiveReason": "An international supply chain is observed; specific eyewear procurement and supplier entry are not public.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 9,
+      "marketMoqFitPositiveReason": "UK/global market presence is strong; MOQ is likely feasible but remains inferred.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 6,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 9,
+      "accountPotentialPositiveReason": "Account value could be very high, while access probability is low.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Vision Express",
+      "website": "https://www.visionexpress.com",
+      "country": "United Kingdom",
+      "city": "",
+      "companyType": "Optical Retail Chain",
+      "businessModel": "Optical retail chain owned by EssilorLuxottica",
+      "products": [
+        "Optical frames",
+        "Sunglasses",
+        "Optical lenses"
+      ],
+      "brands": [
+        "Vision Express"
+      ],
+      "wholesaleSignal": "Official page reports more than 550 UK/Ireland stores and ownership by EssilorLuxottica.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Large optical chain, but ownership by a vertically integrated global eyewear group creates a captive-supply/competitor conflict.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.visionexpress.com/contact-us",
+      "sources": [
+        {
+          "sourceUrl": "https://www.visionexpress.com/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About us - Vision Express",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page states that Vision Express has more than 550 stores and is part of EssilorLuxottica.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page states that Vision Express has more than 550 stores and is part of EssilorLuxottica.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Large optical chain, but ownership by a vertically integrated global eyewear group creates a captive-supply/competitor conflict.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "fail",
+      "hardGateReason": "Official ownership by EssilorLuxottica indicates a vertically integrated captive supply environment and direct-industry competitor conflict under this campaign.",
+      "evidenceCoverage": 82,
+      "scoreConfidence": "medium",
+      "riskSummary": "EssilorLuxottica ownership/captive supply chain; reject unless a verified independent procurement program is identified.",
+      "productMatchScore": 22,
+      "productMatchPositiveReason": "Retail products overlap strongly with QIXIN.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 10,
+      "customerTypePositiveReason": "Retail-chain status fits broadly, but parent-group conflict fails the hard gate.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 7,
+      "purchasingSignalsPositiveReason": "Large demand exists, but external independent procurement is not evidenced.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 7,
+      "marketMoqFitPositiveReason": "UK scale is strong; captive supply overrides fit.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 6,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 7,
+      "accountPotentialPositiveReason": "Theoretical volume is high but practical opportunity is disqualified for this campaign.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    },
+    {
+      "companyName": "Anglo American Optical",
+      "website": "https://www.angloamericanoptical.co.uk",
+      "country": "United Kingdom",
+      "city": "London",
+      "companyType": "Eyewear Designer / Brand",
+      "businessModel": "Heritage retro eyewear design and sales",
+      "products": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "brands": [
+        "Anglo American Optical"
+      ],
+      "wholesaleSignal": "Official history describes a long-running eyewear designer and frame business.",
+      "privateLabelSignal": "",
+      "oemSignal": "",
+      "pricePosition": "",
+      "companySize": "",
+      "analysisSummary": "Heritage UK retro-eyewear designer with direct product relevance but limited public sourcing detail.",
+      "analysisConfidence": "medium",
+      "productTrack": "optical_frames",
+      "recommendedProducts": [
+        "Optical frames",
+        "Sunglasses"
+      ],
+      "estimatedPurchaseVolume": "unknown",
+      "businessEmail": "",
+      "contactChannel": "https://www.angloamericanoptical.co.uk/contact",
+      "sources": [
+        {
+          "sourceUrl": "https://www.angloamericanoptical.co.uk/about-us",
+          "sourceType": "company_website",
+          "pageTitle": "About Us - Anglo American Optical",
+          "retrievedAt": "2026-08-13T08:00:00.000Z",
+          "evidenceSummary": "The official page describes the company's eyewear-design history and roots stretching back to the late nineteenth century.",
+          "confidence": "high"
+        }
+      ],
+      "claims": [
+        {
+          "sourceIndex": 0,
+          "claimType": "company_profile",
+          "claimSummary": "The official page describes the company's eyewear-design history and roots stretching back to the late nineteenth century.",
+          "evidenceKind": "observed",
+          "confidence": "high"
+        },
+        {
+          "sourceIndex": 0,
+          "claimType": "campaign_fit",
+          "claimSummary": "Inference for manual review: Heritage UK retro-eyewear designer with direct product relevance but limited public sourcing detail.",
+          "evidenceKind": "inferred",
+          "confidence": "medium"
+        }
+      ],
+      "hardGateStatus": "needs_review",
+      "hardGateReason": "Public sources do not prove supplier onboarding, buying authority, MOQ acceptance or current procurement need; human review is required.",
+      "evidenceCoverage": 66,
+      "scoreConfidence": "medium",
+      "riskSummary": "Current operating scale, product cadence, factory relationships and procurement contact need further evidence.",
+      "productMatchScore": 22,
+      "productMatchPositiveReason": "Retro optical frames align with QIXIN frame capability.",
+      "productMatchNegativeReason": "Exact specifications, compliance brief and live buying need are not confirmed.",
+      "customerTypeScore": 17,
+      "customerTypePositiveReason": "Eyewear designer/brand fits the target type.",
+      "customerTypeNegativeReason": "Buying authority and current supplier-search status are not public.",
+      "purchasingSignalsScore": 7,
+      "purchasingSignalsPositiveReason": "Ongoing frame collections are implied, but no current sourcing or wholesale evidence is available on the reviewed page.",
+      "purchasingSignalsNegativeReason": "Order cadence, incumbent factories, target cost and active RFQ status are unknown.",
+      "marketMoqFitScore": 9,
+      "marketMoqFitPositiveReason": "UK market fit is clear; MOQ and origin expectations are unknown.",
+      "marketMoqFitNegativeReason": "QIXIN MOQ acceptance and forecast volume are not evidenced.",
+      "contactabilityScore": 7,
+      "contactabilityPositiveReason": "A public company contact route is available.",
+      "contactabilityNegativeReason": "No procurement-specific contact or buying role was accessed.",
+      "accountPotentialScore": 6,
+      "accountPotentialPositiveReason": "Heritage brand value exists, but opportunity scale is unverified.",
+      "accountPotentialNegativeReason": "Potential is inferred from public company/channel signals, not verified purchase history.",
+      "dataQualityScore": 5,
+      "dataQualityPositiveReason": "The primary evidence is a current official company page retrieved on 2026-08-13.",
+      "dataQualityNegativeReason": "No paid enrichment, direct confirmation or personal-contact verification was performed.",
+      "doNotContact": false,
+      "modelIdentifier": "public_web_research_human_review_v1"
+    }
+  ]
+}

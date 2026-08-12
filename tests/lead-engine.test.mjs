@@ -74,3 +74,27 @@ test("keeps Sites, storage, and CRM handoff isolated", async () => {
   assert.match(agents, /Do not add a production CRM write credential/);
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });
+
+test("covers the complete QIXIN product catalog in campaign research and CRM handoff", async () => {
+  const [leadEngine, ui] = await Promise.all([
+    readFile(new URL("../lib/lead-engine.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+  ]);
+  for (const [track, crmLabel] of [
+    ["optical_frames", "Optical frames"],
+    ["sunglasses", "Sunglasses"],
+    ["reading_glasses", "Reading glasses"],
+    ["blue_light_glasses", "Blue light glasses"],
+    ["kids_eyewear", "Kids eyewear"],
+    ["sports_eyewear", "Sports eyewear"],
+    ["protective_eyewear", "Protective eyewear"],
+    ["optical_lenses", "Optical lenses"],
+  ]) {
+    assert.match(leadEngine, new RegExp(`${track}.*${crmLabel}`));
+    assert.match(ui, new RegExp(`${track}:`));
+  }
+  assert.match(leadEngine, /Brillenfassungen/);
+  assert.match(leadEngine, /monturas ópticas/);
+  assert.match(leadEngine, /oprawki okularowe/);
+  assert.match(leadEngine, /إطارات نظارات طبية/);
+});

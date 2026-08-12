@@ -51,7 +51,18 @@ const SCORE_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待人工审核", approved: "已批准", rejected: "已淘汰",
 };
-const PRODUCT_LABELS: Record<string, string> = { optical_lenses: "光学镜片", safety_lenses: "安全与防护镜片" };
+const PRODUCT_LABELS: Record<string, string> = {
+  optical_frames: "光学镜架",
+  sunglasses: "太阳镜",
+  reading_glasses: "老花镜",
+  blue_light_glasses: "防蓝光眼镜",
+  kids_eyewear: "儿童眼镜",
+  sports_eyewear: "运动眼镜",
+  protective_eyewear: "防护眼镜",
+  optical_lenses: "光学镜片",
+  safety_lenses: "安全与防护镜片（旧版）",
+};
+const PRODUCT_OPTIONS = Object.entries(PRODUCT_LABELS);
 const HEADER_MAP: Record<string, string> = {
   company_name: "companyName", company_type: "companyType", business_model: "businessModel", product_track: "productTrack",
   recommended_products: "recommendedProducts", estimated_purchase_volume: "estimatedPurchaseVolume", business_email: "businessEmail",
@@ -322,7 +333,7 @@ export default function LeadEngineApp() {
         {activeCampaign ? <div className={styles.campaignMeta}><span>{PRODUCT_LABELS[activeCampaign.productTrack]}</span><span>{activeCampaign.targetMarkets || jsonList(activeCampaign.targetCountriesJson).join(" / ") || "市场待定义"}</span><span>目标 {activeCampaign.targetCount} 家</span><span>{activeCampaign.status}</span><select aria-label="Campaign 状态" value={activeCampaign.status} disabled={pending} onChange={(event) => void changeCampaignStatus(event.target.value)}><option value="draft">草稿</option><option value="active">运行中</option><option value="paused">暂停</option><option value="completed">已完成</option></select></div> : null}
         <details className={styles.createCampaign} open={!workspace.campaigns.length}><summary>新建完整 Campaign</summary><form onSubmit={createCampaign}>
           <input name="name" required maxLength={160} placeholder="Campaign 名称" />
-          <select name="productTrack" defaultValue="optical_lenses"><option value="optical_lenses">光学镜片</option><option value="safety_lenses">安全与防护镜片</option></select>
+          <select name="productTrack" defaultValue="optical_frames">{PRODUCT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
           <input name="targetCountries" placeholder="国家：Germany, UK" />
           <input name="targetMarkets" placeholder="市场说明" />
           <input name="productTypes" placeholder="产品类型，以分号分隔" />
@@ -348,7 +359,7 @@ export default function LeadEngineApp() {
       </section>
 
       {activeCampaign ? <section className={styles.researchStudio}>
-        <div><span className={styles.eyebrow}>00 / CAMPAIGN RESEARCH PLAN</span><h2>本地语言检索词与 Codex 标准任务书</h2><p>只生成研究计划，不会自动搜索、抓取、消耗 Apollo 额度或访问个人联系方式。</p><button type="button" onClick={() => downloadText(`${activeCampaign.name}-research-brief.md`, activeCampaign.researchBrief)}>下载研究任务书</button><details className={styles.campaignEdit} key={activeCampaign.id}><summary>编辑 Campaign 条件</summary><form onSubmit={updateCampaign}><input name="name" required defaultValue={activeCampaign.name} /><select name="productTrack" defaultValue={activeCampaign.productTrack}><option value="optical_lenses">光学镜片</option><option value="safety_lenses">安全与防护镜片</option></select><input name="targetCountries" defaultValue={jsonList(activeCampaign.targetCountriesJson).join("; ")} placeholder="目标国家" /><input name="targetMarkets" defaultValue={activeCampaign.targetMarkets} placeholder="市场说明" /><input name="productTypes" defaultValue={jsonList(activeCampaign.productTypesJson).join("; ")} placeholder="产品类型" /><input name="customerTypes" defaultValue={jsonList(activeCampaign.customerTypesJson).join("; ")} placeholder="客户类型" /><input name="targetCount" type="number" min="1" max="500" defaultValue={activeCampaign.targetCount} /><input name="moqFit" defaultValue={activeCampaign.moqFit || ""} placeholder="MOQ 适配" /><input name="companySize" defaultValue={activeCampaign.companySize || ""} placeholder="客户规模" /><input name="positioning" defaultValue={activeCampaign.positioning || ""} placeholder="产品定位" /><input name="exclusions" defaultValue={jsonList(activeCampaign.exclusionsJson).join("; ")} placeholder="排除类型" /><button type="submit" disabled={pending}>保存并刷新研究计划</button></form></details></div>
+        <div><span className={styles.eyebrow}>00 / CAMPAIGN RESEARCH PLAN</span><h2>本地语言检索词与 Codex 标准任务书</h2><p>只生成研究计划，不会自动搜索、抓取、消耗 Apollo 额度或访问个人联系方式。</p><button type="button" onClick={() => downloadText(`${activeCampaign.name}-research-brief.md`, activeCampaign.researchBrief)}>下载研究任务书</button><details className={styles.campaignEdit} key={activeCampaign.id}><summary>编辑 Campaign 条件</summary><form onSubmit={updateCampaign}><input name="name" required defaultValue={activeCampaign.name} /><select name="productTrack" defaultValue={activeCampaign.productTrack}>{PRODUCT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select><input name="targetCountries" defaultValue={jsonList(activeCampaign.targetCountriesJson).join("; ")} placeholder="目标国家" /><input name="targetMarkets" defaultValue={activeCampaign.targetMarkets} placeholder="市场说明" /><input name="productTypes" defaultValue={jsonList(activeCampaign.productTypesJson).join("; ")} placeholder="产品类型" /><input name="customerTypes" defaultValue={jsonList(activeCampaign.customerTypesJson).join("; ")} placeholder="客户类型" /><input name="targetCount" type="number" min="1" max="500" defaultValue={activeCampaign.targetCount} /><input name="moqFit" defaultValue={activeCampaign.moqFit || ""} placeholder="MOQ 适配" /><input name="companySize" defaultValue={activeCampaign.companySize || ""} placeholder="客户规模" /><input name="positioning" defaultValue={activeCampaign.positioning || ""} placeholder="产品定位" /><input name="exclusions" defaultValue={jsonList(activeCampaign.exclusionsJson).join("; ")} placeholder="排除类型" /><button type="submit" disabled={pending}>保存并刷新研究计划</button></form></details></div>
         <ul>{activeCampaign.searchKeywords.slice(0, 10).map((item) => <li key={`${item.locale}-${item.keyword}`}><span>{item.locale}</span><b>{item.keyword}</b><small>{item.purpose}</small></li>)}</ul>
       </section> : null}
 

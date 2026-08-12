@@ -21,6 +21,10 @@ Private, isolated V1 for turning small-batch eyewear company research into evide
 7. Approve, reject, or return the Lead for review. Rejections require a reason; approvals require a passed hard gate, score ≥60, evidence coverage ≥40%, non-low confidence, complete score reasons, and a business contact route.
 8. Export only approved Leads to the production CRM CSV contract, then confirm the import again inside the production CRM.
 
+## Product tracks
+
+New Campaigns support the complete QIXIN CRM product vocabulary: optical frames, sunglasses, reading glasses, blue-light glasses, kids eyewear, sports eyewear, protective eyewear, and optical lenses. The legacy `safety_lenses` value remains readable for non-destructive compatibility and maps to protective eyewear plus optical lenses.
+
 ## Data model
 
 - `campaigns`
@@ -63,3 +67,7 @@ npm run db:generate -- --name <migration-name>
 ```
 
 The project intentionally has no `wrangler.jsonc`; Sites injects the independent D1 binding declared in `.openai/hosting.json`.
+
+## Reviewed-upload pilot pack
+
+`pilot/uk-optical-frames-pilot-25.review.json` contains a 25-company, company-level public-source pilot prepared on 2026-08-13. It is deliberately marked `candidate_pack_not_user_approved`: 21 records stay behind the human-review gate and 4 direct-manufacturing/captive-supply conflicts are pre-rejected. It contains no personal contacts, paid enrichment, messages, or production CRM writes. The owner must review the evidence and deliberately upload the JSON in the private lab before any lead can be approved.

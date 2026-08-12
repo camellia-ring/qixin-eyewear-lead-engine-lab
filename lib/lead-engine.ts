@@ -27,7 +27,21 @@ export type HardGateStatus = "pass" | "fail" | "needs_review";
 export const WORKFLOW_STATUSES = new Set(["discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"]);
 export const REVIEW_DECISIONS = new Set(["needs_review", "approved", "rejected"]);
 export const CAMPAIGN_STATUSES = new Set(["draft", "active", "paused", "completed"]);
-export const PRODUCT_TRACKS = new Set(["optical_lenses", "safety_lenses"]);
+export const PRODUCT_TRACK_DEFINITIONS = Object.freeze({
+  optical_frames: { crm: ["Optical frames"], search: ["optical frames", "eyeglass frames", "spectacle frames"] },
+  sunglasses: { crm: ["Sunglasses"], search: ["sunglasses", "sun eyewear", "fashion sunglasses"] },
+  reading_glasses: { crm: ["Reading glasses"], search: ["reading glasses", "readers eyewear", "ready readers"] },
+  blue_light_glasses: { crm: ["Blue light glasses"], search: ["blue light glasses", "computer glasses", "screen eyewear"] },
+  kids_eyewear: { crm: ["Kids eyewear"], search: ["kids eyewear", "children's glasses", "children's optical frames"] },
+  sports_eyewear: { crm: ["Sports eyewear"], search: ["sports eyewear", "performance sunglasses", "cycling glasses"] },
+  protective_eyewear: { crm: ["Protective eyewear"], search: ["protective eyewear", "safety glasses", "industrial eye protection"] },
+  optical_lenses: { crm: ["Optical lenses"], search: ["optical lenses", "ophthalmic lenses", "prescription lenses"] },
+  // Retained for existing V0/V1 campaigns; new campaigns should use protective_eyewear.
+  safety_lenses: { crm: ["Protective eyewear", "Optical lenses"], search: ["safety lenses", "protective lenses", "industrial eye protection"] },
+});
+
+export type ProductTrack = keyof typeof PRODUCT_TRACK_DEFINITIONS;
+export const PRODUCT_TRACKS = new Set(Object.keys(PRODUCT_TRACK_DEFINITIONS));
 export const CONFIDENCE_LEVELS = new Set(["low", "medium", "high"]);
 export const HARD_GATE_STATUSES = new Set(["pass", "fail", "needs_review"]);
 
@@ -41,12 +55,36 @@ export const DEFAULT_EXCLUSIONS = [
   "已拒绝、退订或禁止联系",
 ];
 
-const COUNTRY_SEARCH_PROFILES = [
-  { match: /germany|deutschland|\bde\b/i, market: "Deutschland", locale: "de", types: ["Großhändler", "Importeur", "Distributor", "Brillenmarke"], products: { optical_lenses: ["Brillengläser", "optische Linsen"], safety_lenses: ["Schutzbrillen", "Sicherheitsgläser"] } },
-  { match: /spain|españa|\bes\b/i, market: "España", locale: "es", types: ["mayorista", "importador", "distribuidor", "marca de gafas"], products: { optical_lenses: ["lentes oftálmicas", "lentes ópticas"], safety_lenses: ["gafas de seguridad", "lentes protectoras"] } },
-  { match: /poland|polska|\bpl\b/i, market: "Polska", locale: "pl", types: ["hurtownia", "importer", "dystrybutor", "marka okularów"], products: { optical_lenses: ["soczewki okularowe", "soczewki optyczne"], safety_lenses: ["okulary ochronne", "soczewki ochronne"] } },
-  { match: /saudi|uae|emirates|arabia|السعودية|الإمارات/i, market: "الشرق الأوسط", locale: "ar", types: ["مستورد نظارات", "موزع نظارات", "تاجر جملة نظارات"], products: { optical_lenses: ["عدسات بصرية", "عدسات طبية"], safety_lenses: ["نظارات واقية", "عدسات حماية"] } },
-  { match: /united kingdom|great britain|england|\buk\b|\bgb\b/i, market: "United Kingdom", locale: "en", types: ["wholesaler", "importer", "distributor", "eyewear brand"], products: { optical_lenses: ["ophthalmic lenses", "optical lenses"], safety_lenses: ["safety eyewear", "protective lenses"] } },
+const COUNTRY_SEARCH_PROFILES: Array<{
+  match: RegExp;
+  market: string;
+  locale: string;
+  types: string[];
+  products: Partial<Record<ProductTrack, string[]>>;
+}> = [
+  { match: /germany|deutschland|\bde\b/i, market: "Deutschland", locale: "de", types: ["Großhändler", "Importeur", "Distributor", "Brillenmarke"], products: {
+    optical_frames: ["Brillenfassungen", "Brillengestelle"], sunglasses: ["Sonnenbrillen"], reading_glasses: ["Lesebrillen"],
+    blue_light_glasses: ["Blaulichtfilterbrillen"], kids_eyewear: ["Kinderbrillen"], sports_eyewear: ["Sportbrillen"],
+    protective_eyewear: ["Schutzbrillen"], optical_lenses: ["Brillengläser", "optische Linsen"], safety_lenses: ["Schutzbrillen", "Sicherheitsgläser"],
+  } },
+  { match: /spain|españa|\bes\b/i, market: "España", locale: "es", types: ["mayorista", "importador", "distribuidor", "marca de gafas"], products: {
+    optical_frames: ["monturas ópticas", "monturas de gafas"], sunglasses: ["gafas de sol"], reading_glasses: ["gafas de lectura"],
+    blue_light_glasses: ["gafas para luz azul"], kids_eyewear: ["gafas infantiles"], sports_eyewear: ["gafas deportivas"],
+    protective_eyewear: ["gafas de seguridad"], optical_lenses: ["lentes oftálmicas", "lentes ópticas"], safety_lenses: ["gafas de seguridad", "lentes protectoras"],
+  } },
+  { match: /poland|polska|\bpl\b/i, market: "Polska", locale: "pl", types: ["hurtownia", "importer", "dystrybutor", "marka okularów"], products: {
+    optical_frames: ["oprawki okularowe"], sunglasses: ["okulary przeciwsłoneczne"], reading_glasses: ["okulary do czytania"],
+    blue_light_glasses: ["okulary blokujące światło niebieskie"], kids_eyewear: ["okulary dziecięce"], sports_eyewear: ["okulary sportowe"],
+    protective_eyewear: ["okulary ochronne"], optical_lenses: ["soczewki okularowe", "soczewki optyczne"], safety_lenses: ["okulary ochronne", "soczewki ochronne"],
+  } },
+  { match: /saudi|uae|emirates|arabia|السعودية|الإمارات/i, market: "الشرق الأوسط", locale: "ar", types: ["مستورد نظارات", "موزع نظارات", "تاجر جملة نظارات"], products: {
+    optical_frames: ["إطارات نظارات طبية"], sunglasses: ["نظارات شمسية"], reading_glasses: ["نظارات قراءة"],
+    blue_light_glasses: ["نظارات حجب الضوء الأزرق"], kids_eyewear: ["نظارات أطفال"], sports_eyewear: ["نظارات رياضية"],
+    protective_eyewear: ["نظارات واقية"], optical_lenses: ["عدسات بصرية", "عدسات طبية"], safety_lenses: ["نظارات واقية", "عدسات حماية"],
+  } },
+  { match: /united kingdom|great britain|england|\buk\b|\bgb\b/i, market: "United Kingdom", locale: "en", types: ["wholesaler", "importer", "distributor", "eyewear brand"], products: Object.fromEntries(
+    Object.entries(PRODUCT_TRACK_DEFINITIONS).map(([track, definition]) => [track, definition.search]),
+  ) as Record<ProductTrack, string[]> },
 ];
 
 export function boundedScore(value: unknown, max: number) {
@@ -167,9 +205,7 @@ export function safeJsonList(value: unknown, fallback: string[] = []) {
 
 function productSearchTerms(productTrack: string, productTypes: string[]) {
   if (productTypes.length) return productTypes;
-  return productTrack === "safety_lenses"
-    ? ["safety eyewear", "protective lenses", "industrial eye protection"]
-    : ["optical lenses", "ophthalmic lenses", "prescription lens"];
+  return PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.search || ["eyewear"];
 }
 
 export function buildSearchKeywords(campaign: {
@@ -188,7 +224,7 @@ export function buildSearchKeywords(campaign: {
     const profile = COUNTRY_SEARCH_PROFILES.find((item) => item.match.test(market));
     const localMarket = profile?.market || market;
     const localTypes = profile?.types || customerTypes;
-    const localProducts = profile?.products[ campaign.productTrack as "optical_lenses" | "safety_lenses" ] || products;
+    const localProducts = profile?.products[campaign.productTrack as ProductTrack] || products;
     const locale = profile?.locale || "en";
     for (const product of products.slice(0, 3)) {
       for (const type of customerTypes.slice(0, 3)) {
@@ -232,9 +268,7 @@ export function researchBrief(campaign: Parameters<typeof buildSearchKeywords>[0
 }
 
 export function crmProductInterests(productTrack: string) {
-  return productTrack === "safety_lenses"
-    ? ["Protective eyewear", "Optical lenses"]
-    : ["Optical lenses"];
+  return PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.crm || [];
 }
 
 export function csvCell(value: unknown) {
