@@ -454,7 +454,6 @@ const reviewLines = [
   "## What approval does and does not mean",
   "",
   "Approval here authorizes only a deliberate upload into the independent private Lead Engine D1. It does not approve any company as a sales lead, does not export to the production CRM, and does not authorize search-credit use, personal-contact access, enrichment, email generation, or outreach.",
-  "",
 ];
 const reviewPath = resolve(here, "../pilot/REVIEW.md");
 await writeFile(reviewPath, `${reviewLines.join("\n")}\n`, "utf8");
