@@ -358,14 +358,21 @@ FROM `candidate_companies` c
 JOIN `prospect_companies` p ON p.`identity_key` = c.`identity_key`
 JOIN `campaign_leads` l ON l.`campaign_id` = c.`campaign_id` AND l.`company_id` = p.`id`;--> statement-breakpoint
 INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
-SELECT 'legacy-dim-customer-' || `id`, 'legacy-score-' || `id`, 'legacyCustomerTypeScore', `customer_type_score`, 20, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-product-' || `id`, 'legacy-score-' || `id`, 'legacyProductFitScore', `product_fit_score`, 20, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-market-' || `id`, 'legacy-score-' || `id`, 'legacyMarketPriorityScore', `market_priority_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-buying-' || `id`, 'legacy-score-' || `id`, 'legacyBuyingSignalScore', `buying_signal_score`, 15, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-wholesale-' || `id`, 'legacy-score-' || `id`, 'legacyWholesaleOemScore', `wholesale_oem_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-contact-' || `id`, 'legacy-score-' || `id`, 'legacyContactQualityScore', `contact_quality_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-evidence-' || `id`, 'legacy-score-' || `id`, 'legacyEvidenceQualityScore', `evidence_quality_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`
-UNION ALL SELECT 'legacy-dim-recent-' || `id`, 'legacy-score-' || `id`, 'legacyRecentSignalScore', `recent_signal_score`, 5, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+SELECT 'legacy-dim-customer-' || `id`, 'legacy-score-' || `id`, 'legacyCustomerTypeScore', `customer_type_score`, 20, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-product-' || `id`, 'legacy-score-' || `id`, 'legacyProductFitScore', `product_fit_score`, 20, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-market-' || `id`, 'legacy-score-' || `id`, 'legacyMarketPriorityScore', `market_priority_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-buying-' || `id`, 'legacy-score-' || `id`, 'legacyBuyingSignalScore', `buying_signal_score`, 15, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-wholesale-' || `id`, 'legacy-score-' || `id`, 'legacyWholesaleOemScore', `wholesale_oem_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-contact-' || `id`, 'legacy-score-' || `id`, 'legacyContactQualityScore', `contact_quality_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-evidence-' || `id`, 'legacy-score-' || `id`, 'legacyEvidenceQualityScore', `evidence_quality_score`, 10, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
+INSERT OR IGNORE INTO `lead_score_dimensions` (`id`, `score_run_id`, `dimension`, `score`, `max_score`, `positive_reason`, `negative_reason`, `evidence_ids_json`)
+SELECT 'legacy-dim-recent-' || `id`, 'legacy-score-' || `id`, 'legacyRecentSignalScore', `recent_signal_score`, 5, NULL, 'Legacy score requires v1.1 re-evaluation', '[]' FROM `candidate_companies`;--> statement-breakpoint
 INSERT OR IGNORE INTO `lead_review_decisions` (`id`, `lead_id`, `decision`, `notes`, `decided_by`, `created_at`)
 SELECT 'legacy-review-' || r.`id`, l.`id`,
 	CASE WHEN r.`decision` = 'rejected' THEN 'rejected' ELSE 'needs_review' END,
