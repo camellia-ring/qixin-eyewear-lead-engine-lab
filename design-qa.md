@@ -40,6 +40,8 @@
 - CRM export remains disabled with zero approved leads.
 - Desktop, tablet, and mobile checks reported no viewport-level horizontal overflow.
 - Browser console errors: 0. Failed resources: 0.
-- `npm run check`: passed (typecheck, lint, production build, 5/5 tests).
+- Company names resolve to 21 safe `http/https` official-site links, open in a new tab with `noopener noreferrer`, and leave evidence review as a separate action.
+- Browser interaction check: the first official-site URL resolved to `https://specsaddict.co.uk/`; selecting the second row's evidence action switched the drawer to Continental Eyewear.
+- `npm run check`: passed (typecheck, lint, production build, 6/6 tests).
 
 final result: passed

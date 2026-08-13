@@ -98,3 +98,12 @@ test("covers the complete QIXIN product catalog in campaign research and CRM han
   assert.match(leadEngine, /oprawki okularowe/);
   assert.match(leadEngine, /إطارات نظارات طبية/);
 });
+
+test("opens verified company websites safely without replacing evidence review", async () => {
+  const ui = await readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8");
+  assert.match(ui, /function companyWebsiteUrl/);
+  assert.match(ui, /url\.protocol === "http:" \|\| url\.protocol === "https:"/);
+  assert.match(ui, /target="_blank"/);
+  assert.match(ui, /rel="noopener noreferrer"/);
+  assert.match(ui, /查看证据与审核/);
+});

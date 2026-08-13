@@ -206,6 +206,17 @@ function localizedCompanyType(value?: string) {
   return value;
 }
 
+function companyWebsiteUrl(company?: Company) {
+  const rawValue = company?.website?.trim() || company?.primaryDomain?.trim();
+  if (!rawValue) return null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
 function companySignal(company?: Company) {
   if (!company) return "公开信号待补充";
   const signals: string[] = [];
@@ -518,15 +529,28 @@ export default function LeadEngineApp() {
                 <tbody>
                   {filteredLeads.map((lead) => {
                     const company = companyById.get(lead.companyId);
+                    const websiteUrl = companyWebsiteUrl(company);
                     const isSelected = selectedLead?.id === lead.id && drawerOpen;
                     const riskLevel = lead.hardGateStatus === "fail" ? "高" : "中等";
                     return (
                       <tr key={lead.id} className={isSelected ? styles.rowSelected : ""} aria-selected={isSelected}>
                         <td>
-                          <button type="button" className={styles.companyButton} onClick={() => { setSelectedLeadId(lead.id); setDrawerOpen(true); }}>
-                            <strong>{company?.companyName || "公司资料缺失"}</strong>
-                            <small>{company?.primaryDomain || company?.website || "域名待核验"}</small>
-                          </button>
+                          <div className={styles.companyCell}>
+                            {websiteUrl ? (
+                              <a className={styles.companyWebsite} href={websiteUrl} target="_blank" rel="noopener noreferrer" title={`打开 ${company?.companyName || "公司"} 官网`}>
+                                <strong>{company?.companyName || "公司资料缺失"}<IconExternalLink size={14} aria-hidden="true" /></strong>
+                                <small>{company?.primaryDomain || company?.website}</small>
+                              </a>
+                            ) : (
+                              <span className={styles.companyUnavailable}>
+                                <strong>{company?.companyName || "公司资料缺失"}</strong>
+                                <small>官网待核验</small>
+                              </span>
+                            )}
+                            <button type="button" className={styles.evidenceButton} onClick={() => { setSelectedLeadId(lead.id); setDrawerOpen(true); }}>
+                              查看证据与审核
+                            </button>
+                          </div>
                         </td>
                         <td>{localizedCompanyType(company?.companyType)}</td>
                         <td>{localizedCountry(company?.country)}</td>

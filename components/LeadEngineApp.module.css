@@ -240,9 +240,16 @@
 .leadTable th:nth-child(7) { width: 9%; }
 .leadTable th:nth-child(8) { width: 12%; }
 
-.companyButton { width: 100%; padding: 0; display: grid; gap: 5px; border: 0; background: transparent; color: inherit; cursor: pointer; text-align: left; }
-.companyButton strong { color: #172231; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
-.companyButton small { overflow: hidden; color: #87919e; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.companyCell { min-width: 0; display: grid; gap: 4px; }
+.companyWebsite, .companyUnavailable { min-width: 0; display: grid; gap: 3px; color: inherit; text-decoration: none; }
+.companyWebsite strong, .companyUnavailable strong { min-width: 0; display: flex; align-items: center; gap: 5px; color: #172231; font-size: 15.5px; font-weight: 700; overflow-wrap: anywhere; }
+.companyWebsite strong svg { flex: 0 0 auto; color: #7b8795; transition: color .15s ease, transform .15s ease; }
+.companyWebsite small, .companyUnavailable small { overflow: hidden; color: #87919e; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.companyWebsite:hover strong, .companyWebsite:focus-visible strong { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
+.companyWebsite:hover strong svg, .companyWebsite:focus-visible strong svg { color: var(--blue); transform: translate(1px, -1px); }
+.companyWebsite:focus-visible, .evidenceButton:focus-visible { border-radius: 3px; outline: 2px solid #8eb6eb; outline-offset: 2px; }
+.evidenceButton { width: max-content; padding: 0; border: 0; background: transparent; color: #647386; cursor: pointer; font-size: 11.5px; text-align: left; }
+.evidenceButton:hover { color: var(--blue); text-decoration: underline; text-underline-offset: 2px; }
 .scoreValue, .coverageValue { color: var(--blue); font-size: 17px; }
 .signalText { display: -webkit-box; overflow: hidden; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .riskMedium, .riskHigh, .statusBadge { min-height: 31px; padding: 5px 10px; display: inline-grid; place-items: center; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
