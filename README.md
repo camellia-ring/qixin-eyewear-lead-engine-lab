@@ -70,4 +70,4 @@ The project intentionally has no `wrangler.jsonc`; Sites injects the independent
 
 ## Reviewed-upload pilot pack
 
-`pilot/uk-optical-frames-pilot-25.review.json` contains a 25-company, company-level public-source pilot prepared on 2026-08-13. It is deliberately marked `candidate_pack_not_user_approved`: 21 records stay behind the human-review gate and 4 direct-manufacturing/captive-supply conflicts are pre-rejected. It contains no personal contacts, paid enrichment, messages, or production CRM writes. The owner must review the evidence and deliberately upload the JSON in the private lab before any lead can be approved.
+`pilot/uk-optical-frames-pilot-25.review.json` contains a 25-company, company-level public-source pilot prepared and owner-approved for isolated upload on 2026-08-13. The verified private run keeps 21 records behind the human-review gate and records 4 direct-manufacturing/captive-supply conflicts as rejected; 0 leads are approved or exported. It contains no personal contacts, paid enrichment, messages, or production CRM writes.

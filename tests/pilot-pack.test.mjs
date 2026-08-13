@@ -5,7 +5,8 @@ import test from "node:test";
 test("keeps the 25-company public pilot evidence-first and behind human review", async () => {
   const pack = JSON.parse(await readFile(new URL("../pilot/uk-optical-frames-pilot-25.review.json", import.meta.url), "utf8"));
   assert.equal(pack.metadata.recordCount, 25);
-  assert.equal(pack.metadata.reviewStatus, "candidate_pack_not_user_approved");
+  assert.equal(pack.metadata.reviewStatus, "owner_approved_uploaded");
+  assert.equal(pack.metadata.uploadedAt, "2026-08-13T02:00:01.391Z");
   assert.equal(pack.records.length, 25);
   assert.equal(new Set(pack.records.map((record) => record.companyName)).size, 25);
   assert.equal(pack.records.filter((record) => record.hardGateStatus === "needs_review").length, 21);

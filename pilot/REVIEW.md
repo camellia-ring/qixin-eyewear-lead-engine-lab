@@ -2,11 +2,11 @@
 
 > Prepared 2026-08-13 from public company-level sources. No personal contacts, paid intelligence credits, enrichment, or outreach were used.
 
-## Decision requested
+## Decision recorded
 
-- [ ] Approve uploading this 25-company candidate pack to the owner-only Lead Engine.
-- [ ] Keep all 21 viable candidates in `needs_review`; do not approve or export any lead automatically.
-- [ ] Keep the 4 direct-manufacturing/captive-supply conflicts rejected.
+- [x] Owner approved uploading this 25-company candidate pack to the owner-only Lead Engine.
+- [x] All 21 viable candidates remain in `needs_review`; no lead was approved or exported automatically.
+- [x] The 4 direct-manufacturing/captive-supply conflicts remain rejected with audited review decisions.
 
 | # | Company | Total | Grade | Gate | Primary evidence | Main risk |
 | ---: | --- | ---: | --- | --- | --- | --- |
@@ -38,4 +38,4 @@
 
 ## What approval does and does not mean
 
-Approval here authorizes only a deliberate upload into the independent private Lead Engine D1. It does not approve any company as a sales lead, does not export to the production CRM, and does not authorize search-credit use, personal-contact access, enrichment, email generation, or outreach.
+The recorded approval authorized only a deliberate upload into the independent private Lead Engine D1. It did not approve any company as a sales lead, did not export to the production CRM, and did not authorize search-credit use, personal-contact access, enrichment, email generation, or outreach.
