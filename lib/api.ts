@@ -39,7 +39,7 @@ export function apiFailure(error: unknown) {
     return Response.json({ error: error.code, message: error.message }, { status: error.status });
   }
   const message = error instanceof Error ? error.message : "Unexpected error";
-  const schemaUnavailable = /no such table|prospect_companies|campaign_leads|lead_sources|campaigns/i.test(message);
+  const schemaUnavailable = /no such table|prospect_companies|campaign_leads|lead_sources|discovery_sources|discovery_runs|campaigns/i.test(message);
   return Response.json({
     error: schemaUnavailable ? "database_not_ready" : "internal_error",
     message: schemaUnavailable ? "独立数据库尚未应用迁移。" : "请求未完成。",

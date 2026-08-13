@@ -6,6 +6,9 @@ import {
   companyDomainLinks,
   companyDomains,
   crmExportRuns,
+  discoveryRunItems,
+  discoveryRuns,
+  discoverySources,
   evidenceClaims,
   leadImportRuns,
   leadReviewDecisions,
@@ -35,6 +38,9 @@ export async function GET() {
       reviewRows,
       importRows,
       exportRows,
+      discoverySourceRows,
+      discoveryRunRows,
+      discoveryItemRows,
     ] = await Promise.all([
       db.select().from(campaigns).orderBy(desc(campaigns.updatedAt)),
       db.select().from(campaignLeads).orderBy(desc(campaignLeads.currentScore), desc(campaignLeads.updatedAt)).limit(500),
@@ -49,6 +55,9 @@ export async function GET() {
       db.select().from(leadReviewDecisions).orderBy(desc(leadReviewDecisions.createdAt)).limit(1500),
       db.select().from(leadImportRuns).orderBy(desc(leadImportRuns.createdAt)).limit(500),
       db.select().from(crmExportRuns).orderBy(desc(crmExportRuns.createdAt)).limit(500),
+      db.select().from(discoverySources).orderBy(desc(discoverySources.updatedAt)).limit(500),
+      db.select().from(discoveryRuns).orderBy(desc(discoveryRuns.createdAt)).limit(500),
+      db.select().from(discoveryRunItems).orderBy(desc(discoveryRunItems.createdAt)).limit(2000),
     ]);
     return Response.json({
       campaigns: campaignRows.map((campaign) => ({
@@ -68,6 +77,9 @@ export async function GET() {
       reviews: reviewRows,
       imports: importRows,
       exports: exportRows,
+      discoverySources: discoverySourceRows,
+      discoveryRuns: discoveryRunRows,
+      discoveryItems: discoveryItemRows,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiFailure(error);

@@ -84,6 +84,73 @@ export const prospectCompanies = sqliteTable("prospect_companies", {
   check("prospect_confidence_check", sql`${table.analysisConfidence} IN ('low','medium','high')`),
 ]);
 
+export const discoverySources = sqliteTable("discovery_sources", {
+  id: text("id").primaryKey(),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  normalizedDomain: text("normalized_domain").notNull(),
+  status: text("status").notNull().default("active"),
+  cadence: text("cadence").notNull().default("manual"),
+  maxCandidates: integer("max_candidates").notNull().default(10),
+  lastRunAt: text("last_run_at"),
+  nextRunAt: text("next_run_at"),
+  createdBy: text("created_by").notNull().default("private_owner"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("uq_discovery_source_campaign_url").on(table.campaignId, table.sourceUrl),
+  index("idx_discovery_source_due").on(table.status, table.nextRunAt),
+  index("idx_discovery_source_campaign").on(table.campaignId, table.updatedAt),
+  check("discovery_source_status_check", sql`${table.status} IN ('active','paused')`),
+  check("discovery_source_cadence_check", sql`${table.cadence} IN ('manual','daily','weekly')`),
+  check("discovery_source_max_check", sql`${table.maxCandidates} BETWEEN 1 AND 20`),
+]);
+
+export const discoveryRuns = sqliteTable("discovery_runs", {
+  id: text("id").primaryKey(),
+  sourceId: text("source_id").notNull().references(() => discoverySources.id, { onDelete: "cascade" }),
+  campaignId: text("campaign_id").notNull().references(() => campaigns.id, { onDelete: "cascade" }),
+  trigger: text("trigger").notNull().default("manual"),
+  status: text("status").notNull().default("running"),
+  discoveredCount: integer("discovered_count").notNull().default(0),
+  importedCount: integer("imported_count").notNull().default(0),
+  duplicateCount: integer("duplicate_count").notNull().default(0),
+  excludedCount: integer("excluded_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  pagesFetched: integer("pages_fetched").notNull().default(0),
+  errorSummary: text("error_summary"),
+  startedAt: text("started_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  completedAt: text("completed_at"),
+  createdBy: text("created_by").notNull().default("private_owner"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("idx_discovery_run_source_created").on(table.sourceId, table.createdAt),
+  index("idx_discovery_run_campaign_created").on(table.campaignId, table.createdAt),
+  check("discovery_run_trigger_check", sql`${table.trigger} IN ('manual','scheduled')`),
+  check("discovery_run_status_check", sql`${table.status} IN ('running','completed','partial','failed')`),
+  check("discovery_run_counts_check", sql`${table.discoveredCount} >= 0 AND ${table.importedCount} >= 0 AND ${table.duplicateCount} >= 0 AND ${table.excludedCount} >= 0 AND ${table.failedCount} >= 0 AND ${table.pagesFetched} >= 0`),
+]);
+
+export const discoveryRunItems = sqliteTable("discovery_run_items", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull().references(() => discoveryRuns.id, { onDelete: "cascade" }),
+  companyId: text("company_id").references(() => prospectCompanies.id, { onDelete: "set null" }),
+  websiteUrl: text("website_url").notNull(),
+  normalizedDomain: text("normalized_domain").notNull(),
+  companyName: text("company_name"),
+  outcome: text("outcome").notNull(),
+  reason: text("reason"),
+  evidenceCount: integer("evidence_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("uq_discovery_item_run_domain").on(table.runId, table.normalizedDomain),
+  index("idx_discovery_item_run_outcome").on(table.runId, table.outcome),
+  index("idx_discovery_item_company").on(table.companyId),
+  check("discovery_item_outcome_check", sql`${table.outcome} IN ('imported','duplicate','excluded','failed')`),
+  check("discovery_item_evidence_count_check", sql`${table.evidenceCount} >= 0`),
+]);
+
 export const companyDomains = sqliteTable("company_domains", {
   id: text("id").primaryKey(),
   normalizedDomain: text("normalized_domain").notNull(),

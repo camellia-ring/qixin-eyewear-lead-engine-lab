@@ -12,6 +12,9 @@ import {
   IconFileExport,
   IconLetterQ,
   IconPlus,
+  IconPlayerPause,
+  IconPlayerPlay,
+  IconRadar,
   IconSearch,
   IconSettings,
   IconShieldLock,
@@ -51,13 +54,27 @@ type ScoreDimension = { id: string; scoreRunId: string; dimension: string; score
 type Review = { id: string; leadId: string; decision: string; notes?: string; decidedBy: string; createdAt: string };
 type ImportRun = { id: string; campaignId: string; originalFilename?: string; rowCount: number; importedCount: number; skippedCount: number; status: string; createdAt: string };
 type ExportRun = { id: string; campaignId: string; rowCount: number; createdAt: string };
+type DiscoverySource = {
+  id: string; campaignId: string; name: string; sourceUrl: string; normalizedDomain: string; status: string;
+  cadence: string; maxCandidates: number; lastRunAt?: string; nextRunAt?: string; createdAt: string; updatedAt: string;
+};
+type DiscoveryRun = {
+  id: string; sourceId: string; campaignId: string; trigger: string; status: string; discoveredCount: number;
+  importedCount: number; duplicateCount: number; excludedCount: number; failedCount: number; pagesFetched: number;
+  errorSummary?: string; startedAt: string; completedAt?: string; createdAt: string;
+};
+type DiscoveryItem = {
+  id: string; runId: string; companyId?: string; websiteUrl: string; normalizedDomain: string; companyName?: string;
+  outcome: string; reason?: string; evidenceCount: number; createdAt: string;
+};
 type Workspace = {
   campaigns: Campaign[]; leads: Lead[]; companies: Company[]; contacts: Contact[]; sources: Source[]; claims: Claim[];
   scoreRuns: ScoreRun[]; scoreDimensions: ScoreDimension[]; reviews: Review[]; imports: ImportRun[]; exports: ExportRun[];
   domains: Array<{ id: string; normalizedDomain: string }>; domainLinks: Array<{ id: string; companyId: string; domainId: string; relationshipType: string }>;
+  discoverySources: DiscoverySource[]; discoveryRuns: DiscoveryRun[]; discoveryItems: DiscoveryItem[];
 };
 
-const EMPTY_WORKSPACE: Workspace = { campaigns: [], leads: [], companies: [], contacts: [], sources: [], claims: [], scoreRuns: [], scoreDimensions: [], reviews: [], imports: [], exports: [], domains: [], domainLinks: [] };
+const EMPTY_WORKSPACE: Workspace = { campaigns: [], leads: [], companies: [], contacts: [], sources: [], claims: [], scoreRuns: [], scoreDimensions: [], reviews: [], imports: [], exports: [], domains: [], domainLinks: [], discoverySources: [], discoveryRuns: [], discoveryItems: [] };
 const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 const SCORE_LABELS: Record<string, string> = {
   productMatchScore: "产品匹配",
@@ -90,6 +107,7 @@ const COUNTRY_LABELS: Record<string, string> = {
 const VIEW_LABELS = {
   review: "客户审核",
   campaign: "Campaign",
+  discovery: "自动发现",
   research: "调研任务",
   import: "数据导入",
   export: "CRM 导出",
@@ -291,6 +309,10 @@ export default function LeadEngineApp() {
   const gradeCounts = Object.fromEntries(["S", "A", "B", "C", "Reject"].map((grade) => [grade, campaignLeads.filter((lead) => lead.grade === grade).length]));
   const approvedCount = Number(counts.approved || 0);
   const rejectedCount = Number(counts.rejected || 0);
+  const campaignDiscoverySources = workspace.discoverySources.filter((source) => source.campaignId === activeCampaignId);
+  const campaignDiscoveryRuns = workspace.discoveryRuns.filter((run) => run.campaignId === activeCampaignId);
+  const discoverySourceById = new Map(workspace.discoverySources.map((source) => [source.id, source]));
+  const dueSourceCount = campaignDiscoverySources.filter((source) => source.status === "active" && source.cadence !== "manual" && source.nextRunAt && new Date(source.nextRunAt) <= new Date()).length;
   const campaignMarket = activeCampaign?.targetMarkets || jsonList(activeCampaign?.targetCountriesJson)[0] || "";
   const campaignLabel = activeCampaign
     ? `${localizedCountry(campaignMarket)}${PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeads.length} 家`
@@ -407,6 +429,55 @@ export default function LeadEngineApp() {
     finally { setPending(false); }
   }
 
+  async function addDiscoverySource(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeCampaignId) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setPending(true); setError(""); setNotice("");
+    try {
+      await api("/api/discovery/sources", { method: "POST", body: JSON.stringify({
+        campaignId: activeCampaignId,
+        name: data.get("name"),
+        sourceUrl: data.get("sourceUrl"),
+        cadence: data.get("cadence"),
+        maxCandidates: Number(data.get("maxCandidates") || 10),
+      }) });
+      form.reset(); await load();
+      setNotice("已保存你批准的公开来源。系统只会读取该来源及其中链接出的公开官网，不会扩展为全网搜索。");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "来源添加失败"); }
+    finally { setPending(false); }
+  }
+
+  async function toggleDiscoverySource(source: DiscoverySource) {
+    setPending(true); setError(""); setNotice("");
+    try {
+      await api("/api/discovery/sources", { method: "PATCH", body: JSON.stringify({ id: source.id, status: source.status === "active" ? "paused" : "active" }) });
+      await load(); setNotice(source.status === "active" ? "来源已暂停。" : "来源已恢复；下次到期后可由定时任务运行。");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "来源状态更新失败"); }
+    finally { setPending(false); }
+  }
+
+  async function runDiscovery(sourceId: string) {
+    setPending(true); setError(""); setNotice("");
+    try {
+      const result = await api<{ imported: number; duplicate: number; excluded: number; failed: number }>("/api/discovery/run", { method: "POST", body: JSON.stringify({ sourceId }) });
+      await load(); setNotice(`采集完成：新增待审核 ${result.imported} 家，重复 ${result.duplicate} 家，排除 ${result.excluded} 家，失败 ${result.failed} 家。没有自动批准或联系。`);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "采集运行失败"); }
+    finally { setPending(false); }
+  }
+
+  async function runDueDiscovery() {
+    setPending(true); setError(""); setNotice("");
+    try {
+      const result = await api<{ dueCount: number; results: Array<{ imported: number }> }>("/api/discovery/run-due", { method: "POST", body: JSON.stringify({ limit: 3 }) });
+      await load();
+      const imported = result.results.reduce((sum, run) => sum + Number(run.imported || 0), 0);
+      setNotice(result.dueCount ? `已运行 ${result.dueCount} 个到期来源，新增 ${imported} 家待审核客户。` : "当前没有到期来源，未执行任何采集。 ");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "到期来源运行失败"); }
+    finally { setPending(false); }
+  }
+
   return (
     <main className={styles.shell}>
       <p className={styles.srOnly}>
@@ -424,6 +495,9 @@ export default function LeadEngineApp() {
           </button>
           <button type="button" className={activeView === "campaign" ? styles.navActive : ""} onClick={() => setActiveView("campaign")}>
             <IconTargetArrow size={21} stroke={1.8} /><span>Campaign</span>
+          </button>
+          <button type="button" className={activeView === "discovery" ? styles.navActive : ""} onClick={() => setActiveView("discovery")}>
+            <IconRadar size={21} stroke={1.8} /><span>自动发现</span>
           </button>
           <button type="button" className={activeView === "research" ? styles.navActive : ""} onClick={() => setActiveView("research")}>
             <IconClipboard size={21} stroke={1.8} /><span>调研任务</span>
@@ -631,6 +705,92 @@ export default function LeadEngineApp() {
               </form>
             </section>
           </div>
+        </section>
+      ) : null}
+
+      {activeView === "discovery" ? (
+        <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.discovery}>
+          <div className={styles.toolHeader}>
+            <div>
+              <span className={styles.sectionKicker}>BOUNDED PUBLIC EVIDENCE</span>
+              <h1>自动发现与官网证据</h1>
+              <p>定时任务只唤醒确定性代码：读取你批准的公开目录，限量访问候选公司的官网页面，去重后放入待审核。首次联系始终由你批准。</p>
+            </div>
+            <IconRadar size={34} />
+          </div>
+
+          <div className={styles.discoveryPrinciples}>
+            <article><b>不使用 GPT / API Key</b><span>关键词与评分规则固定、可见、可审计</span></article>
+            <article><b>最多 20 家 / 批</b><span>仅首页及最多 3 个产品、关于或联系页面</span></article>
+            <article><b>人工批准首次联系</b><span>新客户一律进入 needs_review，不自动导出</span></article>
+          </div>
+
+          <div className={styles.toolGrid}>
+            <section className={styles.toolSection}>
+              <h2><IconPlus size={20} /> 添加已批准来源</h2>
+              <p className={styles.muted}>来源应是你允许使用的公开展商名录、协会会员列表或行业目录页面。系统不会自行寻找新目录。</p>
+              <form className={styles.formGrid} onSubmit={addDiscoverySource}>
+                <label className={styles.field}>来源名称<input name="name" required maxLength={160} placeholder="例如：某眼镜展公开展商名录" /></label>
+                <label className={styles.field}>运行频率<select name="cadence" defaultValue="daily"><option value="manual">仅手动</option><option value="daily">每天</option><option value="weekly">每周</option></select></label>
+                <label className={[styles.field, styles.fieldWide].join(" ")}>公开目录网址<input name="sourceUrl" type="url" required maxLength={2048} placeholder="https://…" /></label>
+                <label className={styles.field}>每批最多候选<input name="maxCandidates" type="number" min="1" max="20" defaultValue="10" /></label>
+                <button className={styles.primaryButton} type="submit" disabled={!activeCampaignId || activeCampaign?.status !== "active" || pending}>{activeCampaign?.status !== "active" ? "先启用 Campaign" : "保存来源"}</button>
+              </form>
+              <div className={styles.discoveryBoundary}>
+                <b><IconShieldLock size={18} /> 采集边界</b>
+                <span>不采集个人姓名、个人邮箱或手机号</span><span>不猜邮箱，不生成开发信，不发送消息</span><span>不自动批准，不写入生产 CRM</span>
+              </div>
+            </section>
+
+            <section className={styles.toolSection}>
+              <div className={styles.sectionTitleRow}>
+                <h2>来源控制</h2>
+                <button className={styles.secondaryButton} type="button" disabled={pending || !dueSourceCount} onClick={() => void runDueDiscovery()}><IconPlayerPlay size={18} />运行到期来源 {dueSourceCount ? `(${dueSourceCount})` : ""}</button>
+              </div>
+              <div className={styles.discoverySourceList}>
+                {campaignDiscoverySources.map((source) => (
+                  <article key={source.id}>
+                    <div className={styles.discoverySourceHead}>
+                      <div><b>{source.name}</b><a href={source.sourceUrl} target="_blank" rel="noreferrer">{source.normalizedDomain}<IconExternalLink size={14} /></a></div>
+                      <span className={source.status === "active" ? styles.sourceActive : styles.sourcePaused}>{source.status === "active" ? "运行中" : "已暂停"}</span>
+                    </div>
+                    <dl className={styles.discoveryMeta}>
+                      <div><dt>频率</dt><dd>{source.cadence === "daily" ? "每天" : source.cadence === "weekly" ? "每周" : "仅手动"}</dd></div>
+                      <div><dt>批次上限</dt><dd>{source.maxCandidates} 家</dd></div>
+                      <div><dt>上次运行</dt><dd>{formatDate(source.lastRunAt)}</dd></div>
+                      <div><dt>下次到期</dt><dd>{source.status === "paused" ? "已暂停" : source.cadence === "manual" ? "仅手动" : formatDate(source.nextRunAt)}</dd></div>
+                    </dl>
+                    <div className={styles.discoveryActions}>
+                      <button className={styles.primaryButton} type="button" disabled={pending || source.status !== "active" || activeCampaign?.status !== "active"} onClick={() => void runDiscovery(source.id)}><IconPlayerPlay size={17} />立即采集</button>
+                      <button className={styles.secondaryButton} type="button" disabled={pending} onClick={() => void toggleDiscoverySource(source)}>{source.status === "active" ? <IconPlayerPause size={17} /> : <IconPlayerPlay size={17} />}{source.status === "active" ? "暂停" : "恢复"}</button>
+                    </div>
+                  </article>
+                ))}
+                {!campaignDiscoverySources.length ? <div className={styles.emptyCompact}><IconRadar size={28} /><b>尚未添加来源</b><span>添加第一个你批准的公开行业目录后，才会开始发现。</span></div> : null}
+              </div>
+            </section>
+          </div>
+
+          <section className={[styles.toolSection, styles.discoveryHistory].join(" ")}>
+            <div className={styles.sectionTitleRow}><h2>采集批次日志</h2><span className={styles.muted}>每一次访问、去重、排除和失败都会保留</span></div>
+            <div className={styles.runList}>
+              {campaignDiscoveryRuns.map((run) => {
+                const runItems = workspace.discoveryItems.filter((item) => item.runId === run.id);
+                return (
+                  <article key={run.id}>
+                    <div className={styles.runSummary}>
+                      <div><b>{discoverySourceById.get(run.sourceId)?.name || "已删除来源"}</b><span>{formatDate(run.startedAt)} · {run.trigger === "scheduled" ? "定时" : "手动"}</span></div>
+                      <strong data-status={run.status}>{run.status === "completed" ? "完成" : run.status === "partial" ? "部分完成" : run.status === "failed" ? "失败" : "运行中"}</strong>
+                    </div>
+                    <div className={styles.runMetrics}><span>发现 <b>{run.discoveredCount}</b></span><span>新增待审核 <b>{run.importedCount}</b></span><span>重复 <b>{run.duplicateCount}</b></span><span>排除 <b>{run.excludedCount}</b></span><span>失败 <b>{run.failedCount}</b></span><span>页面 <b>{run.pagesFetched}</b></span></div>
+                    {run.errorSummary ? <pre className={styles.runError}>{run.errorSummary}</pre> : null}
+                    {runItems.length ? <details className={styles.runDetails}><summary>查看本批明细（{runItems.length}）</summary><div>{runItems.slice(0, 20).map((item) => <a key={item.id} href={item.websiteUrl} target="_blank" rel="noreferrer"><span>{item.outcome === "imported" ? "新增" : item.outcome === "duplicate" ? "重复" : item.outcome === "excluded" ? "排除" : "失败"}</span><b>{item.companyName || item.normalizedDomain}</b><small>{item.reason}</small></a>)}</div></details> : null}
+                  </article>
+                );
+              })}
+              {!campaignDiscoveryRuns.length ? <p className={styles.muted}>尚无采集批次。添加来源后点击“立即采集”，或等待来源到期。</p> : null}
+            </div>
+          </section>
         </section>
       ) : null}
 
