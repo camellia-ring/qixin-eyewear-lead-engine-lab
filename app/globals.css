@@ -1,27 +1,17 @@
-@import "tailwindcss";
-
 :root {
-  --ink: #18221e;
-  --muted: #69766f;
-  --forest: #1d3029;
-  --forest-2: #314b40;
-  --sage: #dce6dd;
-  --sage-deep: #789184;
-  --paper: #f3f0e8;
-  --card: #fbfaf6;
-  --line: #d6d4ca;
-  --amber: #c98736;
-  --red: #a54f42;
-  --shadow: 0 22px 60px rgba(30, 45, 38, .08);
-  --font-sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
-  --font-display: "Segoe UI", "Microsoft YaHei UI", system-ui, sans-serif;
+  color-scheme: light;
+  --font-sans: "Microsoft YaHei UI", "PingFang SC", "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
 }
 
 * { box-sizing: border-box; }
-html { background: var(--paper); scroll-behavior: smooth; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--font-sans); }
+html { min-width: 320px; background: #f7f8fa; }
+body { min-width: 320px; min-height: 100vh; margin: 0; background: #f7f8fa; color: #1e2836; font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
-a { color: inherit; text-decoration: none; }
-button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(65, 104, 87, .25); outline-offset: 2px; }
-
+a { color: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible {
+  outline: 3px solid rgba(23, 103, 217, .24);
+  outline-offset: 2px;
+}
+::selection { background: #dbeaff; color: #153d78; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
