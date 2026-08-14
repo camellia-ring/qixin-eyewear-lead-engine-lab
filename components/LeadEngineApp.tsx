@@ -37,14 +37,15 @@ type Lead = {
   id: string; campaignId: string; companyId: string; qualificationResult: string; workflowStatus: string;
   productTrack: string; recommendedProductsJson: string; riskSummary?: string; hardGateStatus: string;
   hardGateReason?: string; currentScore: number; grade: string; evidenceCoverage: number; scoreConfidence: string;
-  reviewedAt?: string; exportedAt?: string; createdAt: string;
+  reviewedAt?: string; autoQualifiedAt?: string; lastVerifiedAt?: string; exportedAt?: string; createdAt: string;
 };
 type Company = {
-  id: string; companyName: string; country?: string; city?: string; companyType?: string; businessModel?: string;
+  id: string; companyName: string; country?: string; region?: string; city?: string; companyType?: string; customerType?: string; companyRole?: string; businessModel?: string;
   website?: string; primaryDomain?: string; productsJson: string; brandsJson: string; wholesaleSignal?: string;
   privateLabelSignal?: string; oemSignal?: string; pricePosition?: string; companySize?: string;
-  analysisSummary?: string; analysisConfidence: string; businessEmail?: string; contactChannel?: string;
-  estimatedPurchaseVolume?: string; doNotContact: boolean; lastAnalyzedAt?: string;
+  productDirectionsJson?: string; analysisSummary?: string; analysisConfidence: string; businessEmail?: string; contactChannel?: string;
+  contactStatus?: string; sourceType?: string; sourceName?: string; isDuplicate?: boolean; duplicateOfCompanyId?: string;
+  estimatedPurchaseVolume?: string; doNotContact: boolean; firstDiscoveredAt?: string; lastVerifiedAt?: string; lastAnalyzedAt?: string;
 };
 type Contact = { id: string; companyId: string; fullName: string; jobTitle?: string; email?: string; whatsapp?: string; verificationStatus: string; sourceUrl?: string; isPrimary: boolean };
 type Source = { id: string; companyId: string; leadId?: string; sourceUrl: string; sourceType: string; pageTitle?: string; retrievedAt: string; evidenceSummary?: string; confidence: string };
@@ -56,25 +57,37 @@ type ImportRun = { id: string; campaignId: string; originalFilename?: string; ro
 type ExportRun = { id: string; campaignId: string; rowCount: number; createdAt: string };
 type DiscoverySource = {
   id: string; campaignId: string; name: string; sourceUrl: string; normalizedDomain: string; status: string;
-  cadence: string; maxCandidates: number; lastRunAt?: string; nextRunAt?: string; createdAt: string; updatedAt: string;
+  sourceType: string; region: string; tier: string; enabled: boolean; parserKey: string; parserVersion: string;
+  cadence: string; maxCandidates: number; priority: number; lastRunAt?: string; lastSuccessAt?: string; nextRunAt?: string;
+  lastDiscoveredCount: number; lastQualifiedCount: number; lastDuplicateCount: number; failureCount: number;
+  robotsStatus: string; accessNotes?: string; requiresLogin: boolean; isPaid: boolean; lastError?: string; createdAt: string; updatedAt: string;
 };
 type DiscoveryRun = {
   id: string; sourceId: string; campaignId: string; trigger: string; status: string; discoveredCount: number;
   importedCount: number; duplicateCount: number; excludedCount: number; failedCount: number; pagesFetched: number;
+  targetDate?: string; rawDiscoveredCount: number; parsedCount: number; websiteVerifiedCount: number;
+  validContactCount: number; mandatoryGateFailedCount: number; qualifiedCount: number;
   errorSummary?: string; startedAt: string; completedAt?: string; createdAt: string;
 };
 type DiscoveryItem = {
   id: string; runId: string; companyId?: string; websiteUrl: string; normalizedDomain: string; companyName?: string;
   outcome: string; reason?: string; evidenceCount: number; createdAt: string;
 };
+type EngineState = { id: string; status: string; timezone: string; dailyTarget: number; activeCampaignId?: string; startedAt?: string; pausedAt?: string; stoppedAt?: string; lastHeartbeatAt?: string; lastRunAt?: string; nextRunAt?: string; lastError?: string };
+type DailyTarget = { id: string; targetDate: string; timezone: string; targetCount: number; rawDiscoveredCount: number; parsedCount: number; websiteVerifiedCount: number; validContactCount: number; duplicateCount: number; mandatoryGateFailedCount: number; qualifiedCount: number; failedCount: number; sourceExhausted: boolean; deficitReason?: string; updatedAt: string };
+type ContactVerification = { id: string; companyId: string; leadId?: string; contactType: string; contactValue?: string; sourceUrl: string; sourceTitle?: string; sameCompanyDomain: boolean; businessUse: boolean; status: string; failureReason?: string; verifiedAt: string };
+type DiscoveryAlert = { id: string; sourceId?: string; runId?: string; targetDate?: string; severity: string; alertType: string; message: string; resolvedAt?: string; createdAt: string };
+type SourceHealth = { id: string; sourceId: string; checkedAt: string; status: string; discoveredCount: number; qualifiedCount: number; duplicateCount: number; failureCount: number; latencyMs?: number; note?: string };
 type Workspace = {
   campaigns: Campaign[]; leads: Lead[]; companies: Company[]; contacts: Contact[]; sources: Source[]; claims: Claim[];
   scoreRuns: ScoreRun[]; scoreDimensions: ScoreDimension[]; reviews: Review[]; imports: ImportRun[]; exports: ExportRun[];
   domains: Array<{ id: string; normalizedDomain: string }>; domainLinks: Array<{ id: string; companyId: string; domainId: string; relationshipType: string }>;
   discoverySources: DiscoverySource[]; discoveryRuns: DiscoveryRun[]; discoveryItems: DiscoveryItem[];
+  engineState: EngineState | null; dailyTargets: DailyTarget[]; contactVerifications: ContactVerification[];
+  discoveryAlerts: DiscoveryAlert[]; sourceHealth: SourceHealth[]; discoveryAttempts: Array<Record<string, unknown>>; parserVersions: Array<Record<string, unknown>>;
 };
 
-const EMPTY_WORKSPACE: Workspace = { campaigns: [], leads: [], companies: [], contacts: [], sources: [], claims: [], scoreRuns: [], scoreDimensions: [], reviews: [], imports: [], exports: [], domains: [], domainLinks: [], discoverySources: [], discoveryRuns: [], discoveryItems: [] };
+const EMPTY_WORKSPACE: Workspace = { campaigns: [], leads: [], companies: [], contacts: [], sources: [], claims: [], scoreRuns: [], scoreDimensions: [], reviews: [], imports: [], exports: [], domains: [], domainLinks: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyTargets: [], contactVerifications: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
 const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 const SCORE_LABELS: Record<string, string> = {
   productMatchScore: "产品匹配",
@@ -100,6 +113,7 @@ const PRODUCT_LABELS: Record<string, string> = {
   safety_lenses: "安全与防护镜片（旧版）",
 };
 const PRODUCT_OPTIONS = Object.entries(PRODUCT_LABELS);
+const PRODUCT_DIRECTIONS = ["普通光学镜片", "非球面镜片", "防蓝光镜片", "变色镜片", "渐进镜片", "PC安全镜片", "老花镜", "其他相关眼镜产品"];
 const CONFIDENCE_LABELS: Record<string, string> = { high: "高", medium: "中等", low: "低" };
 const COUNTRY_LABELS: Record<string, string> = {
   "United Kingdom": "英国", UK: "英国", Germany: "德国", France: "法国", Italy: "意大利", Spain: "西班牙",
@@ -260,13 +274,19 @@ export default function LeadEngineApp() {
   const [gradeFilter, setGradeFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [productFilter, setProductFilter] = useState("all");
+  const [contactFilter, setContactFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [specialFilter, setSpecialFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("score_desc");
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
-  const [activeView, setActiveView] = useState<ViewKey>("review");
+  const [activeView, setActiveView] = useState<ViewKey>("discovery");
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [importReport, setImportReport] = useState<{ imported: number; skipped: number; results?: Array<Record<string, unknown>> } | null>(null);
 
@@ -281,21 +301,41 @@ export default function LeadEngineApp() {
   }, []);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    if (workspace.engineState?.status !== "running") return;
+    const timer = window.setInterval(() => { void load(); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [load, workspace.engineState?.status]);
 
   const companyById = useMemo(() => new Map(workspace.companies.map((company) => [company.id, company])), [workspace.companies]);
   const activeCampaign = workspace.campaigns.find((campaign) => campaign.id === activeCampaignId) || null;
   const campaignLeads = useMemo(() => workspace.leads.filter((lead) => lead.campaignId === activeCampaignId), [workspace.leads, activeCampaignId]);
   const countries = useMemo(() => [...new Set(campaignLeads.map((lead) => companyById.get(lead.companyId)?.country).filter(Boolean) as string[])].sort(), [campaignLeads, companyById]);
-  const companyTypes = useMemo(() => [...new Set(campaignLeads.map((lead) => companyById.get(lead.companyId)?.companyType).filter(Boolean) as string[])].sort(), [campaignLeads, companyById]);
+  const companyTypes = useMemo(() => [...new Set(campaignLeads.map((lead) => companyById.get(lead.companyId)?.customerType || companyById.get(lead.companyId)?.companyType).filter(Boolean) as string[])].sort(), [campaignLeads, companyById]);
+  const sourceTypes = useMemo(() => [...new Set(campaignLeads.map((lead) => companyById.get(lead.companyId)?.sourceType).filter(Boolean) as string[])].sort(), [campaignLeads, companyById]);
   const filteredLeads = useMemo(() => campaignLeads.filter((lead) => {
     const company = companyById.get(lead.companyId);
     const term = search.trim().toLocaleLowerCase();
     return (statusFilter === "all" || lead.workflowStatus === statusFilter)
       && (gradeFilter === "all" || lead.grade === gradeFilter)
       && (countryFilter === "all" || company?.country === countryFilter)
-      && (typeFilter === "all" || company?.companyType === typeFilter)
-      && (!term || [company?.companyName, company?.country, company?.website, company?.companyType].some((value) => String(value || "").toLocaleLowerCase().includes(term)));
-  }), [campaignLeads, companyById, countryFilter, gradeFilter, search, statusFilter, typeFilter]);
+      && (typeFilter === "all" || company?.customerType === typeFilter || company?.companyType === typeFilter)
+      && (productFilter === "all" || jsonList(company?.productDirectionsJson).includes(productFilter))
+      && (contactFilter === "all" || company?.contactStatus === contactFilter)
+      && (sourceFilter === "all" || company?.sourceType === sourceFilter)
+      && (specialFilter !== "duplicate" || company?.isDuplicate)
+      && (specialFilter !== "dnc" || company?.doNotContact)
+      && (!term || [company?.companyName, company?.country, company?.website, company?.companyType, company?.customerType, company?.companyRole, company?.sourceName].some((value) => String(value || "").toLocaleLowerCase().includes(term)));
+  }).sort((left, right) => {
+    const leftCompany = companyById.get(left.companyId);
+    const rightCompany = companyById.get(right.companyId);
+    if (sortBy === "score_asc") return left.currentScore - right.currentScore;
+    if (sortBy === "company_asc") return String(leftCompany?.companyName || "").localeCompare(String(rightCompany?.companyName || ""));
+    if (sortBy === "newest") return String(rightCompany?.firstDiscoveredAt || right.createdAt).localeCompare(String(leftCompany?.firstDiscoveredAt || left.createdAt));
+    return right.currentScore - left.currentScore;
+  }), [campaignLeads, companyById, contactFilter, countryFilter, gradeFilter, productFilter, search, sortBy, sourceFilter, specialFilter, statusFilter, typeFilter]);
+  const pageCount = Math.max(1, Math.ceil(filteredLeads.length / 25));
+  const visibleLeads = filteredLeads.slice((Math.min(page, pageCount) - 1) * 25, Math.min(page, pageCount) * 25);
   const selectedLead = filteredLeads.find((lead) => lead.id === selectedLeadId) || filteredLeads[0] || null;
   const selectedCompany = selectedLead ? companyById.get(selectedLead.companyId) || null : null;
   const selectedContacts = selectedCompany ? workspace.contacts.filter((contact) => contact.companyId === selectedCompany.id) : [];
@@ -304,6 +344,7 @@ export default function LeadEngineApp() {
   const selectedScoreRun = selectedLead ? workspace.scoreRuns.find((run) => run.leadId === selectedLead.id) || null : null;
   const selectedDimensions = selectedScoreRun ? workspace.scoreDimensions.filter((item) => item.scoreRunId === selectedScoreRun.id) : [];
   const selectedReviews = selectedLead ? workspace.reviews.filter((review) => review.leadId === selectedLead.id) : [];
+  const selectedContactVerifications = selectedLead ? workspace.contactVerifications.filter((contact) => contact.leadId === selectedLead.id) : [];
   const selectedDomains = selectedCompany ? workspace.domainLinks.filter((link) => link.companyId === selectedCompany.id).map((link) => workspace.domains.find((domain) => domain.id === link.domainId)?.normalizedDomain).filter(Boolean) : [];
   const counts = Object.fromEntries(STATUS_FILTERS.map((status) => [status, status === "all" ? campaignLeads.length : campaignLeads.filter((lead) => lead.workflowStatus === status).length]));
   const gradeCounts = Object.fromEntries(["S", "A", "B", "C", "Reject"].map((grade) => [grade, campaignLeads.filter((lead) => lead.grade === grade).length]));
@@ -313,6 +354,11 @@ export default function LeadEngineApp() {
   const campaignDiscoveryRuns = workspace.discoveryRuns.filter((run) => run.campaignId === activeCampaignId);
   const discoverySourceById = new Map(workspace.discoverySources.map((source) => [source.id, source]));
   const dueSourceCount = campaignDiscoverySources.filter((source) => source.status === "active" && source.cadence !== "manual" && source.nextRunAt && new Date(source.nextRunAt) <= new Date()).length;
+  const engine = workspace.engineState;
+  const todayTarget = workspace.dailyTargets[0] || null;
+  const todayRemaining = Math.max(0, (todayTarget?.targetCount || engine?.dailyTarget || 20) - (todayTarget?.qualifiedCount || 0));
+  const openAlerts = workspace.discoveryAlerts.filter((alert) => !alert.resolvedAt);
+  const latestRun = campaignDiscoveryRuns[0] || null;
   const campaignMarket = activeCampaign?.targetMarkets || jsonList(activeCampaign?.targetCountriesJson)[0] || "";
   const campaignLabel = activeCampaign
     ? `${localizedCountry(campaignMarket)}${PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeads.length} 家`
@@ -461,8 +507,8 @@ export default function LeadEngineApp() {
   async function runDiscovery(sourceId: string) {
     setPending(true); setError(""); setNotice("");
     try {
-      const result = await api<{ imported: number; duplicate: number; excluded: number; failed: number }>("/api/discovery/run", { method: "POST", body: JSON.stringify({ sourceId }) });
-      await load(); setNotice(`采集完成：新增待审核 ${result.imported} 家，重复 ${result.duplicate} 家，排除 ${result.excluded} 家，失败 ${result.failed} 家。没有自动批准或联系。`);
+      const result = await api<{ imported: number; qualified: number; duplicate: number; excluded: number; failed: number }>("/api/discovery/run", { method: "POST", body: JSON.stringify({ sourceId }) });
+      await load(); setNotice(`采集完成：自动筛选合格 ${result.qualified} 家，写入 ${result.imported} 家，重复 ${result.duplicate} 家，排除 ${result.excluded} 家，失败 ${result.failed} 家。没有自动批准或联系。`);
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "采集运行失败"); }
     finally { setPending(false); }
   }
@@ -475,6 +521,49 @@ export default function LeadEngineApp() {
       const imported = result.results.reduce((sum, run) => sum + Number(run.imported || 0), 0);
       setNotice(result.dueCount ? `已运行 ${result.dueCount} 个到期来源，新增 ${imported} 家待审核客户。` : "当前没有到期来源，未执行任何采集。 ");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "到期来源运行失败"); }
+    finally { setPending(false); }
+  }
+
+  async function reverifySelectedLead() {
+    if (!selectedLead) return;
+    setPending(true); setError(""); setNotice("");
+    try {
+      const result = await api<{ qualified: boolean; score: number; evidenceCoverage: number; failures: string[] }>(`/api/leads/${selectedLead.id}/reverify`, { method: "POST", body: "{}" });
+      await load();
+      setNotice(result.qualified
+        ? `重新核验通过：评分 ${result.score}，证据覆盖率 ${result.evidenceCoverage}%，仍需人工批准后才能联系。`
+        : `重新核验完成但未通过准入：${result.failures.join("；")}`);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "重新核验失败"); }
+    finally { setPending(false); }
+  }
+
+  async function controlEngine(action: "start" | "pause" | "resume" | "stop" | "run_batch") {
+    if (action === "start" && (!activeCampaignId || activeCampaign?.status !== "active")) {
+      setError("请先选择并启用一个 Campaign。"); return;
+    }
+    setPending(true); setError(""); setNotice("");
+    try {
+      await api("/api/engine/control", {
+        method: "POST",
+        body: JSON.stringify({ action, campaignId: activeCampaignId, dailyTarget: 20, timezone: "Asia/Shanghai", runNow: true }),
+      });
+      await load();
+      setNotice(action === "start" ? "自动找客户已启动并持久化；浏览器关闭后由服务器定时批次继续运行。"
+        : action === "pause" ? "自动发现已暂停。" : action === "resume" ? "自动发现已恢复。"
+          : action === "stop" ? "自动发现已停止；历史数据和日志保留。" : "已完成一轮受控补采批次。");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "自动引擎操作失败"); }
+    finally { setPending(false); }
+  }
+
+  async function exportLeadList(mode: "qualified" | "approved") {
+    setPending(true); setError("");
+    try {
+      const response = await fetch(`/api/exports/leads?mode=${mode}`, { credentials: "same-origin", cache: "no-store" });
+      if (!response.ok) throw new Error("导出未完成");
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement("a"); link.href = url; link.download = `qixin-${mode}-leads.csv`; link.click(); URL.revokeObjectURL(url);
+      setNotice(mode === "qualified" ? "已导出自动筛选合格清单供审核；未写入 CRM，也未联系客户。" : "已导出人工批准清单；未写入 CRM。");
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "导出未完成"); }
     finally { setPending(false); }
   }
 
@@ -573,11 +662,27 @@ export default function LeadEngineApp() {
                   </select>
                   <select value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} aria-label="客户类型筛选">
                     <option value="all">全部类型</option>
-                    {companyTypes.map((type) => <option key={type} value={type}>{localizedCompanyType(type)}</option>)}
+                    {companyTypes.map((type) => <option key={type} value={type}>{type}</option>)}
                   </select>
                   <select value={countryFilter} onChange={(event) => setCountryFilter(event.target.value)} aria-label="国家筛选">
                     <option value="all">全部国家</option>
                     {countries.map((country) => <option key={country} value={country}>{localizedCountry(country)}</option>)}
+                  </select>
+                  <select value={productFilter} onChange={(event) => setProductFilter(event.target.value)} aria-label="产品方向筛选">
+                    <option value="all">全部产品方向</option>
+                    {PRODUCT_DIRECTIONS.map((product) => <option key={product} value={product}>{product}</option>)}
+                  </select>
+                  <select value={contactFilter} onChange={(event) => setContactFilter(event.target.value)} aria-label="联系方式状态筛选">
+                    <option value="all">全部联系状态</option><option value="valid">联系方式有效</option><option value="missing">无有效联系方式</option><option value="unverified">未核验</option>
+                  </select>
+                  <select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value)} aria-label="来源类型筛选">
+                    <option value="all">全部来源类型</option>{sourceTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                  <select value={specialFilter} onChange={(event) => setSpecialFilter(event.target.value)} aria-label="特殊状态筛选">
+                    <option value="all">全部记录</option><option value="duplicate">仅重复</option><option value="dnc">仅禁止联系</option>
+                  </select>
+                  <select value={sortBy} onChange={(event) => setSortBy(event.target.value)} aria-label="排序">
+                    <option value="score_desc">评分从高到低</option><option value="score_asc">评分从低到高</option><option value="newest">最新发现</option><option value="company_asc">公司名称</option>
                   </select>
                 </div>
                 <span className={styles.resultCount}>当前显示 {filteredLeads.length} 家</span>
@@ -601,7 +706,7 @@ export default function LeadEngineApp() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLeads.map((lead) => {
+                  {visibleLeads.map((lead) => {
                     const company = companyById.get(lead.companyId);
                     const websiteUrl = companyWebsiteUrl(company);
                     const isSelected = selectedLead?.id === lead.id && drawerOpen;
@@ -643,6 +748,7 @@ export default function LeadEngineApp() {
             {loading ? <div className={styles.emptyState}><IconClock size={26} /><b>正在读取私有数据库…</b></div> : null}
             {!loading && !activeCampaign ? <div className={styles.emptyState}><IconTargetArrow size={28} /><b>先创建第一个 Campaign</b><p>建议从一个产品赛道、20–30 家候选公司开始。</p><button type="button" onClick={() => setActiveView("campaign")}>创建 Campaign</button></div> : null}
             {!loading && activeCampaign && !filteredLeads.length ? <div className={styles.emptyState}><IconSearch size={28} /><b>当前筛选没有客户</b><p>调整筛选条件，或前往数据导入。</p><button type="button" onClick={() => setActiveView("import")}>前往数据导入</button></div> : null}
+            {!loading && filteredLeads.length ? <div className={styles.pagination}><span>第 {Math.min(page, pageCount)} / {pageCount} 页 · 共 {filteredLeads.length} 家</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>下一页</button></div></div> : null}
           </div>
         </section>
       ) : null}
@@ -712,23 +818,51 @@ export default function LeadEngineApp() {
         <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.discovery}>
           <div className={styles.toolHeader}>
             <div>
-              <span className={styles.sectionKicker}>BOUNDED PUBLIC EVIDENCE</span>
-              <h1>自动发现与官网证据</h1>
-              <p>定时任务只唤醒确定性代码：读取你批准的公开目录，限量访问候选公司的官网页面，去重后放入待审核。首次联系始终由你批准。</p>
+              <span className={styles.sectionKicker}>PERSISTENT DAILY DISCOVERY</span>
+              <h1>自动找客户</h1>
+              <p>服务器按 Asia/Shanghai 统计业务日，每 15 分钟可执行一个受控批次；浏览器关闭不影响持久化状态。搜索线索、合格客户和人工批准严格分开。</p>
             </div>
             <IconRadar size={34} />
           </div>
 
+          <section className={styles.engineDashboard}>
+            <div className={styles.engineControl}>
+              <div><span>当前运行状态</span><b data-status={engine?.status || "stopped"}>{engine?.status === "running" ? "持续运行中" : engine?.status === "paused" ? "已暂停" : "已停止"}</b><small>时区：{engine?.timezone || "Asia/Shanghai"}</small></div>
+              <div className={styles.engineActions}>
+                <button className={styles.primaryButton} type="button" disabled={pending || engine?.status === "running" || activeCampaign?.status !== "active"} onClick={() => void controlEngine("start")}><IconPlayerPlay size={18} />开始自动找客户</button>
+                <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "running"} onClick={() => void controlEngine("pause")}><IconPlayerPause size={18} />暂停</button>
+                <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "paused"} onClick={() => void controlEngine("resume")}><IconPlayerPlay size={18} />恢复</button>
+                <button className={styles.secondaryButton} type="button" disabled={pending || !engine || engine.status === "stopped"} onClick={() => void controlEngine("stop")}><IconX size={18} />停止</button>
+                <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "running"} onClick={() => void controlEngine("run_batch")}><IconRadar size={18} />立即补采一批</button>
+              </div>
+            </div>
+            <div className={styles.engineMetrics}>
+              <article><span>今日目标</span><b>{todayTarget?.targetCount || engine?.dailyTarget || 20}</b><small>自动筛选合格客户</small></article>
+              <article className={styles.metricSuccess}><span>今日已完成</span><b>{todayTarget?.qualifiedCount || 0}</b><small>强制准入通过且有商务联系方式</small></article>
+              <article className={todayRemaining ? styles.metricWarning : styles.metricSuccess}><span>今日仍缺</span><b>{todayRemaining}</b><small>{todayTarget?.sourceExhausted ? "可用来源已耗尽" : "后续批次继续补采"}</small></article>
+              <article><span>重复 / 淘汰 / 失败</span><b>{todayTarget?.duplicateCount || 0} / {todayTarget?.mandatoryGateFailedCount || 0} / {todayTarget?.failedCount || 0}</b><small>均不计入每日目标</small></article>
+            </div>
+            <div className={styles.engineTimeline}>
+              <span>最近运行：<b>{formatDate(engine?.lastRunAt)}</b></span>
+              <span>下次运行：<b>{formatDate(engine?.nextRunAt)}</b></span>
+              <span>当前来源：<b>{latestRun ? discoverySourceById.get(latestRun.sourceId)?.name || "来源已删除" : "等待下一批"}</b></span>
+              <span>原始 / 解析 / 官网 / 有效联系：<b>{todayTarget?.rawDiscoveredCount || 0} / {todayTarget?.parsedCount || 0} / {todayTarget?.websiteVerifiedCount || 0} / {todayTarget?.validContactCount || 0}</b></span>
+            </div>
+            {todayTarget?.deficitReason || engine?.lastError ? <div className={styles.engineAlert}><IconAlertTriangle size={19} /><span>{todayTarget?.deficitReason || engine?.lastError}</span></div> : null}
+            {openAlerts.length ? <div className={styles.alertList}>{openAlerts.slice(0, 5).map((alert) => <article key={alert.id} data-severity={alert.severity}><b>{alert.severity === "critical" ? "重要告警" : "来源提醒"}</b><span>{alert.message}</span><small>{formatDate(alert.createdAt)}</small></article>)}</div> : null}
+            <div className={styles.engineExports}><button className={styles.secondaryButton} type="button" disabled={pending} onClick={() => void exportLeadList("qualified")}><IconDownload size={17} />导出自动筛选合格清单</button><button className={styles.secondaryButton} type="button" disabled={pending || !approvedCount} onClick={() => void exportLeadList("approved")}><IconDownload size={17} />导出已批准清单</button></div>
+          </section>
+
           <div className={styles.discoveryPrinciples}>
-            <article><b>不使用 GPT / API Key</b><span>关键词与评分规则固定、可见、可审计</span></article>
-            <article><b>最多 20 家 / 批</b><span>仅首页及最多 3 个产品、关于或联系页面</span></article>
-            <article><b>人工批准首次联系</b><span>新客户一律进入 needs_review，不自动导出</span></article>
+            <article><b>预置官方来源免费运行</b><span>付费搜索和 GPT provider 有接口但默认关闭、无密钥也可运行</span></article>
+            <article><b>每批最多 5 个候选</b><span>尊重 robots 与来源限流；失败后下一批自动切换来源</span></article>
+            <article><b>人工批准仍是联系闸门</b><span>自动合格客户进入待审核，不发送邮件、不写生产 CRM</span></article>
           </div>
 
           <div className={styles.toolGrid}>
             <section className={styles.toolSection}>
               <h2><IconPlus size={20} /> 添加已批准来源</h2>
-              <p className={styles.muted}>来源应是你允许使用的公开展商名录、协会会员列表或行业目录页面。系统不会自行寻找新目录。</p>
+              <p className={styles.muted}>点击开始后会自动写入已确认的官方来源池；也可补充新的公开协会或展商目录。搜索结果不能直接作为合格证据。</p>
               <form className={styles.formGrid} onSubmit={addDiscoverySource}>
                 <label className={styles.field}>来源名称<input name="name" required maxLength={160} placeholder="例如：某眼镜展公开展商名录" /></label>
                 <label className={styles.field}>运行频率<select name="cadence" defaultValue="daily"><option value="manual">仅手动</option><option value="daily">每天</option><option value="weekly">每周</option></select></label>
@@ -752,16 +886,20 @@ export default function LeadEngineApp() {
                   <article key={source.id}>
                     <div className={styles.discoverySourceHead}>
                       <div><b>{source.name}</b><a href={source.sourceUrl} target="_blank" rel="noreferrer">{source.normalizedDomain}<IconExternalLink size={14} /></a></div>
-                      <span className={source.status === "active" ? styles.sourceActive : styles.sourcePaused}>{source.status === "active" ? "运行中" : "已暂停"}</span>
+                      <span className={source.enabled && source.status === "active" ? styles.sourceActive : styles.sourcePaused}>{source.enabled && source.status === "active" ? `${source.tier}级 · 已启用` : "已暂停"}</span>
                     </div>
                     <dl className={styles.discoveryMeta}>
-                      <div><dt>频率</dt><dd>{source.cadence === "daily" ? "每天" : source.cadence === "weekly" ? "每周" : "仅手动"}</dd></div>
-                      <div><dt>批次上限</dt><dd>{source.maxCandidates} 家</dd></div>
-                      <div><dt>上次运行</dt><dd>{formatDate(source.lastRunAt)}</dd></div>
+                      <div><dt>类型 / 区域</dt><dd>{source.sourceType} · {source.region}</dd></div>
+                      <div><dt>解析器</dt><dd>{source.parserKey} v{source.parserVersion}</dd></div>
+                      <div><dt>上次发现 / 合格 / 重复</dt><dd>{source.lastDiscoveredCount} / {source.lastQualifiedCount} / {source.lastDuplicateCount}</dd></div>
+                      <div><dt>成功 / 失败次数</dt><dd>{formatDate(source.lastSuccessAt)} / {source.failureCount}</dd></div>
+                      <div><dt>robots / 访问</dt><dd>{source.robotsStatus} · {source.requiresLogin ? "需登录" : source.isPaid ? "付费" : "公开免费"}</dd></div>
                       <div><dt>下次到期</dt><dd>{source.status === "paused" ? "已暂停" : source.cadence === "manual" ? "仅手动" : formatDate(source.nextRunAt)}</dd></div>
                     </dl>
+                    {source.accessNotes ? <p className={styles.muted}>{source.accessNotes}</p> : null}
+                    {source.lastError ? <p className={styles.runError}>{source.lastError}</p> : null}
                     <div className={styles.discoveryActions}>
-                      <button className={styles.primaryButton} type="button" disabled={pending || source.status !== "active" || activeCampaign?.status !== "active"} onClick={() => void runDiscovery(source.id)}><IconPlayerPlay size={17} />立即采集</button>
+                      <button className={styles.primaryButton} type="button" disabled={pending || !source.enabled || source.status !== "active" || source.requiresLogin || source.isPaid || activeCampaign?.status !== "active"} onClick={() => void runDiscovery(source.id)}><IconPlayerPlay size={17} />立即采集</button>
                       <button className={styles.secondaryButton} type="button" disabled={pending} onClick={() => void toggleDiscoverySource(source)}>{source.status === "active" ? <IconPlayerPause size={17} /> : <IconPlayerPlay size={17} />}{source.status === "active" ? "暂停" : "恢复"}</button>
                     </div>
                   </article>
@@ -782,7 +920,7 @@ export default function LeadEngineApp() {
                       <div><b>{discoverySourceById.get(run.sourceId)?.name || "已删除来源"}</b><span>{formatDate(run.startedAt)} · {run.trigger === "scheduled" ? "定时" : "手动"}</span></div>
                       <strong data-status={run.status}>{run.status === "completed" ? "完成" : run.status === "partial" ? "部分完成" : run.status === "failed" ? "失败" : "运行中"}</strong>
                     </div>
-                    <div className={styles.runMetrics}><span>发现 <b>{run.discoveredCount}</b></span><span>新增待审核 <b>{run.importedCount}</b></span><span>重复 <b>{run.duplicateCount}</b></span><span>排除 <b>{run.excludedCount}</b></span><span>失败 <b>{run.failedCount}</b></span><span>页面 <b>{run.pagesFetched}</b></span></div>
+                    <div className={styles.runMetrics}><span>原始发现 <b>{run.rawDiscoveredCount ?? run.discoveredCount}</b></span><span>成功解析 <b>{run.parsedCount || 0}</b></span><span>官网核验 <b>{run.websiteVerifiedCount || 0}</b></span><span>有效联系 <b>{run.validContactCount || 0}</b></span><span>自动合格 <b>{run.qualifiedCount || 0}</b></span><span>重复 <b>{run.duplicateCount}</b></span><span>准入失败 <b>{run.mandatoryGateFailedCount || run.excludedCount}</b></span><span>采集失败 <b>{run.failedCount}</b></span></div>
                     {run.errorSummary ? <pre className={styles.runError}>{run.errorSummary}</pre> : null}
                     {runItems.length ? <details className={styles.runDetails}><summary>查看本批明细（{runItems.length}）</summary><div>{runItems.slice(0, 20).map((item) => <a key={item.id} href={item.websiteUrl} target="_blank" rel="noreferrer"><span>{item.outcome === "imported" ? "新增" : item.outcome === "duplicate" ? "重复" : item.outcome === "excluded" ? "排除" : "失败"}</span><b>{item.companyName || item.normalizedDomain}</b><small>{item.reason}</small></a>)}</div></details> : null}
                   </article>
@@ -860,7 +998,7 @@ export default function LeadEngineApp() {
 
               <div className={styles.drawerBody}>
                 <dl className={styles.drawerFacts}>
-                  <div><dt>类型</dt><dd>{localizedCompanyType(selectedCompany.companyType)}</dd></div>
+                  <div><dt>类型</dt><dd>{selectedCompany.customerType || localizedCompanyType(selectedCompany.companyType)}</dd></div>
                   <div><dt>国家</dt><dd>{localizedCountry(selectedCompany.country)}</dd></div>
                   <div><dt>评分</dt><dd className={styles.drawerScore}>{selectedLead.currentScore}</dd></div>
                 </dl>
@@ -891,12 +1029,20 @@ export default function LeadEngineApp() {
                   <dl className={styles.compactFacts}>
                     <div><dt>官网</dt><dd>{selectedCompany.website ? <a href={selectedCompany.website} target="_blank" rel="noreferrer">{selectedCompany.primaryDomain || selectedCompany.website}<IconExternalLink size={14} /></a> : "未记录"}</dd></div>
                     <div><dt>域名</dt><dd>{selectedDomains.join(" · ") || "未记录"}</dd></div>
+                    <div><dt>客户类型 / 角色</dt><dd>{[selectedCompany.customerType, selectedCompany.companyRole].filter(Boolean).join(" · ") || "未记录"}</dd></div>
+                    <div><dt>产品方向</dt><dd>{jsonList(selectedCompany.productDirectionsJson).join(" · ") || "未记录"}</dd></div>
                     <div><dt>产品 / 品牌</dt><dd>{[...jsonList(selectedCompany.productsJson), ...jsonList(selectedCompany.brandsJson)].join(" · ") || "未记录"}</dd></div>
                     <div><dt>推荐产品</dt><dd>{jsonList(selectedLead.recommendedProductsJson).join(" · ") || "未记录"}</dd></div>
                     <div><dt>公开商务渠道</dt><dd>{selectedCompany.businessEmail || selectedCompany.contactChannel || "未记录"}</dd></div>
-                    <div><dt>最近分析</dt><dd>{formatDate(selectedCompany.lastAnalyzedAt)}</dd></div>
+                    <div><dt>来源</dt><dd>{[selectedCompany.sourceType, selectedCompany.sourceName].filter(Boolean).join(" · ") || "未记录"}</dd></div>
+                    <div><dt>发现 / 核验</dt><dd>{formatDate(selectedCompany.firstDiscoveredAt)} / {formatDate(selectedCompany.lastVerifiedAt)}</dd></div>
                   </dl>
                   {selectedContacts.length ? <p className={styles.muted}>已保存 {selectedContacts.length} 条候选联系人记录；本页默认不展示个人联系方式。</p> : null}
+                </details>
+
+                <details className={styles.drawerDetails} open={selectedContactVerifications.length > 0}>
+                  <summary>商务联系方式核验 <span>{selectedContactVerifications.length} 条</span></summary>
+                  <div className={styles.sourceList}>{selectedContactVerifications.map((contact) => <a key={contact.id} href={contact.sourceUrl} target="_blank" rel="noreferrer"><div><b>{contact.contactType} · {contact.status === "valid" ? "有效" : "未通过"}</b><IconExternalLink size={16} /></div><p>{contact.contactValue || "未保存具体值"}</p><small>{contact.sameCompanyDomain ? "企业同域" : "可信官方来源"} · 核验于 {formatDate(contact.verifiedAt)}</small></a>)}{!selectedContactVerifications.length ? <p className={styles.muted}>没有公开商务联系方式核验记录，不能计入每日目标。</p> : null}</div>
                 </details>
 
                 {selectedReviews.length ? <details className={styles.drawerDetails}><summary>审核历史 <span>{selectedReviews.length} 条</span></summary><div className={styles.auditList}>{selectedReviews.map((reviewItem) => <article key={reviewItem.id}><div><b>{STATUS_LABELS[reviewItem.decision] || reviewItem.decision}</b><span>{formatDate(reviewItem.createdAt)}</span></div><p>{reviewItem.notes || "未附备注"}</p></article>)}</div></details> : null}
@@ -904,6 +1050,7 @@ export default function LeadEngineApp() {
 
               <div className={styles.reviewDock}>
                 <label>审核备注<input value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="淘汰时必须填写原因" /></label>
+                <button type="button" className={styles.keepButton} onClick={() => void reverifySelectedLead()} disabled={pending || !selectedCompany.website}><IconRadar size={17} />手工重新核验官网与联系方式</button>
                 {approvalGaps.length ? <div className={styles.gapSummary}><IconAlertTriangle size={17} /><span>{approvalGaps.slice(0, 3).join(" · ")}</span></div> : <div className={styles.readySummary}><IconCheck size={17} /><span>已满足批准闸门，仍需你做最终判断。</span></div>}
                 <button type="button" className={styles.approveButton} onClick={() => review("approved")} disabled={pending || approvalGaps.length > 0}>
                   {approvalGaps.length ? "证据不足，暂不能批准" : "批准进入导出池"}

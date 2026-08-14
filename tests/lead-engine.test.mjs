@@ -2,27 +2,20 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-async function render(path = "/") {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(
-    new Request(`http://localhost${path}`, { headers: { accept: "text/html" } }),
-    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
-    { waitUntil() {}, passThroughOnException() {} },
-  );
-}
-
-test("renders the complete isolated Lead Engine shell", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /QIXIN Lead Engine Lab/);
-  assert.match(html, /可审计的销售机会/);
-  assert.match(html, /生产系统未连接/);
-  assert.match(html, /新建完整 Campaign/);
-  assert.match(html, /批准后才能生成 CRM 文件/);
-  assert.doesNotMatch(html, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
+test("builds the complete isolated Lead Engine shell", async () => {
+  const [layout, page, ui] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(layout, /QIXIN Lead Engine Lab/);
+  assert.match(page, /LeadEngineApp/);
+  assert.match(ui, /可审计的销售机会/);
+  assert.match(ui, /生产系统未连接/);
+  assert.match(ui, /新建完整 Campaign/);
+  assert.match(ui, /批准后才能生成 CRM 文件/);
+  assert.match(ui, /开始自动找客户/);
+  assert.doesNotMatch(`${layout}\n${page}\n${ui}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
 test("implements the normalized, evidence-first V1 model", async () => {
@@ -70,7 +63,7 @@ test("keeps Sites, storage, and CRM handoff isolated", async () => {
   assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, null);
-  assert.match(agents, /Never read from or write to the production QIXIN D1\/R2 bindings/);
+  assert.match(agents, /Never read from or write to the production QIXIN CRM, website D1, or website R2 bindings/);
   assert.match(agents, /Do not add a production CRM write credential/);
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });

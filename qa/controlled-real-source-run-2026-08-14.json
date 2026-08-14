@@ -1,0 +1,36 @@
+{
+  "status": "passed",
+  "controlledAt": "2026-08-14T08:07:42.572Z",
+  "source": {
+    "name": "The Vision Council Member Companies",
+    "url": "https://thevisioncouncil.org/member-companies",
+    "parsedCandidates": 20,
+    "parser": "vision_council_members@1.0.0"
+  },
+  "candidate": {
+    "companyName": "Armada Optical",
+    "normalizedDomain": "armadaoptical.com",
+    "directoryCategory": "Lens, Lab and Lens Processing Technology Division",
+    "pagesVerified": 3,
+    "verifiedPageKinds": ["homepage", "products", "contact"],
+    "publicBusinessContactKinds": ["email", "phone", "form", "trusted_official_directory_phone"],
+    "customerType": "光学镜片批发商",
+    "companyRole": "批发商",
+    "productDirections": ["普通光学镜片", "PC安全镜片"],
+    "score": 64,
+    "evidenceCoverage": 74,
+    "qualified": true,
+    "failures": []
+  },
+  "safety": {
+    "contactedCompany": false,
+    "sentEmail": false,
+    "wroteDatabase": false,
+    "wroteProductionCrm": false,
+    "paidProviderUsed": false
+  },
+  "notes": [
+    "The controlled run intentionally did not persist the public contact values.",
+    "This proves one real official-source path; it does not prove a sustained 20-qualified-companies-per-day production rate."
+  ]
+}

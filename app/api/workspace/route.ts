@@ -6,9 +6,14 @@ import {
   companyDomainLinks,
   companyDomains,
   crmExportRuns,
+  contactVerifications,
+  dailyDiscoveryTargets,
+  discoveryAlerts,
+  discoveryRunAttempts,
   discoveryRunItems,
   discoveryRuns,
   discoverySources,
+  engineState,
   evidenceClaims,
   leadImportRuns,
   leadReviewDecisions,
@@ -17,6 +22,8 @@ import {
   leadSources,
   prospectCompanies,
   prospectContacts,
+  parserVersions,
+  sourceHealth,
 } from "@/db/schema";
 import { apiFailure } from "@/lib/api";
 import { buildSearchKeywords, researchBrief } from "@/lib/lead-engine";
@@ -41,6 +48,13 @@ export async function GET() {
       discoverySourceRows,
       discoveryRunRows,
       discoveryItemRows,
+      engineStateRows,
+      dailyTargetRows,
+      discoveryAttemptRows,
+      sourceHealthRows,
+      contactVerificationRows,
+      discoveryAlertRows,
+      parserVersionRows,
     ] = await Promise.all([
       db.select().from(campaigns).orderBy(desc(campaigns.updatedAt)),
       db.select().from(campaignLeads).orderBy(desc(campaignLeads.currentScore), desc(campaignLeads.updatedAt)).limit(500),
@@ -58,6 +72,13 @@ export async function GET() {
       db.select().from(discoverySources).orderBy(desc(discoverySources.updatedAt)).limit(500),
       db.select().from(discoveryRuns).orderBy(desc(discoveryRuns.createdAt)).limit(500),
       db.select().from(discoveryRunItems).orderBy(desc(discoveryRunItems.createdAt)).limit(2000),
+      db.select().from(engineState).limit(1),
+      db.select().from(dailyDiscoveryTargets).orderBy(desc(dailyDiscoveryTargets.targetDate)).limit(60),
+      db.select().from(discoveryRunAttempts).orderBy(desc(discoveryRunAttempts.createdAt)).limit(1000),
+      db.select().from(sourceHealth).orderBy(desc(sourceHealth.checkedAt)).limit(1000),
+      db.select().from(contactVerifications).orderBy(desc(contactVerifications.verifiedAt)).limit(3000),
+      db.select().from(discoveryAlerts).orderBy(desc(discoveryAlerts.createdAt)).limit(500),
+      db.select().from(parserVersions).orderBy(desc(parserVersions.createdAt)).limit(100),
     ]);
     return Response.json({
       campaigns: campaignRows.map((campaign) => ({
@@ -80,6 +101,13 @@ export async function GET() {
       discoverySources: discoverySourceRows,
       discoveryRuns: discoveryRunRows,
       discoveryItems: discoveryItemRows,
+      engineState: engineStateRows[0] || null,
+      dailyTargets: dailyTargetRows,
+      discoveryAttempts: discoveryAttemptRows,
+      sourceHealth: sourceHealthRows,
+      contactVerifications: contactVerificationRows,
+      discoveryAlerts: discoveryAlertRows,
+      parserVersions: parserVersionRows,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiFailure(error);

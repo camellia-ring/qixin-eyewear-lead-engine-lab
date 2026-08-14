@@ -22,6 +22,13 @@
       "when": 1786659481938,
       "tag": "0002_bumpy_ronan",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1786693079684,
+      "tag": "0003_automatic_daily_engine",
+      "breakpoints": true
     }
   ]
 }

@@ -28,25 +28,28 @@ test("implements bounded, auditable public-source discovery", async () => {
   assert.match(discovery, /a === 10 \|\| a === 127/);
   assert.match(sourceRoute, /campaign\.status !== "active"/);
   assert.match(workspace, /discoveryItems/);
-  assert.match(ui, /自动发现与官网证据/);
+  assert.match(ui, /自动找客户/);
 });
 
-test("keeps automated discoveries behind human approval and outside paid APIs", async () => {
-  const [runner, discovery, reviewRoute, packageJson, agents] = await Promise.all([
+test("keeps automated discoveries behind human approval with paid providers default-off", async () => {
+  const [runner, discovery, provider, reviewRoute, agents] = await Promise.all([
     readFile(new URL("../lib/discovery-runner.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/discovery.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/discovery-provider.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/reviews/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
   ]);
 
-  assert.match(runner, /workflowStatus: "needs_review"/);
-  assert.match(runner, /hardGateStatus: "needs_review"/);
-  assert.match(runner, /modelIdentifier: "deterministic_public_rules_v1"/);
+  assert.match(runner, /qualification\.qualified \? "needs_review"/);
+  assert.match(runner, /hardGateStatus: qualification\.hardGateStatus/);
+  assert.match(runner, /modelIdentifier: "deterministic_public_rules_v2"/);
   assert.doesNotMatch(runner, /workflowStatus: "approved"/);
   assert.doesNotMatch(runner, /prospectContacts|contactName|fullName/);
-  assert.doesNotMatch(`${runner}\n${discovery}\n${packageJson}`, /OPENAI_API_KEY|api\.openai\.com|anthropic|apollo|emailjs|sendgrid/i);
+  assert.doesNotMatch(`${runner}\n${discovery}`, /emailjs|sendgrid|smtp|sendMail/i);
+  assert.match(provider, /enablePaidProviders === "true"/);
+  assert.match(provider, /if \(!explicitlyEnabled \|\| !config\.openAiApiKey \|\| !config\.openAiDiscoveryModel\)/);
   assert.match(reviewRoute, /decision === "approved"/);
   assert.match(reviewRoute, /hard_gate_not_passed/);
-  assert.match(agents, /Do not add broad web search, personal-contact enrichment, guessed emails, email generation, email sending, automatic approval/);
+  assert.match(agents, /Paid, authenticated, personal-contact, or credit-consuming providers stay disabled/);
+  assert.match(agents, /Do not add personal-contact enrichment, guessed emails, email generation, email sending/);
 });

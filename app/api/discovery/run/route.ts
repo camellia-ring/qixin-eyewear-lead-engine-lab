@@ -1,10 +1,11 @@
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
-import { runDiscoverySource } from "@/lib/discovery-runner";
+import { recoverStaleDiscoveryRuns, runDiscoverySource } from "@/lib/discovery-runner";
 
 export async function POST(request: Request) {
   try {
     const body = await jsonBody(request);
     const sourceId = textValue(body.sourceId, { field: "sourceId", required: true, max: 100 });
+    await recoverStaleDiscoveryRuns();
     const result = await runDiscoverySource(sourceId, "manual");
     return Response.json(result);
   } catch (error) {
