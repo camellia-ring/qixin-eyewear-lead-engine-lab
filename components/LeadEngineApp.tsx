@@ -548,7 +548,7 @@ export default function LeadEngineApp() {
         body: JSON.stringify({ action, campaignId: activeCampaignId, dailyTarget: 20, timezone: "Asia/Shanghai", runNow: true }),
       });
       await load();
-      setNotice(action === "start" ? "自动找客户已启动并持久化；浏览器关闭后由服务器定时批次继续运行。"
+      setNotice(action === "start" ? "自动找客户状态已持久化；只有部署环境已启用服务器 Cron 时，关闭浏览器后才会继续运行。"
         : action === "pause" ? "自动发现已暂停。" : action === "resume" ? "自动发现已恢复。"
           : action === "stop" ? "自动发现已停止；历史数据和日志保留。" : "已完成一轮受控补采批次。");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "自动引擎操作失败"); }
@@ -827,7 +827,7 @@ export default function LeadEngineApp() {
 
           <section className={styles.engineDashboard}>
             <div className={styles.engineControl}>
-              <div><span>当前运行状态</span><b data-status={engine?.status || "stopped"}>{engine?.status === "running" ? "持续运行中" : engine?.status === "paused" ? "已暂停" : "已停止"}</b><small>时区：{engine?.timezone || "Asia/Shanghai"}</small></div>
+              <div><span>当前运行状态</span><b data-status={engine?.status || "stopped"}>{engine?.status === "running" ? "已标记运行" : engine?.status === "paused" ? "已暂停" : "已停止"}</b><small>时区：{engine?.timezone || "Asia/Shanghai"} · 后台持续运行需已启用 Cron</small></div>
               <div className={styles.engineActions}>
                 <button className={styles.primaryButton} type="button" disabled={pending || engine?.status === "running" || activeCampaign?.status !== "active"} onClick={() => void controlEngine("start")}><IconPlayerPlay size={18} />开始自动找客户</button>
                 <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "running"} onClick={() => void controlEngine("pause")}><IconPlayerPause size={18} />暂停</button>
