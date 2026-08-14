@@ -555,14 +555,14 @@ export default function LeadEngineApp() {
     finally { setPending(false); }
   }
 
-  async function exportLeadList(mode: "qualified" | "approved") {
+  async function exportApprovedLeadList() {
     setPending(true); setError("");
     try {
-      const response = await fetch(`/api/exports/leads?mode=${mode}`, { credentials: "same-origin", cache: "no-store" });
+      const response = await fetch("/api/exports/leads?mode=approved", { credentials: "same-origin", cache: "no-store" });
       if (!response.ok) throw new Error("导出未完成");
       const url = URL.createObjectURL(await response.blob());
-      const link = document.createElement("a"); link.href = url; link.download = `qixin-${mode}-leads.csv`; link.click(); URL.revokeObjectURL(url);
-      setNotice(mode === "qualified" ? "已导出自动筛选合格清单供审核；未写入 CRM，也未联系客户。" : "已导出人工批准清单；未写入 CRM。");
+      const link = document.createElement("a"); link.href = url; link.download = "qixin-approved-leads.csv"; link.click(); URL.revokeObjectURL(url);
+      setNotice("已导出人工批准清单；未写入 CRM。");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "导出未完成"); }
     finally { setPending(false); }
   }
@@ -850,7 +850,7 @@ export default function LeadEngineApp() {
             </div>
             {todayTarget?.deficitReason || engine?.lastError ? <div className={styles.engineAlert}><IconAlertTriangle size={19} /><span>{todayTarget?.deficitReason || engine?.lastError}</span></div> : null}
             {openAlerts.length ? <div className={styles.alertList}>{openAlerts.slice(0, 5).map((alert) => <article key={alert.id} data-severity={alert.severity}><b>{alert.severity === "critical" ? "重要告警" : "来源提醒"}</b><span>{alert.message}</span><small>{formatDate(alert.createdAt)}</small></article>)}</div> : null}
-            <div className={styles.engineExports}><button className={styles.secondaryButton} type="button" disabled={pending} onClick={() => void exportLeadList("qualified")}><IconDownload size={17} />导出自动筛选合格清单</button><button className={styles.secondaryButton} type="button" disabled={pending || !approvedCount} onClick={() => void exportLeadList("approved")}><IconDownload size={17} />导出已批准清单</button></div>
+            <div className={styles.engineExports}><span>自动合格客户可在审核台筛选和查看证据；人工批准后才能导出。</span><button className={styles.secondaryButton} type="button" disabled={pending || !approvedCount} onClick={() => void exportApprovedLeadList()}><IconDownload size={17} />导出已批准清单</button></div>
           </section>
 
           <div className={styles.discoveryPrinciples}>

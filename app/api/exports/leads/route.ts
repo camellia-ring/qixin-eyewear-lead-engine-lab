@@ -6,11 +6,10 @@ import { csvCell } from "@/lib/lead-engine";
 
 export async function GET(request: Request) {
   try {
-    const mode = new URL(request.url).searchParams.get("mode") === "approved" ? "approved" : "qualified";
+    const mode = new URL(request.url).searchParams.get("mode");
+    if (mode !== "approved") return Response.json({ error: "human_approval_required_before_export" }, { status: 403 });
     const db = getDb();
-    const statusCondition = mode === "approved"
-      ? eq(campaignLeads.workflowStatus, "approved")
-      : and(eq(campaignLeads.qualificationResult, "qualified"), eq(campaignLeads.hardGateStatus, "pass"));
+    const statusCondition = eq(campaignLeads.workflowStatus, "approved");
     const rows = await db.select({
       companyName: prospectCompanies.companyName,
       country: prospectCompanies.country,
@@ -43,7 +42,7 @@ export async function GET(request: Request) {
     return new Response(`\uFEFF${csv}`, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="qixin-${mode}-leads-${new Date().toISOString().slice(0, 10)}.csv"`,
+        "Content-Disposition": `attachment; filename="qixin-approved-leads-${new Date().toISOString().slice(0, 10)}.csv"`,
         "Cache-Control": "private, no-store",
       },
     });

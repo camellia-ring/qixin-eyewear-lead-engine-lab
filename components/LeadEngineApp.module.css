@@ -421,7 +421,8 @@
 .alertList article[data-severity="critical"] { border-left-color: var(--red); }
 .alertList b { color: #364456; }
 .alertList small { color: #8893a0; }
-.engineExports { justify-content: flex-end; }
+.engineExports { align-items: center; justify-content: flex-end; }
+.engineExports > span { margin-right: auto; color: #708090; font-size: 12px; }
 
 .discoveryPrinciples { margin-top: 24px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .discoveryPrinciples article { min-height: 92px; padding: 17px 18px; display: grid; align-content: center; gap: 6px; border: 1px solid #dce3ea; border-radius: 9px; background: #fff; }
