@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
@@ -59,7 +59,10 @@ export async function POST(request: Request) {
         reviewedBy: decision === "approved" || decision === "rejected" ? "private_owner" : null,
         reviewedAt: decision === "approved" || decision === "rejected" ? reviewedAt : null,
         updatedAt: reviewedAt,
-      }).where(eq(campaignLeads.id, leadId)),
+      }).where(and(
+        eq(campaignLeads.companyId, lead.companyId),
+        ne(campaignLeads.matchStatus, "stale"),
+      )),
       db.insert(leadReviewDecisions).values({
         id: crypto.randomUUID(),
         leadId,
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
         decidedBy: "private_owner",
       }),
     ]);
-    return Response.json({ leadId, decision });
+    return Response.json({ leadId, companyId: lead.companyId, decision, synchronizedCurrentCampaigns: true });
   } catch (error) {
     return apiFailure(error);
   }

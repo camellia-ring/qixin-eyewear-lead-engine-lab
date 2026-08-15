@@ -42,7 +42,7 @@ import {
 } from "@/lib/discovery";
 import { createDiscoveryProvider } from "@/lib/discovery-provider";
 import { qualifyEvidence } from "@/lib/qualification";
-import { routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { campaignProductTracks, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
 type Trigger = "manual" | "scheduled";
@@ -130,7 +130,7 @@ async function persistVerifiedCandidate(
   await ensureUnassignedCampaign();
   const activeCampaignRows = (await db.select().from(campaigns).where(eq(campaigns.status, "active")))
     .filter((campaign) => campaign.id !== UNASSIGNED_CAMPAIGN_ID);
-  const matchedCampaigns = routeCampaigns(activeCampaignRows, evidence, qualification.customerType, qualification.productDirections);
+  const matchedCampaigns = routeCampaigns(activeCampaignRows, evidence, qualification.customerTypes, qualification.productDirections);
   const unassignedCampaign = await ensureUnassignedCampaign();
   const targetCampaigns = matchedCampaigns.length ? matchedCampaigns : [unassignedCampaign];
   const isUnassigned = !matchedCampaigns.length;
@@ -147,6 +147,7 @@ async function persistVerifiedCandidate(
     region: source.region,
     companyType: evidence.companyType,
     customerType: qualification.customerType || null,
+    customerTypesJson: JSON.stringify(qualification.customerTypes),
     companyRole: qualification.companyRole,
     businessModel: evidence.b2bTerms.length ? "B2B public evidence observed" : "Unknown",
     website: evidence.pages[0]?.url || candidate.websiteUrl,
@@ -162,6 +163,7 @@ async function persistVerifiedCandidate(
     contactStatus: qualification.validContact ? "valid" : "missing",
     sourceType: source.sourceType,
     sourceName: source.name,
+    primaryCampaignId: targetCampaigns[0].id,
     firstDiscoveredAt: now,
     lastVerifiedAt: now,
     lastAnalyzedAt: now,
@@ -187,7 +189,7 @@ async function persistVerifiedCandidate(
       companyId,
       qualificationResult: needsAssignment && qualification.qualified ? "near_match" : qualification.qualified ? "qualified" : "rejected",
       workflowStatus: qualification.qualified ? "needs_review" : "rejected",
-      productTrack: needsAssignment ? discoveryGoalCampaign.productTrack : campaign.productTrack,
+      productTrack: needsAssignment ? discoveryGoalCampaign.productTrack : campaignProductTracks(campaign)[0] || campaign.productTrack,
       recommendedProductsJson: JSON.stringify(qualification.productDirections),
       riskSummary: needsAssignment
         ? "客户通过全局准入，但缺少可验证的国家、客户类型或产品 Campaign 匹配证据；需要人工分配。"
@@ -202,6 +204,12 @@ async function persistVerifiedCandidate(
       scoreConfidence: score.confidence,
       autoQualifiedAt: qualification.qualified ? now : null,
       lastVerifiedAt: now,
+      assignmentType: needsAssignment ? "system" : "automatic",
+      matchStatus: needsAssignment ? "unassigned" : "current",
+      matchReason: needsAssignment
+        ? "没有匹配的运行中区域策略"
+        : `证据标签匹配：${evidence.country || "国家待核验"}；${campaignProductTracks(campaign).join(", ")}；${qualification.customerTypes.join(", ") || "客户类型待核验"}`,
+      matchedAt: now,
     });
   }
 

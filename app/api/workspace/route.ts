@@ -1,4 +1,4 @@
-import { count, desc } from "drizzle-orm";
+import { count, desc, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaigns,
@@ -41,7 +41,8 @@ export async function GET() {
         campaignId: campaignLeads.campaignId,
         workflowStatus: campaignLeads.workflowStatus,
         value: count(),
-      }).from(campaignLeads).groupBy(campaignLeads.campaignId, campaignLeads.workflowStatus),
+      }).from(campaignLeads).where(ne(campaignLeads.matchStatus, "stale"))
+        .groupBy(campaignLeads.campaignId, campaignLeads.workflowStatus),
       db.select().from(leadImportRuns).orderBy(desc(leadImportRuns.createdAt)).limit(200),
       db.select().from(crmExportRuns).orderBy(desc(crmExportRuns.createdAt)).limit(200),
       db.select().from(discoverySources).orderBy(desc(discoverySources.updatedAt)).limit(500),

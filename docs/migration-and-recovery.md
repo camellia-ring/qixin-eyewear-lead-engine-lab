@@ -12,7 +12,7 @@
 
 ## 前向迁移规则
 
-`drizzle/0003_automatic_daily_engine.sql` 是纯前向迁移：
+`drizzle/0003_automatic_daily_engine.sql` 与 `drizzle/0004_lush_amphibian.sql` 都是纯前向迁移：
 
 - 允许 `ALTER TABLE ... ADD COLUMN`、`CREATE TABLE`、`CREATE INDEX` 和为新增字段补默认值。
 - 禁止 `DROP`、`DELETE`、`TRUNCATE`、旧表重建或列重命名。
@@ -23,9 +23,10 @@
 
 1. 核对迁移版本和新增表/列。
 2. 对比部署前后的全部表行数；因迁移本身不应减少任何旧表行数。
-3. 确认原有 Campaign、公司、Lead、证据、审核和导出记录仍可读取。
-4. 确认 `engine_state` 初始为停止或当前明确状态，付费 provider 关闭。
-5. 运行只读受控真实来源试跑；若要写入 D1，必须使用工作台的明确“立即运行小批次”动作并复核新增记录。
+3. 依次应用 `0003_automatic_daily_engine.sql`、`0004_lush_amphibian.sql`；后者只新增区域策略、多标签、主 Campaign 和匹配状态字段，并回填旧记录。
+4. 确认原有 Campaign、公司、Lead、证据、审核和导出记录仍可读取。
+5. 确认 `engine_state` 初始为停止或当前明确状态，付费 provider 关闭。
+6. 运行只读受控真实来源试跑；若要写入 D1，必须使用工作台的明确“立即运行小批次”动作并复核新增记录。
 
 ## 恢复顺序
 

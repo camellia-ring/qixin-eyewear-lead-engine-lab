@@ -180,9 +180,12 @@ export function extractExhibitorCardCandidates(html: string, sourceUrl: string, 
       const url = publicHttpUrl(href, sourceUrl);
       const domain = normalizedDomain(url.toString());
       if (domain !== sourceDomain) continue;
-      const context = `${url.pathname} ${attribute(match[1], "class")} ${label}`.toLocaleLowerCase();
-      if (!/(exhibitor|aussteller|wystawc|company|profile|brand|firma|supplier)/i.test(context)) continue;
+      const className = attribute(match[1], "class");
+      const isDetailPath = /\/(?:exhibitors?|aussteller|wystawcy?|companies|company|profiles?|profile|brands?|brand|firma|suppliers?|supplier)\/[^/?#]+/i.test(url.pathname);
+      const isDetailCard = /(?:exhibitor|company|supplier)[-_ ]?(?:card|item|profile|entry|title)/i.test(className);
+      if (!isDetailPath && !isDetailCard) continue;
       const canonical = canonicalSourceUrl(url.toString());
+      if (canonical === canonicalSourceUrl(sourceUrl)) continue;
       const key = `detail:${canonical}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -200,7 +203,9 @@ export function extractExhibitorCardCandidates(html: string, sourceUrl: string, 
   }
   const safeOffset = Math.max(0, Math.min(100_000, Math.trunc(offset)));
   const safeLimit = Math.max(1, Math.min(500, limit));
-  return [...direct, ...detailCandidates].slice(safeOffset, safeOffset + safeLimit);
+  // Official exhibitor detail cards are stronger candidates than unrelated footer/service links.
+  // Process them first so a bounded batch does not get consumed by event-platform navigation.
+  return [...detailCandidates, ...direct].slice(safeOffset, safeOffset + safeLimit);
 }
 
 function tableCells(rowHtml: string) {

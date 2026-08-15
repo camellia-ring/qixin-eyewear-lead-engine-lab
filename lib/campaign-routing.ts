@@ -1,4 +1,5 @@
 import type { SiteEvidence } from "@/lib/discovery";
+import { REGION_PRESETS, isRegionKey, normalizeProductTracks } from "@/lib/campaign-strategy";
 
 export const UNASSIGNED_CAMPAIGN_ID = "system:unassigned";
 export const UNASSIGNED_CAMPAIGN_NAME = "待分配客户";
@@ -11,7 +12,18 @@ export type RoutableCampaign = {
   targetMarkets: string;
   productTypesJson: string;
   customerTypesJson: string;
+  regionKey?: string | null;
+  productTracksJson?: string | null;
+  strategyPriority?: number | null;
   status: string;
+};
+
+export type RoutableCompany = {
+  country?: string | null;
+  customerType?: string | null;
+  customerTypesJson?: string | null;
+  productDirectionsJson?: string | null;
+  productsJson?: string | null;
 };
 
 const COUNTRY_ALIASES: Record<string, string> = {
@@ -24,6 +36,8 @@ const COUNTRY_ALIASES: Record<string, string> = {
   france: "france", 法国: "france", spain: "spain", 西班牙: "spain", canada: "canada", 加拿大: "canada",
   netherlands: "netherlands", 荷兰: "netherlands", austria: "austria", 奥地利: "austria",
   switzerland: "switzerland", 瑞士: "switzerland", "hong kong": "hong kong", 香港: "hong kong",
+  uae: "united arab emirates", emirates: "united arab emirates", 阿联酋: "united arab emirates",
+  "saudi arabia": "saudi arabia", saudi: "saudi arabia", 沙特: "saudi arabia",
 };
 
 export function jsonStringList(value: string | null | undefined) {
@@ -55,51 +69,82 @@ export function campaignCountries(campaign: Pick<RoutableCampaign, "targetCountr
   return [...new Set(values)];
 }
 
-function productMatches(campaign: RoutableCampaign, evidence: SiteEvidence, productDirections: string[]) {
-  const haystack = [...productDirections, ...evidence.productTerms, ...evidence.eyewearTerms].join(" ").toLocaleLowerCase();
-  if (campaign.productTrack === "optical_lenses") return /(镜片|lens|photochromic|progressive|varifocal|polycarbonate|aspheric|blue light)/i.test(haystack);
-  if (campaign.productTrack === "optical_frames") return /(镜架|frame|eyewear|spectacle|glasses|sunglass)/i.test(haystack);
-  if (campaign.productTrack === "sunglasses") return /(太阳镜|sunglass|sun eyewear)/i.test(haystack);
-  if (campaign.productTrack === "reading_glasses") return /(老花|reading glasses|readers)/i.test(haystack);
-  if (campaign.productTrack === "blue_light_glasses") return /(防蓝光|blue light|blue-light|computer glasses)/i.test(haystack);
-  if (campaign.productTrack === "kids_eyewear") return /(儿童|kids|children)/i.test(haystack);
-  if (campaign.productTrack === "sports_eyewear") return /(运动|sports|cycling|performance)/i.test(haystack);
-  if (campaign.productTrack === "protective_eyewear" || campaign.productTrack === "safety_lenses") return /(安全|防护|safety|protective|polycarbonate|impact-resistant)/i.test(haystack);
-  return evidence.eyewearTerms.length > 0 || productDirections.length > 0;
+export function campaignProductTracks(campaign: Pick<RoutableCampaign, "productTrack" | "productTracksJson">) {
+  return normalizeProductTracks(jsonStringList(campaign.productTracksJson), campaign.productTrack);
 }
 
-function customerTypeMatches(campaign: RoutableCampaign, customerType: string) {
+function trackMatchesHaystack(track: string, haystack: string) {
+  if (track === "optical_lenses") return /(普通光学镜片|非球面镜片|变色镜片|渐进镜片|光学镜片|ophthalmic lens|optical lens|photochromic|progressive|varifocal|aspheric)/i.test(haystack);
+  if (track === "optical_frames") return /(光学镜架|镜架|optical frame|eyeglass frame|spectacle frame)/i.test(haystack);
+  if (track === "sunglasses") return /(太阳镜|sunglass|sun eyewear)/i.test(haystack);
+  if (track === "reading_glasses") return /(老花镜|老花|reading glasses|readers)/i.test(haystack);
+  if (track === "blue_light_glasses") return /(防蓝光眼镜|防蓝光镜片|blue light|blue-light|computer glasses)/i.test(haystack);
+  if (track === "kids_eyewear") return /(儿童眼镜|儿童|kids eyewear|children.*glasses)/i.test(haystack);
+  if (track === "sports_eyewear") return /(运动眼镜|运动|sports eyewear|cycling glasses|performance eyewear)/i.test(haystack);
+  if (track === "protective_eyewear" || track === "safety_lenses") return /(PC安全镜片|安全眼镜|防护眼镜|safety|protective|impact-resistant)/i.test(haystack);
+  return false;
+}
+
+function productMatches(campaign: RoutableCampaign, values: string[]) {
+  const haystack = values.join(" ").toLocaleLowerCase();
+  return campaignProductTracks(campaign).some((track) => trackMatchesHaystack(track, haystack));
+}
+
+function customerTypeMatches(campaign: RoutableCampaign, customerTypes: string[]) {
   const targets = jsonStringList(campaign.customerTypesJson);
-  if (!targets.length) return Boolean(customerType);
-  const normalizedType = customerType.toLocaleLowerCase();
-  return targets.some((target) => {
+  if (!targets.length) return customerTypes.length > 0;
+  return customerTypes.some((customerType) => targets.some((target) => {
+    const normalizedType = customerType.toLocaleLowerCase();
     const normalizedTarget = target.toLocaleLowerCase();
     if (normalizedTarget === normalizedType) return true;
     if (/(批发|wholesale)/i.test(normalizedTarget) && /(批发|wholesale)/i.test(normalizedType)) return true;
     if (/(分销|distribut)/i.test(normalizedTarget) && /(分销|distribut)/i.test(normalizedType)) return true;
     if (/(进口|import)/i.test(normalizedTarget) && /(进口|import)/i.test(normalizedType)) return true;
+    if (/(品牌|brand)/i.test(normalizedTarget) && /(品牌|brand)/i.test(normalizedType)) return true;
     return false;
-  });
+  }));
+}
+
+function targetCountries(campaign: RoutableCampaign) {
+  const configured = campaignCountries(campaign);
+  if (configured.length) return configured;
+  if (campaign.regionKey && isRegionKey(campaign.regionKey)) {
+    return REGION_PRESETS[campaign.regionKey].countries.map(normalizeCountry);
+  }
+  return configured;
 }
 
 export function campaignMatchesEvidence(
   campaign: RoutableCampaign,
   evidence: SiteEvidence,
-  customerType: string,
+  customerType: string | string[],
   productDirections: string[],
 ) {
   if (campaign.id === UNASSIGNED_CAMPAIGN_ID || campaign.status !== "active") return false;
-  const targets = campaignCountries(campaign);
+  const targets = targetCountries(campaign);
   const evidenceCountry = normalizeCountry(evidence.country);
   if (targets.length && (!evidenceCountry || !targets.includes(evidenceCountry))) return false;
-  return customerTypeMatches(campaign, customerType) && productMatches(campaign, evidence, productDirections);
+  return customerTypeMatches(campaign, (Array.isArray(customerType) ? customerType : [customerType]).filter(Boolean))
+    && productMatches(campaign, [...productDirections, ...evidence.productTerms, ...evidence.eyewearTerms]);
+}
+
+export function campaignMatchesCompany(campaign: RoutableCampaign, company: RoutableCompany) {
+  if (campaign.id === UNASSIGNED_CAMPAIGN_ID || campaign.status !== "active") return false;
+  const targets = targetCountries(campaign);
+  const companyCountry = normalizeCountry(company.country);
+  if (targets.length && (!companyCountry || !targets.includes(companyCountry))) return false;
+  const customerTypes = [...jsonStringList(company.customerTypesJson), company.customerType || ""].filter(Boolean);
+  const products = [...jsonStringList(company.productDirectionsJson), ...jsonStringList(company.productsJson)];
+  return customerTypeMatches(campaign, customerTypes) && productMatches(campaign, products);
 }
 
 export function routeCampaigns(
   campaigns: RoutableCampaign[],
   evidence: SiteEvidence,
-  customerType: string,
+  customerType: string | string[],
   productDirections: string[],
 ) {
-  return campaigns.filter((campaign) => campaignMatchesEvidence(campaign, evidence, customerType, productDirections));
+  return campaigns
+    .filter((campaign) => campaignMatchesEvidence(campaign, evidence, customerType, productDirections))
+    .sort((left, right) => Number(right.strategyPriority || 50) - Number(left.strategyPriority || 50));
 }

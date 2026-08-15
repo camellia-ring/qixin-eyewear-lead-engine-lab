@@ -10,7 +10,7 @@ import {
 } from "../lib/discovery.ts";
 import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts } from "../lib/engine-policy.ts";
 import { qualifyEvidence } from "../lib/qualification.ts";
-import { normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
+import { campaignMatchesCompany, normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
 
 function evidence(overrides = {}) {
   return {
@@ -43,6 +43,7 @@ test("only a verified target company with public business contact passes the aut
   assert.equal(result.qualified, true);
   assert.equal(result.hardGateStatus, "pass");
   assert.equal(result.customerType, "光学镜片批发商");
+  assert.deepEqual(result.customerTypes, ["光学镜片批发商", "眼镜分销商"]);
   assert.equal(result.validContact.type, "email");
 });
 
@@ -88,6 +89,30 @@ test("one verified company may route to multiple matching active campaigns", () 
   assert.deepEqual(routeCampaigns(campaigns, evidence(), "光学镜片批发商", ["渐进镜片"]).map((campaign) => campaign.id), ["usa-core", "usa-progressive"]);
 });
 
+test("multi-product companies appear in every matching regional Campaign and use priority for the primary order", () => {
+  const base = {
+    targetCountriesJson: '["United Arab Emirates"]', targetMarkets: "中东",
+    customerTypesJson: '["Eyewear distributor"]', status: "active", regionKey: "middle_east",
+  };
+  const campaigns = [
+    { ...base, id: "uae-sun", name: "中东太阳镜", productTrack: "sunglasses", productTracksJson: '["sunglasses"]', productTypesJson: '["Sunglasses"]', strategyPriority: 100 },
+    { ...base, id: "uae-lens", name: "中东镜片", productTrack: "optical_lenses", productTracksJson: '["optical_lenses"]', productTypesJson: '["Optical lenses"]', strategyPriority: 50 },
+  ];
+  const uaeEvidence = evidence({
+    country: "UAE", companyType: "Eyewear Distributor",
+    eyewearTerms: ["sunglasses", "optical lens"], productTerms: ["sunglasses", "progressive lens"],
+  });
+  assert.deepEqual(
+    routeCampaigns(campaigns, uaeEvidence, "眼镜分销商", ["太阳镜", "渐进镜片"]).map((campaign) => campaign.id),
+    ["uae-sun", "uae-lens"],
+  );
+  const storedCompany = {
+    country: "United Arab Emirates", customerType: "眼镜分销商", customerTypesJson: '["眼镜分销商"]',
+    productDirectionsJson: '["太阳镜","渐进镜片"]', productsJson: "[]",
+  };
+  assert.ok(campaigns.every((campaign) => campaignMatchesCompany(campaign, storedCompany)));
+});
+
 test("paid discovery provider is disabled without both explicit approval flag and credentials", async () => {
   const provider = createDiscoveryProvider({ enablePaidProviders: "false", openAiApiKey: "not-used", openAiDiscoveryModel: "not-used" });
   assert.equal(provider.enabled, false);
@@ -128,7 +153,8 @@ test("directory cursor advances beyond the first batch instead of repeating it",
 });
 
 test("official exhibitor cards retain same-domain detail pages for second-hop website resolution", () => {
-  const html = `<a class="exhibitor-card" href="/exhibitor/armada-optical">Armada Optical</a>`;
+  const html = `<a class="exhibitor-navigation" href="/register-interest">Register your Interest</a>
+    <a class="exhibitor-card" href="/exhibitor/armada-optical">Armada Optical</a>`;
   const [candidate] = extractExhibitorCardCandidates(html, "https://fair.example.org/exhibitors", 5);
   assert.equal(candidate.websiteUrl, "");
   assert.equal(candidate.label, "Armada Optical");

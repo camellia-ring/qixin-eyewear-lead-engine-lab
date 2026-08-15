@@ -2,6 +2,7 @@ import { count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
+  campaigns,
   companyDomainLinks,
   companyDomains,
   contactVerifications,
@@ -22,7 +23,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const [lead] = await db.select().from(campaignLeads).where(eq(campaignLeads.id, id)).limit(1);
     if (!lead) throw new ApiError(404, "lead_not_found");
 
-    const [companyRows, sourceRows, claimRows, scoreRunRows, reviewRows, domainRows, contactCountRows, verificationRows] = await Promise.all([
+    const [companyRows, sourceRows, claimRows, scoreRunRows, reviewRows, domainRows, contactCountRows, verificationRows, membershipRows] = await Promise.all([
       db.select().from(prospectCompanies).where(eq(prospectCompanies.id, lead.companyId)).limit(1),
       db.select().from(leadSources).where(eq(leadSources.companyId, lead.companyId)).orderBy(desc(leadSources.retrievedAt)),
       db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, lead.companyId)).orderBy(desc(evidenceClaims.createdAt)),
@@ -36,6 +37,18 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
         .where(eq(companyDomainLinks.companyId, lead.companyId)),
       db.select({ value: count() }).from(prospectContacts).where(eq(prospectContacts.companyId, lead.companyId)),
       db.select().from(contactVerifications).where(eq(contactVerifications.companyId, lead.companyId)).orderBy(desc(contactVerifications.verifiedAt)),
+      db.select({
+        leadId: campaignLeads.id,
+        campaignId: campaignLeads.campaignId,
+        campaignName: campaigns.name,
+        campaignStatus: campaigns.status,
+        strategyPriority: campaigns.strategyPriority,
+        assignmentType: campaignLeads.assignmentType,
+        matchStatus: campaignLeads.matchStatus,
+        matchReason: campaignLeads.matchReason,
+        matchedAt: campaignLeads.matchedAt,
+      }).from(campaignLeads).innerJoin(campaigns, eq(campaignLeads.campaignId, campaigns.id))
+        .where(eq(campaignLeads.companyId, lead.companyId)).orderBy(desc(campaigns.strategyPriority)),
     ]);
     const company = companyRows[0];
     if (!company) throw new ApiError(404, "company_not_found");
@@ -55,6 +68,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       domains: domainRows,
       contactCount: Number(contactCountRows[0]?.value || 0),
       contactVerifications: verificationRows,
+      memberships: membershipRows,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiFailure(error);

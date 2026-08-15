@@ -12,6 +12,7 @@ import {
 import { collectSiteEvidence, deterministicScore, normalizedDomain, type DiscoveryCandidate } from "@/lib/discovery";
 import { calculateScore, canonicalSourceUrl, RUBRIC_VERSION } from "@/lib/lead-engine";
 import { qualifyEvidence } from "@/lib/qualification";
+import { refreshCompanyCampaignMemberships } from "@/lib/campaign-membership";
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -44,6 +45,7 @@ export async function reverifyLead(leadId: string) {
     country: evidence.country || company.country,
     companyType: evidence.companyType,
     customerType: qualification.customerType || null,
+      customerTypesJson: JSON.stringify(qualification.customerTypes),
     companyRole: qualification.companyRole,
     productsJson: JSON.stringify(evidence.eyewearTerms.slice(0, 12)),
     productDirectionsJson: JSON.stringify(qualification.productDirections),
@@ -113,5 +115,6 @@ export async function reverifyLead(leadId: string) {
       evidenceIdsJson: JSON.stringify(evidenceIds),
     });
   }
-  return { leadId: lead.id, companyId: company.id, qualified: qualification.qualified, score: score.total, evidenceCoverage: score.evidenceCoverage, failures: qualification.failures };
+  const campaignRefresh = await refreshCompanyCampaignMemberships(company.id);
+  return { leadId: lead.id, companyId: company.id, qualified: qualification.qualified, score: score.total, evidenceCoverage: score.evidenceCoverage, failures: qualification.failures, campaignRefresh };
 }

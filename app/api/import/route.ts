@@ -237,6 +237,8 @@ export async function POST(request: Request) {
           ? "rejected"
           : score.total >= 60 ? "qualified" : "near_match";
         const products = safeJsonList(record.productInterests || record.recommendedProducts, crmProductInterests(productTrack));
+        const customerTypes = safeJsonList(record.customerTypes || record.customerType || record.companyType);
+        const productDirections = safeJsonList(record.productDirections || record.recommendedProducts || record.products, products);
         const statements: BatchItem<"sqlite">[] = [];
 
         if (existingCompany) {
@@ -244,10 +246,13 @@ export async function POST(request: Request) {
             country: country || existingCompany.country,
             city: textValue(record.city, { field: "city", max: 160 }) || existingCompany.city,
             companyType: textValue(record.customerType || record.companyType, { field: "companyType", max: 160 }) || existingCompany.companyType,
+            customerType: customerTypes[0] || existingCompany.customerType,
+            customerTypesJson: JSON.stringify(customerTypes.length ? customerTypes : safeJsonList(existingCompany.customerTypesJson)),
             businessModel: textValue(record.businessModel, { field: "businessModel", max: 160 }) || existingCompany.businessModel,
             website: website.original || existingCompany.website,
             primaryDomain: website.normalized || existingCompany.primaryDomain,
             productsJson: JSON.stringify(safeJsonList(record.products, safeJsonList(existingCompany.productsJson))),
+            productDirectionsJson: JSON.stringify(productDirections.length ? productDirections : safeJsonList(existingCompany.productDirectionsJson)),
             brandsJson: JSON.stringify(safeJsonList(record.brands, safeJsonList(existingCompany.brandsJson))),
             wholesaleSignal: textValue(record.wholesaleSignal, { field: "wholesaleSignal", max: 2000 }) || existingCompany.wholesaleSignal,
             privateLabelSignal: textValue(record.privateLabelSignal, { field: "privateLabelSignal", max: 2000 }) || existingCompany.privateLabelSignal,
@@ -260,6 +265,7 @@ export async function POST(request: Request) {
             contactChannel: textValue(record.contactChannel, { field: "contactChannel", max: 500 }) || existingCompany.contactChannel,
             estimatedPurchaseVolume: textValue(record.estimatedPurchaseVolume, { field: "estimatedPurchaseVolume", max: 500 }) || existingCompany.estimatedPurchaseVolume,
             doNotContact: booleanValue(record.doNotContact) || existingCompany.doNotContact,
+            primaryCampaignId: existingCompany.primaryCampaignId || campaignId,
             lastAnalyzedAt: isoTime(record.lastVerifiedAt || record.lastAnalyzedAt, "lastAnalyzedAt") || sources[0].retrievedAt,
             updatedAt: new Date().toISOString(),
           }).where(eq(prospectCompanies.id, companyId)));
@@ -271,10 +277,13 @@ export async function POST(request: Request) {
             country: country || null,
             city: textValue(record.city, { field: "city", max: 160 }) || null,
             companyType: textValue(record.customerType || record.companyType, { field: "companyType", max: 160 }) || null,
+            customerType: customerTypes[0] || null,
+            customerTypesJson: JSON.stringify(customerTypes),
             businessModel: textValue(record.businessModel, { field: "businessModel", max: 160 }) || null,
             website: website.original || null,
             primaryDomain: website.normalized || null,
             productsJson: JSON.stringify(safeJsonList(record.products)),
+            productDirectionsJson: JSON.stringify(productDirections),
             brandsJson: JSON.stringify(safeJsonList(record.brands)),
             wholesaleSignal: textValue(record.wholesaleSignal, { field: "wholesaleSignal", max: 2000 }) || null,
             privateLabelSignal: textValue(record.privateLabelSignal, { field: "privateLabelSignal", max: 2000 }) || null,
@@ -287,6 +296,7 @@ export async function POST(request: Request) {
             contactChannel: textValue(record.contactChannel, { field: "contactChannel", max: 500 }) || null,
             estimatedPurchaseVolume: textValue(record.estimatedPurchaseVolume, { field: "estimatedPurchaseVolume", max: 500 }) || null,
             doNotContact: booleanValue(record.doNotContact),
+            primaryCampaignId: campaignId,
             lastAnalyzedAt: isoTime(record.lastVerifiedAt || record.lastAnalyzedAt, "lastAnalyzedAt") || sources[0].retrievedAt,
           }));
         }
@@ -325,6 +335,10 @@ export async function POST(request: Request) {
           grade: score.grade,
           evidenceCoverage: score.evidenceCoverage,
           scoreConfidence: score.confidence,
+          assignmentType: "manual",
+          matchStatus: "manual",
+          matchReason: "负责人审核后的结构化导入",
+          matchedAt: new Date().toISOString(),
         }));
         for (const source of sources) statements.push(db.insert(leadSources).values({ ...source, companyId, leadId }));
         for (const claim of claims) statements.push(db.insert(evidenceClaims).values({

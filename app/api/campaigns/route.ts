@@ -4,13 +4,23 @@ import { campaigns } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import {
   CAMPAIGN_STATUSES,
-  DEFAULT_CUSTOMER_TYPES,
   DEFAULT_EXCLUSIONS,
   PRODUCT_TRACKS,
-  crmProductInterests,
   safeJsonList,
 } from "@/lib/lead-engine";
 import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import {
+  DEFAULT_CAMPAIGN_CUSTOMER_TYPES,
+  REGION_PRESETS,
+  campaignCustomerTypes,
+  campaignProductInterests,
+  campaignStrategyName,
+  defaultAutomationConfig,
+  defaultCampaignCountries,
+  isRegionKey,
+  normalizeProductTracks,
+} from "@/lib/campaign-strategy";
+import { refreshAllCompanyCampaignMemberships } from "@/lib/campaign-membership";
 
 function targetCount(value: unknown, fallback = 30) {
   const count = Number(value ?? fallback);
@@ -28,30 +38,60 @@ function validateStatus(value: unknown, fallback: string) {
   return status;
 }
 
+function priority(value: unknown, fallback = 50) {
+  const parsed = Number(value ?? fallback);
+  if (![10, 50, 100].includes(parsed)) throw new ApiError(400, "invalid_campaign_priority");
+  return parsed;
+}
+
+function strategyInput(body: Record<string, unknown>, current?: typeof campaigns.$inferSelect) {
+  const requestedRegion = textValue(body.regionKey ?? current?.regionKey ?? "custom", { field: "regionKey", max: 40 });
+  if (!isRegionKey(requestedRegion)) throw new ApiError(400, "invalid_campaign_region");
+  const fallbackTrack = textValue(body.productTrack ?? current?.productTrack ?? "optical_lenses", { field: "productTrack", max: 50 });
+  const productTracks = normalizeProductTracks(
+    body.productTracks === undefined && current ? safeJsonList(current.productTracksJson, [fallbackTrack]) : safeJsonList(body.productTracks),
+    fallbackTrack,
+  );
+  if (!productTracks.length) throw new ApiError(400, "campaign_product_required");
+  const countries = body.targetCountries === undefined
+    ? current ? safeJsonList(current.targetCountriesJson, defaultCampaignCountries(requestedRegion)) : defaultCampaignCountries(requestedRegion)
+    : safeJsonList(body.targetCountries, defaultCampaignCountries(requestedRegion));
+  const customerTypes = body.customerTypes === undefined
+    ? current ? safeJsonList(current.customerTypesJson, DEFAULT_CAMPAIGN_CUSTOMER_TYPES) : DEFAULT_CAMPAIGN_CUSTOMER_TYPES
+    : campaignCustomerTypes(safeJsonList(body.customerTypes, DEFAULT_CAMPAIGN_CUSTOMER_TYPES));
+  return { regionKey: requestedRegion, productTracks, countries, customerTypes };
+}
+
 export async function POST(request: Request) {
   try {
     const body = await jsonBody(request);
-    const name = textValue(body.name, { field: "name", required: true, max: 160 });
-    const productTrack = textValue(body.productTrack, { field: "productTrack", required: true, max: 50 });
+    const strategy = strategyInput(body);
+    const productTrack = strategy.productTracks[0];
     if (!PRODUCT_TRACKS.has(productTrack)) throw new ApiError(400, "invalid_product_track");
+    const name = textValue(body.name, { field: "name", max: 160 }) || campaignStrategyName(strategy.regionKey, strategy.productTracks);
     const id = crypto.randomUUID();
     const db = getDb();
     const [campaign] = await db.insert(campaigns).values({
       id,
       name,
       productTrack,
-      targetCountriesJson: jsonList(body.targetCountries),
-      targetMarkets: textValue(body.targetMarkets, { field: "targetMarkets", max: 500 }),
-      productTypesJson: jsonList(body.productTypes, crmProductInterests(productTrack)),
-      customerTypesJson: jsonList(body.customerTypes, DEFAULT_CUSTOMER_TYPES),
+      targetCountriesJson: JSON.stringify(strategy.countries),
+      targetMarkets: REGION_PRESETS[strategy.regionKey].label,
+      productTypesJson: JSON.stringify(campaignProductInterests(strategy.productTracks)),
+      customerTypesJson: JSON.stringify(strategy.customerTypes),
       targetCount: targetCount(body.targetCount),
       moqFit: textValue(body.moqFit, { field: "moqFit", max: 500 }) || null,
       companySize: textValue(body.companySize, { field: "companySize", max: 300 }) || null,
       positioning: textValue(body.positioning, { field: "positioning", max: 500 }) || null,
       exclusionsJson: jsonList(body.exclusions, DEFAULT_EXCLUSIONS),
+      regionKey: strategy.regionKey,
+      productTracksJson: JSON.stringify(strategy.productTracks),
+      strategyPriority: priority(body.strategyPriority),
+      automationConfigJson: JSON.stringify(defaultAutomationConfig(strategy.regionKey)),
       status: validateStatus(body.status, "draft"),
     }).returning();
-    return Response.json({ campaign }, { status: 201 });
+    const matchRefresh = campaign.status === "active" ? await refreshAllCompanyCampaignMemberships() : null;
+    return Response.json({ campaign, matchRefresh }, { status: 201 });
   } catch (error) {
     return apiFailure(error);
   }
@@ -65,26 +105,35 @@ export async function PATCH(request: Request) {
     const db = getDb();
     const [current] = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
     if (!current) throw new ApiError(404, "campaign_not_found");
-    const productTrack = body.productTrack === undefined
-      ? current.productTrack
-      : textValue(body.productTrack, { field: "productTrack", required: true, max: 50 });
+    const strategy = strategyInput(body, current);
+    const productTrack = strategy.productTracks[0];
     if (!PRODUCT_TRACKS.has(productTrack)) throw new ApiError(400, "invalid_product_track");
+    const strategyChanged = body.regionKey !== undefined || body.productTracks !== undefined;
     const [campaign] = await db.update(campaigns).set({
-      name: body.name === undefined ? current.name : textValue(body.name, { field: "name", required: true, max: 160 }),
+      name: body.name === undefined
+        ? strategyChanged ? campaignStrategyName(strategy.regionKey, strategy.productTracks) : current.name
+        : textValue(body.name, { field: "name", required: true, max: 160 }),
       productTrack,
-      targetCountriesJson: body.targetCountries === undefined ? current.targetCountriesJson : jsonList(body.targetCountries),
-      targetMarkets: body.targetMarkets === undefined ? current.targetMarkets : textValue(body.targetMarkets, { field: "targetMarkets", max: 500 }),
-      productTypesJson: body.productTypes === undefined ? current.productTypesJson : jsonList(body.productTypes),
-      customerTypesJson: body.customerTypes === undefined ? current.customerTypesJson : jsonList(body.customerTypes),
+      targetCountriesJson: JSON.stringify(strategy.countries),
+      targetMarkets: REGION_PRESETS[strategy.regionKey].label,
+      productTypesJson: JSON.stringify(campaignProductInterests(strategy.productTracks)),
+      customerTypesJson: JSON.stringify(strategy.customerTypes),
       targetCount: body.targetCount === undefined ? current.targetCount : targetCount(body.targetCount),
       moqFit: body.moqFit === undefined ? current.moqFit : textValue(body.moqFit, { field: "moqFit", max: 500 }) || null,
       companySize: body.companySize === undefined ? current.companySize : textValue(body.companySize, { field: "companySize", max: 300 }) || null,
       positioning: body.positioning === undefined ? current.positioning : textValue(body.positioning, { field: "positioning", max: 500 }) || null,
       exclusionsJson: body.exclusions === undefined ? current.exclusionsJson : jsonList(body.exclusions),
+      regionKey: strategy.regionKey,
+      productTracksJson: JSON.stringify(strategy.productTracks),
+      strategyPriority: body.strategyPriority === undefined ? current.strategyPriority : priority(body.strategyPriority, current.strategyPriority),
+      automationConfigJson: body.regionKey === undefined
+        ? current.automationConfigJson
+        : JSON.stringify({ ...defaultAutomationConfig(strategy.regionKey), outreachMode: "disabled" }),
       status: body.status === undefined ? current.status : validateStatus(body.status, current.status),
       updatedAt: new Date().toISOString(),
     }).where(eq(campaigns.id, id)).returning();
-    return Response.json({ campaign });
+    const matchRefresh = await refreshAllCompanyCampaignMemberships();
+    return Response.json({ campaign, matchRefresh });
   } catch (error) {
     return apiFailure(error);
   }

@@ -13,7 +13,7 @@ function applySql(db, sql) {
   for (const statement of sql.split("--> statement-breakpoint").map((value) => value.trim()).filter(Boolean)) db.exec(statement);
 }
 
-test("automatic engine migration is forward-only and preserves representative historical rows", () => {
+test("automatic engine and regional Campaign migrations are forward-only and preserve representative historical rows", () => {
   const db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys=ON");
   applySql(db, migration("0000_lead_engine_v1.sql"));
@@ -30,11 +30,29 @@ test("automatic engine migration is forward-only and preserves representative hi
   assert.doesNotMatch(forward, /\b(?:DROP\s+TABLE|DELETE\s+FROM|TRUNCATE|RENAME\s+TO)\b/i);
   applySql(db, forward);
 
+  db.exec(`UPDATE campaigns SET target_markets='Middle East', customer_types_json='["Distributor"]' WHERE id='campaign-1'`);
+  db.exec(`UPDATE prospect_companies SET customer_type='Eyewear distributor' WHERE id='company-1'`);
+  const strategyMigration = migration("0004_lush_amphibian.sql");
+  assert.doesNotMatch(strategyMigration, /\b(?:DROP\s+TABLE|DELETE\s+FROM|TRUNCATE|RENAME\s+TO)\b/i);
+  applySql(db, strategyMigration);
+
   assert.equal(db.prepare("SELECT count(*) AS value FROM campaigns WHERE id='campaign-1'").get().value, 1);
   assert.equal(db.prepare("SELECT count(*) AS value FROM prospect_companies WHERE id='company-1'").get().value, 1);
   assert.equal(db.prepare("SELECT count(*) AS value FROM campaign_leads WHERE id='lead-1'").get().value, 1);
   assert.equal(db.prepare("SELECT count(*) AS value FROM discovery_runs WHERE id='run-1'").get().value, 1);
   assert.ok(db.prepare("SELECT first_discovered_at AS value FROM prospect_companies WHERE id='company-1'").get().value);
+  const campaign = db.prepare("SELECT region_key, product_tracks_json, strategy_priority, automation_config_json FROM campaigns WHERE id='campaign-1'").get();
+  assert.equal(campaign.region_key, "middle_east");
+  assert.deepEqual(JSON.parse(campaign.product_tracks_json), ["optical_lenses"]);
+  assert.equal(campaign.strategy_priority, 50);
+  assert.equal(JSON.parse(campaign.automation_config_json).outreachMode, "disabled");
+  const company = db.prepare("SELECT customer_types_json, primary_campaign_id FROM prospect_companies WHERE id='company-1'").get();
+  assert.deepEqual(JSON.parse(company.customer_types_json), ["Eyewear distributor"]);
+  assert.equal(company.primary_campaign_id, "campaign-1");
+  const membership = db.prepare("SELECT assignment_type, match_status, matched_at FROM campaign_leads WHERE id='lead-1'").get();
+  assert.equal(membership.assignment_type, "legacy");
+  assert.equal(membership.match_status, "current");
+  assert.ok(membership.matched_at);
   for (const table of ["engine_state", "daily_discovery_targets", "discovery_run_attempts", "source_health", "parser_versions", "contact_verification", "discovery_alerts"]) {
     assert.equal(db.prepare("SELECT count(*) AS value FROM sqlite_master WHERE type='table' AND name=?").get(table).value, 1);
   }

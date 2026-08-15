@@ -25,13 +25,16 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { SCORE_LIMITS } from "@/lib/lead-engine";
+import { PRODUCT_TRACK_LABELS, REGION_PRESETS } from "@/lib/campaign-strategy";
+import CampaignStrategyForm from "./CampaignStrategyForm";
 import styles from "./LeadEngineApp.module.css";
 
 type SearchKeyword = { keyword: string; locale: string; purpose: string };
 type Campaign = {
   id: string; name: string; productTrack: string; targetCountriesJson: string; targetMarkets: string;
   productTypesJson: string; customerTypesJson: string; targetCount: number; moqFit?: string; companySize?: string;
-  positioning?: string; exclusionsJson: string; status: string; searchKeywords: SearchKeyword[]; researchBrief: string;
+  positioning?: string; exclusionsJson: string; regionKey: string; productTracksJson: string; strategyPriority: number;
+  automationConfigJson: string; status: string; searchKeywords: SearchKeyword[]; researchBrief: string;
 };
 type Lead = {
   id: string; campaignId: string; companyId: string; qualificationResult: string; workflowStatus: string;
@@ -41,6 +44,7 @@ type Lead = {
 };
 type Company = {
   id: string; companyName: string; country?: string; region?: string; city?: string; companyType?: string; customerType?: string; companyRole?: string; businessModel?: string;
+  customerTypesJson?: string; primaryCampaignId?: string;
   website?: string; primaryDomain?: string; productsJson: string; brandsJson: string; wholesaleSignal?: string;
   privateLabelSignal?: string; oemSignal?: string; pricePosition?: string; companySize?: string;
   productDirectionsJson?: string; analysisSummary?: string; analysisConfidence: string; businessEmail?: string; contactChannel?: string;
@@ -79,25 +83,27 @@ type DiscoveryAlert = { id: string; sourceId?: string; runId?: string; targetDat
 type SourceHealth = { id: string; sourceId: string; checkedAt: string; status: string; discoveredCount: number; qualifiedCount: number; duplicateCount: number; failureCount: number; latencyMs?: number; note?: string };
 type LeadListRow = {
   leadId: string; campaignId: string; companyId: string; workflowStatus: string; qualificationResult: string;
+  assignmentType: string; matchStatus: string; matchReason?: string;
   hardGateStatus: string; hardGateReason?: string; riskSummary?: string; score: number; grade: string;
   evidenceCoverage: number; confidence: string; autoQualifiedAt?: string; companyName: string; country?: string;
-  region?: string; companyType?: string; customerType?: string; companyRole?: string; productsJson: string;
+  region?: string; companyType?: string; customerType?: string; customerTypesJson?: string; companyRole?: string; companySize?: string; pricePosition?: string; productsJson: string;
   brandsJson: string; wholesaleSignal?: string; productDirectionsJson?: string; website?: string; primaryDomain?: string;
   businessEmail?: string; contactChannel?: string; contactStatus?: string; sourceType?: string; sourceName?: string;
-  firstDiscoveredAt?: string; lastVerifiedAt?: string; isDuplicate: boolean; doNotContact: boolean;
+  primaryCampaignId?: string; firstDiscoveredAt?: string; lastVerifiedAt?: string; isDuplicate: boolean; doNotContact: boolean;
 };
 type LeadPage = {
   rows: LeadListRow[];
   pagination: { page: number; pageSize: number; total: number; pageCount: number };
   facets: {
     statusCounts: Record<string, number>; gradeCounts: Record<string, number>; countries: string[];
-    companyTypes: string[]; sourceTypes: string[];
+    companyTypes: string[]; productDirections: string[]; sourceTypes: string[];
   };
 };
 type LeadDetail = {
   lead: Lead; company: Company; sources: Source[]; claims: Claim[]; scoreRun: ScoreRun | null;
   scoreDimensions: ScoreDimension[]; reviews: Review[]; domains: Array<{ id: string; normalizedDomain: string; relationshipType: string }>;
   contactCount: number; contactVerifications: ContactVerification[];
+  memberships: Array<{ leadId: string; campaignId: string; campaignName: string; campaignStatus: string; strategyPriority: number; assignmentType: string; matchStatus: string; matchReason?: string; matchedAt?: string }>;
 };
 type Workspace = {
   campaigns: Campaign[]; leadCounts: Record<string, Record<string, number>>; imports: ImportRun[]; exports: ExportRun[];
@@ -107,7 +113,7 @@ type Workspace = {
 };
 
 const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyTargets: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
-const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, countries: [], companyTypes: [], sourceTypes: [] } };
+const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
 const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 const SCORE_LABELS: Record<string, string> = {
   productMatchScore: "产品匹配",
@@ -121,18 +127,7 @@ const SCORE_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰",
 };
-const PRODUCT_LABELS: Record<string, string> = {
-  optical_frames: "光学镜架",
-  sunglasses: "太阳镜",
-  reading_glasses: "老花镜",
-  blue_light_glasses: "防蓝光眼镜",
-  kids_eyewear: "儿童眼镜",
-  sports_eyewear: "运动眼镜",
-  protective_eyewear: "防护眼镜",
-  optical_lenses: "光学镜片",
-  safety_lenses: "安全与防护镜片（旧版）",
-};
-const PRODUCT_OPTIONS = Object.entries(PRODUCT_LABELS);
+const PRODUCT_LABELS = PRODUCT_TRACK_LABELS;
 const PRODUCT_DIRECTIONS = ["普通光学镜片", "非球面镜片", "防蓝光镜片", "变色镜片", "渐进镜片", "PC安全镜片", "老花镜", "其他相关眼镜产品"];
 const CONFIDENCE_LABELS: Record<string, string> = { high: "高", medium: "中等", low: "低" };
 const COUNTRY_LABELS: Record<string, string> = {
@@ -224,6 +219,10 @@ function jsonList(value?: string) {
   try { const result = JSON.parse(value || "[]"); return Array.isArray(result) ? result.map(String) : []; } catch { return []; }
 }
 
+function formList(data: FormData, name: string) {
+  return [...new Set(data.getAll(name).flatMap((value) => String(value).split(/[;|,\n]/)).map((value) => value.trim()).filter(Boolean))];
+}
+
 function formatDate(value?: string) {
   if (!value) return "未记录";
   const date = new Date(value);
@@ -255,6 +254,12 @@ function localizedCompanyType(value?: string) {
   if (normalized.includes("retailer")) return "眼镜零售商";
   if (normalized.includes("brand")) return "眼镜品牌";
   return value;
+}
+
+function customerTypeLabel(company: { customerTypesJson?: string; customerType?: string; companyType?: string }) {
+  const values = jsonList(company.customerTypesJson);
+  if (values.length) return values.join(" · ");
+  return company.customerType || localizedCompanyType(company.companyType);
 }
 
 function companyWebsiteUrl(company?: Pick<Company, "website" | "primaryDomain">) {
@@ -392,10 +397,12 @@ export default function LeadEngineApp() {
   const selectedDimensions = leadDetail?.scoreDimensions || [];
   const selectedReviews = leadDetail?.reviews || [];
   const selectedContactVerifications = leadDetail?.contactVerifications || [];
+  const selectedMemberships = leadDetail?.memberships || [];
   const selectedDomains = leadDetail?.domains.map((domain) => domain.normalizedDomain) || [];
   const counts = leadPage.facets.statusCounts;
   const countries = leadPage.facets.countries;
   const companyTypes = leadPage.facets.companyTypes;
+  const productDirections = leadPage.facets.productDirections.length ? leadPage.facets.productDirections : PRODUCT_DIRECTIONS;
   const sourceTypes = leadPage.facets.sourceTypes;
   const pageCount = leadPage.pagination.pageCount;
   const approvedCount = Number(counts.approved || 0);
@@ -418,13 +425,13 @@ export default function LeadEngineApp() {
     const representative = rows.find((source) => source.enabled && source.status === "active") || rows[0];
     return { ...representative, activeCampaignCount: rows.filter((source) => source.enabled && source.status === "active").length };
   });
-  const reviewCampaignName = reviewCampaignId === "all" ? "全部 Campaign"
+  const reviewCampaignName = reviewCampaignId === "all" ? "统一客户库"
     : reviewCampaignId === "system:unassigned" ? "待分配"
       : businessCampaigns.find((campaign) => campaign.id === reviewCampaignId)?.name || "Campaign";
-  const campaignMarket = activeCampaign?.targetMarkets || jsonList(activeCampaign?.targetCountriesJson)[0] || "";
+  const campaignMarket = activeCampaign ? REGION_PRESETS[activeCampaign.regionKey as keyof typeof REGION_PRESETS]?.label || activeCampaign.targetMarkets || jsonList(activeCampaign.targetCountriesJson)[0] || "" : "";
   const campaignLeadCount = Number(workspace.leadCounts[activeCampaignId]?.all || 0);
   const campaignLabel = activeCampaign
-    ? `${localizedCountry(campaignMarket)}${PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeadCount} 家`
+    ? `${localizedCountry(campaignMarket)} · ${jsonList(activeCampaign.productTracksJson).map((track) => PRODUCT_LABELS[track] || track).join(" / ") || PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeadCount} 家`
     : "尚未选择 Campaign";
   const approvalGaps = selectedLead && selectedCompany ? [
     selectedLead.campaignId === "system:unassigned" ? "必须先分配到 Campaign" : "",
@@ -452,13 +459,12 @@ export default function LeadEngineApp() {
     setPending(true); setError(""); setNotice("");
     try {
       const result = await api<{ campaign: Campaign }>("/api/campaigns", { method: "POST", body: JSON.stringify({
-        name: data.get("name"), productTrack: data.get("productTrack"), targetCountries: data.get("targetCountries"),
-        targetMarkets: data.get("targetMarkets"), productTypes: data.get("productTypes"), customerTypes: data.get("customerTypes"),
-        targetCount: Number(data.get("targetCount") || 30), moqFit: data.get("moqFit"), companySize: data.get("companySize"),
-        positioning: data.get("positioning"), exclusions: data.get("exclusions"), status: "draft",
+        regionKey: data.get("regionKey"), productTracks: formList(data, "productTracks"),
+        targetCountries: formList(data, "targetCountries"), customerTypes: formList(data, "customerTypes"),
+        strategyPriority: Number(data.get("strategyPriority") || 50), status: "draft",
       }) });
       form.reset(); await load(); setActiveCampaignId(result.campaign.id);
-      setNotice("Campaign 草稿已创建，并已生成本地语言检索词与 Codex 研究任务书。");
+      setNotice("区域 Campaign 草稿已创建；启用后 AI 会按地区分配来源，并把匹配客户自动归入该策略。");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "创建失败"); }
     finally { setPending(false); }
   }
@@ -481,19 +487,11 @@ export default function LeadEngineApp() {
     try {
       await api("/api/campaigns", { method: "PATCH", body: JSON.stringify({
         id: activeCampaign.id,
-        name: data.get("name"),
-        productTrack: data.get("productTrack"),
-        targetCountries: data.get("targetCountries"),
-        targetMarkets: data.get("targetMarkets"),
-        productTypes: data.get("productTypes"),
-        customerTypes: data.get("customerTypes"),
-        targetCount: Number(data.get("targetCount") || 30),
-        moqFit: data.get("moqFit"),
-        companySize: data.get("companySize"),
-        positioning: data.get("positioning"),
-        exclusions: data.get("exclusions"),
+        regionKey: data.get("regionKey"), productTracks: formList(data, "productTracks"),
+        targetCountries: formList(data, "targetCountries"), customerTypes: formList(data, "customerTypes"),
+        strategyPriority: Number(data.get("strategyPriority") || 50),
       }) });
-      await load(); setNotice("Campaign 条件已更新，检索词和研究任务书已同步刷新。");
+      await load(); setLeadRefreshKey((value) => value + 1); setNotice("Campaign 策略已更新；现有客户已按证据重新匹配，历史归属仍保留。");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Campaign 更新失败"); }
     finally { setPending(false); }
   }
@@ -632,7 +630,7 @@ export default function LeadEngineApp() {
   return (
     <main className={styles.shell}>
       <p className={styles.srOnly}>
-        可审计的销售机会。生产系统未连接。新建完整 Campaign。批准后才能生成 CRM 文件。
+        可审计的销售机会。生产系统未连接。创建简化区域 Campaign。批准后才能生成 CRM 文件。
       </p>
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
@@ -692,9 +690,9 @@ export default function LeadEngineApp() {
           <div className={styles.reviewHeader}>
             <div className={styles.reviewTitleGroup}>
               <h1>{statusFilter === "needs_review" ? "待审核客户" : STATUS_LABELS[statusFilter] || "客户审核"}</h1>
-              <label className={styles.reviewCampaignPicker}>审核 Campaign
+              <label className={styles.reviewCampaignPicker}>客户范围
                 <select value={reviewCampaignId} onChange={(event) => { setReviewCampaignId(event.target.value); setSelectedLeadId(""); setDrawerOpen(false); setPage(1); }}>
-                  <option value="all">全部 Campaign</option>
+                  <option value="all">统一客户库（每家公司只显示一次）</option>
                   <option value="system:unassigned">待分配（{workspace.leadCounts["system:unassigned"]?.all || 0}）</option>
                   {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>
                     {campaign.name} · 待审核 {workspace.leadCounts[campaign.id]?.needs_review || 0} / 淘汰 {workspace.leadCounts[campaign.id]?.rejected || 0}
@@ -727,7 +725,7 @@ export default function LeadEngineApp() {
                   </select>
                   <select value={productFilter} onChange={(event) => { setProductFilter(event.target.value); setPage(1); }} aria-label="产品方向筛选">
                     <option value="all">全部产品方向</option>
-                    {PRODUCT_DIRECTIONS.map((product) => <option key={product} value={product}>{product}</option>)}
+                    {productDirections.map((product) => <option key={product} value={product}>{product}</option>)}
                   </select>
                   <select value={contactFilter} onChange={(event) => { setContactFilter(event.target.value); setPage(1); }} aria-label="联系方式状态筛选">
                     <option value="all">全部联系状态</option><option value="valid">联系方式有效</option><option value="missing">无有效联系方式</option><option value="unverified">未核验</option>
@@ -793,7 +791,7 @@ export default function LeadEngineApp() {
                             </button>
                           </div>
                         </td>
-                        <td>{lead.customerType || localizedCompanyType(lead.companyType)}</td>
+                        <td>{customerTypeLabel(lead)}</td>
                         <td>{localizedCountry(lead.country)}</td>
                         <td><b className={styles.scoreValue}>{lead.score}</b></td>
                         <td><b className={styles.coverageValue}>{lead.evidenceCoverage}%</b></td>
@@ -816,7 +814,7 @@ export default function LeadEngineApp() {
                       <strong>{lead.score}</strong>
                     </div>
                     <div className={styles.mobileLeadMeta}>
-                      <span>{lead.customerType || localizedCompanyType(lead.companyType)}</span>
+                      <span>{customerTypeLabel(lead)}</span>
                       <span>证据 {lead.evidenceCoverage}%</span>
                       <span>{STATUS_LABELS[lead.workflowStatus] || lead.workflowStatus}</span>
                     </div>
@@ -828,7 +826,7 @@ export default function LeadEngineApp() {
             </div>
 
             {loading || leadLoading ? <div className={styles.emptyState}><IconClock size={26} /><b>正在读取私有数据库…</b></div> : null}
-            {!loading && !businessCampaigns.length ? <div className={styles.emptyState}><IconTargetArrow size={28} /><b>先创建第一个 Campaign</b><p>建议从一个产品赛道、20–30 家候选公司开始。</p><button type="button" onClick={() => setActiveView("campaign")}>创建 Campaign</button></div> : null}
+            {!loading && !businessCampaigns.length ? <div className={styles.emptyState}><IconTargetArrow size={28} /><b>先创建第一个区域 Campaign</b><p>选定地区、国家、产品赛道与客户类型后即可启用自动发现。</p><button type="button" onClick={() => setActiveView("campaign")}>创建 Campaign</button></div> : null}
             {!loading && !leadLoading && businessCampaigns.length > 0 && !visibleLeads.length ? <div className={styles.emptyState}><IconSearch size={28} /><b>{statusFilter === "needs_review" && rejectedCount ? "这个 Campaign 暂无待审核客户" : "当前筛选没有客户"}</b><p>{statusFilter === "needs_review" && rejectedCount ? `已找到 ${rejectedCount} 家，但都未通过自动准入；可查看淘汰原因。` : "切换 Campaign、状态或清除筛选条件后再查看。"}</p>{statusFilter === "needs_review" && rejectedCount ? <button type="button" onClick={() => { setStatusFilter("rejected"); setPage(1); }}>查看 {rejectedCount} 家已淘汰客户</button> : <button type="button" onClick={() => { setStatusFilter("all"); setGradeFilter("all"); setCountryFilter("all"); setTypeFilter("all"); setProductFilter("all"); setContactFilter("all"); setSourceFilter("all"); setSpecialFilter("all"); setSearch(""); setPage(1); }}>清除筛选</button>}</div> : null}
             {!loading && !leadLoading && visibleLeads.length ? <div className={styles.pagination}><span>第 {Math.min(page, pageCount)} / {pageCount} 页 · 共 {leadPage.pagination.total} 家</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>下一页</button></div></div> : null}
           </div>
@@ -837,7 +835,7 @@ export default function LeadEngineApp() {
 
       {activeView === "campaign" ? (
         <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.campaign}>
-          <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>CAMPAIGN CONTROL</span><h1>Campaign 管理</h1><p>定义市场、客户类型与排除规则；每日审核页只显示与当前任务相关的信息。</p></div><IconTargetArrow size={34} /></div>
+          <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>REGIONAL AI STRATEGY</span><h1>Campaign 管理</h1><p>Campaign 是一套区域开发策略：决定 AI 去哪里找、优先开发什么渠道，以及客户如何自动归类。公司资料、MOQ、规模和定位由 AI 标注在客户库，不再要求你建 Campaign 时填写。</p></div><IconTargetArrow size={34} /></div>
           <div className={styles.toolGrid}>
             <section className={styles.toolSection}>
               <h2>编辑 Campaign</h2>
@@ -850,8 +848,8 @@ export default function LeadEngineApp() {
               {activeCampaign ? (
                 <>
                   <div className={styles.campaignOverview}>
-                    <div><span>任务</span><b>{activeCampaign.name}</b></div>
-                    <div><span>市场</span><b>{campaignLabel}</b></div>
+                    <div><span>策略</span><b>{activeCampaign.name}</b></div>
+                    <div><span>范围</span><b>{campaignLabel}</b></div>
                     <div><span>状态</span><b>{STATUS_LABELS[activeCampaign.status] || activeCampaign.status}</b></div>
                     <div><span>客户记录</span><b>{workspace.leadCounts[activeCampaign.id]?.all || 0} 家</b></div>
                   </div>
@@ -860,21 +858,15 @@ export default function LeadEngineApp() {
                       <option value="draft">草稿</option><option value="active">运行中</option><option value="paused">暂停</option><option value="completed">已完成</option>
                     </select>
                   </label>
+                  <div className={styles.automationState}>
+                    <b>AI 外联：尚未启用</b>
+                    <span>当前自动化只覆盖公开来源发现、证据核验、客户标签与 Campaign 归类。回复即停、退信即停、退订即停等规则已预留；发信身份、频率和合规边界确认前不会发送邮件。</span>
+                  </div>
                   <details className={styles.formDisclosure} open>
-                    <summary>编辑 Campaign 条件</summary>
+                    <summary>编辑区域策略</summary>
                     <form className={styles.formGrid} onSubmit={updateCampaign} key={activeCampaign.id}>
-                      <label className={styles.field}>Campaign 名称<input name="name" required defaultValue={activeCampaign.name} /></label>
-                      <label className={styles.field}>产品赛道<select name="productTrack" defaultValue={activeCampaign.productTrack}>{PRODUCT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                      <label className={styles.field}>目标国家<input name="targetCountries" defaultValue={jsonList(activeCampaign.targetCountriesJson).join("; ")} /></label>
-                      <label className={styles.field}>市场说明<input name="targetMarkets" defaultValue={activeCampaign.targetMarkets} /></label>
-                      <label className={styles.field}>产品类型<input name="productTypes" defaultValue={jsonList(activeCampaign.productTypesJson).join("; ")} /></label>
-                      <label className={styles.field}>客户类型<input name="customerTypes" defaultValue={jsonList(activeCampaign.customerTypesJson).join("; ")} /></label>
-                      <label className={styles.field}>目标公司数量<input name="targetCount" type="number" min="1" max="500" defaultValue={activeCampaign.targetCount} /></label>
-                      <label className={styles.field}>MOQ 适配<input name="moqFit" defaultValue={activeCampaign.moqFit || ""} /></label>
-                      <label className={styles.field}>客户规模<input name="companySize" defaultValue={activeCampaign.companySize || ""} /></label>
-                      <label className={styles.field}>产品定位<input name="positioning" defaultValue={activeCampaign.positioning || ""} /></label>
-                      <label className={[styles.field, styles.fieldWide].join(" ")}>排除类型<input name="exclusions" defaultValue={jsonList(activeCampaign.exclusionsJson).join("; ")} /></label>
-                      <button className={styles.primaryButton} type="submit" disabled={pending}>保存并刷新研究计划</button>
+                      <CampaignStrategyForm campaign={activeCampaign} />
+                      <button className={styles.primaryButton} type="submit" disabled={pending}>保存并重新匹配客户</button>
                     </form>
                   </details>
                 </>
@@ -883,18 +875,9 @@ export default function LeadEngineApp() {
 
             <section className={styles.toolSection}>
               <h2><IconPlus size={20} /> 新建 Campaign</h2>
-              <form className={styles.formGrid} onSubmit={createCampaign}>
-                <label className={[styles.field, styles.fieldWide].join(" ")}>Campaign 名称<input name="name" required maxLength={160} placeholder="例如：德国光学镜片首批 25 家" /></label>
-                <label className={styles.field}>产品赛道<select name="productTrack" defaultValue="optical_frames">{PRODUCT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-                <label className={styles.field}>目标国家<input name="targetCountries" placeholder="Germany; UK" /></label>
-                <label className={styles.field}>市场说明<input name="targetMarkets" placeholder="目标市场" /></label>
-                <label className={styles.field}>产品类型<input name="productTypes" placeholder="以分号分隔" /></label>
-                <label className={[styles.field, styles.fieldWide].join(" ")}>客户类型<input name="customerTypes" defaultValue="Importer; Distributor; Wholesaler; Eyewear Brand; Private Label Brand" /></label>
-                <label className={styles.field}>目标公司数量<input name="targetCount" type="number" min="1" max="500" defaultValue="30" /></label>
-                <label className={styles.field}>MOQ 适配<input name="moqFit" /></label>
-                <label className={styles.field}>客户规模<input name="companySize" /></label>
-                <label className={styles.field}>产品定位<input name="positioning" /></label>
-                <label className={[styles.field, styles.fieldWide].join(" ")}>排除类型<input name="exclusions" placeholder="以分号分隔" /></label>
+              <p className={styles.muted}>只选区域、产品、客户类型和优先级。名称、检索词与研究任务书由系统生成。</p>
+              <form className={styles.formGrid} onSubmit={createCampaign} key={`create-${businessCampaigns.length}`}>
+                <CampaignStrategyForm />
                 <button className={styles.primaryButton} type="submit" disabled={pending}>创建 Campaign 草稿</button>
               </form>
             </section>
@@ -1072,7 +1055,7 @@ export default function LeadEngineApp() {
 
               <div className={styles.drawerBody}>
                 <dl className={styles.drawerFacts}>
-                  <div><dt>类型</dt><dd>{selectedCompany.customerType || localizedCompanyType(selectedCompany.companyType)}</dd></div>
+                  <div><dt>类型</dt><dd>{customerTypeLabel(selectedCompany)}</dd></div>
                   <div><dt>国家</dt><dd>{localizedCountry(selectedCompany.country)}</dd></div>
                   <div><dt>评分</dt><dd className={styles.drawerScore}>{selectedLead.currentScore}</dd></div>
                 </dl>
@@ -1103,8 +1086,10 @@ export default function LeadEngineApp() {
                   <dl className={styles.compactFacts}>
                     <div><dt>官网</dt><dd>{selectedCompany.website ? <a href={selectedCompany.website} target="_blank" rel="noreferrer">{selectedCompany.primaryDomain || selectedCompany.website}<IconExternalLink size={14} /></a> : "未记录"}</dd></div>
                     <div><dt>域名</dt><dd>{selectedDomains.join(" · ") || "未记录"}</dd></div>
-                    <div><dt>客户类型 / 角色</dt><dd>{[selectedCompany.customerType, selectedCompany.companyRole].filter(Boolean).join(" · ") || "未记录"}</dd></div>
+                    <div><dt>客户类型</dt><dd>{customerTypeLabel(selectedCompany)}</dd></div>
+                    <div><dt>公司角色</dt><dd>{selectedCompany.companyRole || "未记录"}</dd></div>
                     <div><dt>产品方向</dt><dd>{jsonList(selectedCompany.productDirectionsJson).join(" · ") || "未记录"}</dd></div>
+                    <div><dt>规模 / 定位</dt><dd>{[selectedCompany.companySize, selectedCompany.pricePosition].filter(Boolean).join(" · ") || "待 AI 核验"}</dd></div>
                     <div><dt>产品 / 品牌</dt><dd>{[...jsonList(selectedCompany.productsJson), ...jsonList(selectedCompany.brandsJson)].join(" · ") || "未记录"}</dd></div>
                     <div><dt>推荐产品</dt><dd>{jsonList(selectedLead.recommendedProductsJson).join(" · ") || "未记录"}</dd></div>
                     <div><dt>公开商务渠道</dt><dd>{selectedCompany.businessEmail || selectedCompany.contactChannel || "未记录"}</dd></div>
@@ -1112,6 +1097,19 @@ export default function LeadEngineApp() {
                     <div><dt>发现 / 核验</dt><dd>{formatDate(selectedCompany.firstDiscoveredAt)} / {formatDate(selectedCompany.lastVerifiedAt)}</dd></div>
                   </dl>
                   {leadDetail?.contactCount ? <p className={styles.muted}>已保存 {leadDetail.contactCount} 条候选联系人记录；本页默认不展示个人联系方式。</p> : null}
+                </details>
+
+                <details className={styles.drawerDetails} open>
+                  <summary>匹配 Campaign <span>{selectedMemberships.filter((membership) => membership.matchStatus !== "stale").length} 个当前归属</span></summary>
+                  <div className={styles.auditList}>
+                    {selectedMemberships.map((membership) => <article key={membership.leadId}>
+                      <div>
+                        <b>{membership.campaignName}{selectedCompany.primaryCampaignId === membership.campaignId ? " · 主 Campaign" : ""}</b>
+                        <span>{membership.matchStatus === "stale" ? "历史归属" : membership.assignmentType === "manual" ? "人工归属" : "证据自动匹配"} · 优先级 {membership.strategyPriority}</span>
+                        {membership.matchReason ? <p>{membership.matchReason}</p> : null}
+                      </div>
+                    </article>)}
+                  </div>
                 </details>
 
                 <details className={styles.drawerDetails} open={selectedContactVerifications.length > 0}>

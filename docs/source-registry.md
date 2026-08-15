@@ -1,6 +1,6 @@
 # 官方来源注册表
 
-来源注册表在 `lib/source-registry.ts` 中版本化维护。当前包含 The Vision Council、Vision Expo、MIDO、opti、HKTDC、100% Optical、DIOPS、OPTYKA、PSO 和 OXO 等官方协会/展会入口，覆盖全球主要眼镜市场。
+来源注册表在 `lib/source-registry.ts` 中版本化维护。当前包含 The Vision Council、Vision Expo、MIDO、opti、HKTDC、100% Optical、DIOPS、OPTYKA、PSO 和 OXO 等官方协会/展会入口，覆盖全球主要眼镜市场。The Vision Council 页面在 2026-08-15 复核时已不再向未登录页面输出会员行，因此保持禁用；100% Optical 的公开展商详情卡作为当前受控真实来源。
 
 ## 来源等级
 

@@ -12,7 +12,7 @@ test("builds the complete isolated Lead Engine shell", async () => {
   assert.match(page, /LeadEngineApp/);
   assert.match(ui, /可审计的销售机会/);
   assert.match(ui, /生产系统未连接/);
-  assert.match(ui, /新建完整 Campaign/);
+  assert.match(ui, /创建简化区域 Campaign/);
   assert.match(ui, /批准后才能生成 CRM 文件/);
   assert.match(ui, /开始自动找客户/);
   assert.doesNotMatch(`${layout}\n${page}\n${ui}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
@@ -69,9 +69,9 @@ test("keeps Sites, storage, and CRM handoff isolated", async () => {
 });
 
 test("covers the complete QIXIN product catalog in campaign research and CRM handoff", async () => {
-  const [leadEngine, ui] = await Promise.all([
+  const [leadEngine, strategy] = await Promise.all([
     readFile(new URL("../lib/lead-engine.ts", import.meta.url), "utf8"),
-    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/campaign-strategy.ts", import.meta.url), "utf8"),
   ]);
   for (const [track, crmLabel] of [
     ["optical_frames", "Optical frames"],
@@ -84,7 +84,7 @@ test("covers the complete QIXIN product catalog in campaign research and CRM han
     ["optical_lenses", "Optical lenses"],
   ]) {
     assert.match(leadEngine, new RegExp(`${track}.*${crmLabel}`));
-    assert.match(ui, new RegExp(`${track}:`));
+    assert.match(strategy, new RegExp(`${track}:`));
   }
   assert.match(leadEngine, /Brillenfassungen/);
   assert.match(leadEngine, /monturas ópticas/);
@@ -99,6 +99,29 @@ test("opens verified company websites safely without replacing evidence review",
   assert.match(ui, /target="_blank"/);
   assert.match(ui, /rel="noopener noreferrer"/);
   assert.match(ui, /查看证据与审核/);
+});
+
+test("uses simplified regional Campaigns, multi-label matching, and keeps outbound disabled", async () => {
+  const [schema, campaignApi, routing, leadsApi, strategyForm, ui] = await Promise.all([
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/campaigns/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/campaign-routing.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/CampaignStrategyForm.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+  ]);
+  for (const field of ["regionKey", "productTracksJson", "strategyPriority", "automationConfigJson", "customerTypesJson", "primaryCampaignId", "matchStatus"]) {
+    assert.match(schema, new RegExp(field));
+  }
+  assert.match(campaignApi, /refreshAllCompanyCampaignMemberships/);
+  assert.match(routing, /campaignMatchesCompany/);
+  assert.match(leadsApi, /primaryCampaignId/);
+  assert.match(leadsApi, /productDirections/);
+  assert.match(strategyForm, /产品赛道/);
+  assert.match(strategyForm, /客户类型/);
+  assert.match(strategyForm, /开发优先级/);
+  assert.match(ui, /AI 外联：尚未启用/);
+  assert.doesNotMatch(`${campaignApi}\n${routing}`, /sendEmail|mailer|SMTP|resend\.emails/i);
 });
 
 test("loads review data page-by-page and keeps maintenance out of the primary mobile flow", async () => {

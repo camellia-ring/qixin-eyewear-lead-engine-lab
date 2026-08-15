@@ -1,14 +1,39 @@
-import { collectSiteEvidence, deterministicScore, fetchPublicHtml, extractVisionCouncilCandidates } from "../lib/discovery";
+import {
+  collectSiteEvidence,
+  deterministicScore,
+  extractDirectoryCandidates,
+  fetchPublicHtml,
+  parseDirectoryCandidates,
+  type DiscoveryCandidate,
+} from "../lib/discovery";
 import { calculateScore } from "../lib/lead-engine";
 import { qualifyEvidence } from "../lib/qualification";
 
-const sourceUrl = "https://thevisioncouncil.org/member-companies";
-const requestedName = process.argv.slice(2).join(" ").trim() || "Armada Optical";
+const requestedName = process.argv.slice(2).join(" ").trim() || "Alcon Eyecare Ltd";
+const sources = [
+  { name: "The Vision Council Member Companies", url: "https://thevisioncouncil.org/member-companies", parserKey: "vision_council_members" },
+  { name: "100% Optical Exhibitor List", url: "https://www.100percentoptical.com/exhibitor-list", parserKey: "exhibitor_cards" },
+];
 
-const sourcePage = await fetchPublicHtml(sourceUrl);
-const candidates = extractVisionCouncilCandidates(sourcePage.html, sourcePage.url, 20);
-const candidate = candidates.find((item) => item.label.toLocaleLowerCase().includes(requestedName.toLocaleLowerCase())) || candidates[0];
-if (!candidate) throw new Error("official_source_returned_no_company_candidates");
+let sourcePage: Awaited<ReturnType<typeof fetchPublicHtml>> | null = null;
+let source = sources[0];
+let candidates: DiscoveryCandidate[] = [];
+for (const option of sources) {
+  const page = await fetchPublicHtml(option.url);
+  const parsed = parseDirectoryCandidates(option.parserKey, page.html, page.url, 20);
+  if (!parsed.length) continue;
+  source = option;
+  sourcePage = page;
+  candidates = parsed;
+  break;
+}
+if (!sourcePage || !candidates.length) throw new Error("official_sources_returned_no_company_candidates");
+let candidate = candidates.find((item) => item.label.toLocaleLowerCase().includes(requestedName.toLocaleLowerCase())) || candidates[0];
+if (!candidate.websiteUrl && candidate.directoryDetailUrl) {
+  const detail = await fetchPublicHtml(candidate.directoryDetailUrl);
+  const website = extractDirectoryCandidates(detail.html, detail.url, 1)[0];
+  if (website) candidate = { ...candidate, websiteUrl: website.websiteUrl, normalizedDomain: website.normalizedDomain };
+}
 
 try {
   const evidence = await collectSiteEvidence(candidate);
@@ -19,7 +44,7 @@ try {
   });
   process.stdout.write(`${JSON.stringify({
     controlledAt: new Date().toISOString(),
-    source: { name: "The Vision Council Member Companies", url: sourcePage.url, parsedCandidates: candidates.length },
+    source: { name: source.name, url: sourcePage.url, parsedCandidates: candidates.length },
     candidate: {
       companyName: evidence.companyName,
       normalizedDomain: candidate.normalizedDomain,
@@ -43,7 +68,7 @@ try {
 } catch (error) {
   process.stdout.write(`${JSON.stringify({
     controlledAt: new Date().toISOString(),
-    source: { name: "The Vision Council Member Companies", url: sourcePage.url, parsedCandidates: candidates.length },
+    source: { name: source.name, url: sourcePage.url, parsedCandidates: candidates.length },
     candidate: { companyName: candidate.label, normalizedDomain: candidate.normalizedDomain },
     websiteVerificationError: error instanceof Error ? error.message : "unknown_error",
     safety: { contactedCompany: false, sentEmail: false, wroteProductionCrm: false, paidProviderUsed: false },

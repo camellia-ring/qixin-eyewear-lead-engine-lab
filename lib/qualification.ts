@@ -1,6 +1,8 @@
 import type { PublicBusinessContact, SiteEvidence } from "@/lib/discovery";
 
 export const PRODUCT_DIRECTIONS = [
+  "光学镜架",
+  "太阳镜",
   "普通光学镜片",
   "非球面镜片",
   "防蓝光镜片",
@@ -8,6 +10,9 @@ export const PRODUCT_DIRECTIONS = [
   "渐进镜片",
   "PC安全镜片",
   "老花镜",
+  "儿童眼镜",
+  "运动眼镜",
+  "防护眼镜",
   "其他相关眼镜产品",
 ] as const;
 
@@ -34,6 +39,7 @@ export type QualificationResult = {
   qualified: boolean;
   hardGateStatus: "pass" | "fail";
   customerType: string;
+  customerTypes: string[];
   companyRole: string;
   productDirections: string[];
   validContact: PublicBusinessContact | null;
@@ -59,7 +65,7 @@ function combinedEvidence(evidence: SiteEvidence) {
   ].join(" ");
 }
 
-export function classifyCustomerType(evidence: SiteEvidence) {
+export function classifyCustomerTypes(evidence: SiteEvidence) {
   const text = combinedEvidence(evidence).toLocaleLowerCase();
   const wholesale = /(wholesale|wholesaler|trade account|trade customer|grosshandel|großhandel|mayorista|hurtownia)/i.test(text);
   const distributor = /(distributor|distribution|distributeur|distribuidor|dystrybutor|supplier to opticians|supply optical practices)/i.test(text);
@@ -68,12 +74,17 @@ export function classifyCustomerType(evidence: SiteEvidence) {
   const readingOrBlue = /(reading glasses|readers|blue light|blue-light|computer glasses)/i.test(text);
   const lens = /(ophthalmic lens|optical lens|prescription lens|lens laboratory|optical laboratory|lenses)/i.test(text);
 
-  if (safety && distributor) return "安全眼镜分销商";
-  if (readingOrBlue && wholesale) return "老花镜或防蓝光眼镜批发商";
-  if (lens && wholesale) return "光学镜片批发商";
-  if (importer) return "光学用品进口商";
-  if (distributor) return "眼镜分销商";
-  return "";
+  const customerTypes: string[] = [];
+  if (safety && distributor) customerTypes.push("安全眼镜分销商");
+  if (readingOrBlue && wholesale) customerTypes.push("老花镜或防蓝光眼镜批发商");
+  if (lens && wholesale) customerTypes.push("光学镜片批发商");
+  if (importer) customerTypes.push("光学用品进口商");
+  if (distributor) customerTypes.push("眼镜分销商");
+  return [...new Set(customerTypes)];
+}
+
+export function classifyCustomerType(evidence: SiteEvidence) {
+  return classifyCustomerTypes(evidence)[0] || "";
 }
 
 export function classifyCompanyRole(evidence: SiteEvidence) {
@@ -90,6 +101,8 @@ export function classifyCompanyRole(evidence: SiteEvidence) {
 export function classifyProductDirections(evidence: SiteEvidence) {
   const text = combinedEvidence(evidence).toLocaleLowerCase();
   const products: string[] = [];
+  if (/(optical frame|eyeglass frame|spectacle frame|光学镜架|镜架)/i.test(text)) products.push("光学镜架");
+  if (/(sunglass|sun eyewear|太阳镜)/i.test(text)) products.push("太阳镜");
   if (/(optical lens|ophthalmic lens|prescription lens|single vision)/i.test(text)) products.push("普通光学镜片");
   if (/(aspheric|非球面)/i.test(text)) products.push("非球面镜片");
   if (/(blue light|blue-light|blue blocker|防蓝光)/i.test(text)) products.push("防蓝光镜片");
@@ -97,6 +110,9 @@ export function classifyProductDirections(evidence: SiteEvidence) {
   if (/(progressive lens|varifocal|渐进)/i.test(text)) products.push("渐进镜片");
   if (/(polycarbonate|pc safety|safety lens|protective lens)/i.test(text)) products.push("PC安全镜片");
   if (/(reading glasses|readers|老花镜)/i.test(text)) products.push("老花镜");
+  if (/(kids eyewear|children'?s glasses|儿童眼镜)/i.test(text)) products.push("儿童眼镜");
+  if (/(sports eyewear|cycling glasses|performance eyewear|运动眼镜)/i.test(text)) products.push("运动眼镜");
+  if (/(protective eyewear|safety glasses|eye protection|防护眼镜|安全眼镜)/i.test(text)) products.push("防护眼镜");
   if (!products.length && evidence.eyewearTerms.length) products.push("其他相关眼镜产品");
   return products;
 }
@@ -118,7 +134,8 @@ function exclusionReason(evidence: SiteEvidence) {
 }
 
 export function qualifyEvidence(input: QualificationInput): QualificationResult {
-  const customerType = classifyCustomerType(input.evidence);
+  const customerTypes = classifyCustomerTypes(input.evidence);
+  const customerType = customerTypes[0] || "";
   const companyRole = classifyCompanyRole(input.evidence);
   const productDirections = classifyProductDirections(input.evidence);
   const validContact = validPublicBusinessContact(input.evidence.contacts);
@@ -148,6 +165,7 @@ export function qualifyEvidence(input: QualificationInput): QualificationResult 
     qualified: failures.length === 0,
     hardGateStatus: failures.length === 0 ? "pass" : "fail",
     customerType,
+    customerTypes,
     companyRole,
     productDirections,
     validContact,

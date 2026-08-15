@@ -381,6 +381,24 @@
 .field { display: grid; gap: 7px; color: #667382; font-size: 13px; font-weight: 700; }
 .field input, .field select { width: 100%; min-width: 0; min-height: 44px; padding: 0 11px; border: 1px solid #d3d8de; border-radius: 7px; background: #fff; color: var(--ink); font-size: 14px; font-weight: 400; }
 .fieldWide { grid-column: 1 / -1; }
+.strategyFields { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+.strategyChoiceGroup { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 14px; border: 1px solid #dfe4ea; border-radius: 8px; }
+.strategyChoiceGroup legend { padding: 0 5px; color: #4d5a68; font-size: 13px; font-weight: 800; }
+.strategyChoiceGroup legend small { margin-left: 5px; color: #8b95a1; font-weight: 500; }
+.strategyChips { display: flex; flex-wrap: wrap; gap: 8px; }
+.strategyChips label, .countryGrid label { min-height: 36px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d7dde4; border-radius: 999px; background: #fff; color: #596675; cursor: pointer; font-size: 12px; font-weight: 650; }
+.strategyChips label[data-selected="true"], .countryGrid label[data-selected="true"] { border-color: #8fb6e8; background: #edf5ff; color: #225eac; }
+.strategyChips input, .countryGrid input { width: 14px; height: 14px; margin: 0; accent-color: var(--blue); }
+.countryPicker { grid-column: 1 / -1; padding: 0 14px 14px; border: 1px solid #dfe4ea; border-radius: 8px; }
+.countryPicker summary { min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #4d5a68; cursor: pointer; font-size: 13px; font-weight: 800; }
+.countryPicker summary span { color: #84909d; font-size: 12px; font-weight: 500; }
+.countryPicker p { margin: 0; color: #7a8794; font-size: 13px; }
+.countryPickerActions { margin-bottom: 10px; display: flex; gap: 8px; }
+.countryPickerActions button { min-height: 32px; padding: 0 11px; border: 1px solid #cbd4df; border-radius: 6px; background: #fff; color: #526171; cursor: pointer; font-size: 12px; }
+.countryGrid { display: flex; flex-wrap: wrap; gap: 7px; }
+.automationState { margin-top: 16px; padding: 14px; display: grid; gap: 7px; border: 1px solid #dfc49c; border-radius: 8px; background: #fff8eb; color: #795a2b; }
+.automationState b { font-size: 13px; }
+.automationState span { font-size: 12px; line-height: 1.55; }
 .primaryButton, .secondaryButton { min-height: 44px; padding: 0 16px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 700; }
 .primaryButton { border: 1px solid var(--blue); background: var(--blue); color: #fff; }
 .secondaryButton { border: 1px solid #a8b3bf; background: #fff; color: #43515f; }
@@ -613,7 +631,7 @@
   .toolHeader { gap: 14px; }
   .toolHeader h1 { font-size: 24px; }
   .toolHeader > svg { width: 28px; height: 28px; }
-  .toolGrid, .researchLayout, .formGrid, .exportPanel { grid-template-columns: 1fr; }
+  .toolGrid, .researchLayout, .formGrid, .strategyFields, .exportPanel { grid-template-columns: 1fr; }
   .toolSection { padding: 18px; }
   .fieldWide { grid-column: auto; }
   .primaryButton, .secondaryButton { min-height: 48px; }
