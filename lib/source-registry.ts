@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
-import { discoverySources, parserVersions } from "@/db/schema";
+import { campaigns, discoverySources, parserVersions } from "@/db/schema";
 import { normalizedDomain } from "@/lib/discovery";
+import { campaignCountries, normalizeCountry } from "@/lib/campaign-routing";
 
 export type SourceDefinition = {
   key: string;
@@ -9,6 +10,7 @@ export type SourceDefinition = {
   url: string;
   sourceType: "association_directory" | "official_exhibitor_directory";
   region: string;
+  markets: readonly string[];
   tier: "A" | "B" | "C";
   enabled: boolean;
   parserKey: "vision_council_members" | "exhibitor_cards" | "exhibitor_text" | "dynamic_directory" | "pdf_directory";
@@ -27,6 +29,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://thevisioncouncil.org/member-companies",
     sourceType: "association_directory",
     region: "North America / Global",
+    markets: ["United States", "Canada", "Mexico"],
     tier: "A",
     enabled: true,
     parserKey: "vision_council_members",
@@ -43,6 +46,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://www.visionexpo.com/en-us/attend/exhibitor-list.html",
     sourceType: "official_exhibitor_directory",
     region: "North America / Global",
+    markets: ["United States", "Canada", "Mexico"],
     tier: "A",
     enabled: false,
     parserKey: "dynamic_directory",
@@ -59,6 +63,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://www.mido.com/en/exhibitor-list",
     sourceType: "official_exhibitor_directory",
     region: "Europe / Global",
+    markets: ["Italy", "Germany", "France", "Spain", "Poland", "United Kingdom", "Netherlands", "Austria", "Switzerland"],
     tier: "A",
     enabled: true,
     parserKey: "exhibitor_cards",
@@ -75,6 +80,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://connect.opti.de/en/discover/all-exhibitors",
     sourceType: "official_exhibitor_directory",
     region: "Europe / Global",
+    markets: ["Germany", "Austria", "Switzerland", "Netherlands", "Poland"],
     tier: "A",
     enabled: false,
     parserKey: "dynamic_directory",
@@ -91,6 +97,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://www.hktdc.com/event/hkopticalfair/en/exhibitor-list",
     sourceType: "official_exhibitor_directory",
     region: "Asia / Global",
+    markets: ["Hong Kong", "China", "South Korea"],
     tier: "A",
     enabled: false,
     parserKey: "dynamic_directory",
@@ -107,6 +114,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://www.100percentoptical.com/exhibitor-list",
     sourceType: "official_exhibitor_directory",
     region: "United Kingdom / Global",
+    markets: ["United Kingdom"],
     tier: "A",
     enabled: true,
     parserKey: "exhibitor_cards",
@@ -123,6 +131,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://www.diops.co.kr/front/sub/sub02_06.php",
     sourceType: "official_exhibitor_directory",
     region: "South Korea / Global",
+    markets: ["South Korea"],
     tier: "B",
     enabled: true,
     parserKey: "exhibitor_cards",
@@ -139,6 +148,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://targioptyka.pl/pl/dla-zwiedzajacych/wazne-informacje/lista-wystawcow-i-marek-2025",
     sourceType: "official_exhibitor_directory",
     region: "Poland / Europe",
+    markets: ["Poland"],
     tier: "B",
     enabled: true,
     parserKey: "exhibitor_text",
@@ -155,6 +165,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://pso.mtp.pl/pl/dla-zwiedzajacych/wazne-informacje/sprawdz-liste-wystawcow-pso-2025/",
     sourceType: "official_exhibitor_directory",
     region: "Poland / Europe",
+    markets: ["Poland"],
     tier: "B",
     enabled: true,
     parserKey: "exhibitor_text",
@@ -171,6 +182,7 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
     url: "https://targioxo.pl/plan-targow/",
     sourceType: "official_exhibitor_directory",
     region: "Poland / Europe",
+    markets: ["Poland"],
     tier: "B",
     enabled: true,
     parserKey: "exhibitor_cards",
@@ -183,10 +195,20 @@ export const OFFICIAL_SOURCE_REGISTRY: readonly SourceDefinition[] = [
   },
 ] as const;
 
+function sourceFitsCampaign(source: SourceDefinition, campaign: { targetCountriesJson: string; targetMarkets: string }) {
+  const targets = campaignCountries(campaign);
+  if (!targets.length) return true;
+  const markets = new Set(source.markets.map(normalizeCountry));
+  return targets.some((target) => markets.has(target));
+}
+
 export async function seedOfficialSourceRegistry(campaignId: string) {
   const db = getDb();
   const now = new Date().toISOString();
+  const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
+  if (!campaign) throw new Error("campaign_not_found");
   for (const source of OFFICIAL_SOURCE_REGISTRY) {
+    const enabled = source.enabled && sourceFitsCampaign(source, campaign);
     const values = {
       id: `official:${source.key}:${campaignId}`,
       campaignId,
@@ -196,23 +218,23 @@ export async function seedOfficialSourceRegistry(campaignId: string) {
       sourceType: source.sourceType,
       region: source.region,
       tier: source.tier,
-      enabled: source.enabled,
+      enabled,
       parserKey: source.parserKey,
       parserVersion: source.parserVersion,
       parserConfigJson: "{}",
       priority: source.priority,
       rateLimitMs: source.rateLimitMs,
-      status: source.enabled ? "active" : "paused",
-      cadence: source.enabled ? "daily" : "manual",
+      status: enabled ? "active" : "paused",
+      cadence: enabled ? "daily" : "manual",
       maxCandidates: 20,
-      nextRunAt: source.enabled ? now : null,
+      nextRunAt: enabled ? now : null,
       accessNotes: source.accessNotes,
       requiresLogin: source.requiresLogin,
       isPaid: source.isPaid,
       updatedAt: now,
     };
     await db.insert(discoverySources).values(values).onConflictDoNothing();
-    const [current] = await db.select({ id: discoverySources.id }).from(discoverySources).where(and(
+    const [current] = await db.select({ id: discoverySources.id, nextRunAt: discoverySources.nextRunAt }).from(discoverySources).where(and(
       eq(discoverySources.campaignId, campaignId),
       eq(discoverySources.sourceUrl, source.url),
     )).limit(1);
@@ -222,10 +244,14 @@ export async function seedOfficialSourceRegistry(campaignId: string) {
         sourceType: source.sourceType,
         region: source.region,
         tier: source.tier,
+        enabled,
         parserKey: source.parserKey,
         parserVersion: source.parserVersion,
         priority: source.priority,
         rateLimitMs: source.rateLimitMs,
+        status: enabled ? "active" : "paused",
+        cadence: enabled ? "daily" : "manual",
+        nextRunAt: enabled ? (current.nextRunAt || now) : null,
         accessNotes: source.accessNotes,
         requiresLogin: source.requiresLogin,
         isPaid: source.isPaid,

@@ -287,7 +287,9 @@ function compactRisk(lead?: Lead) {
 
 export default function LeadEngineApp() {
   const [workspace, setWorkspace] = useState<Workspace>(EMPTY_WORKSPACE);
+  const [reviewCampaignId, setReviewCampaignId] = useState("all");
   const [activeCampaignId, setActiveCampaignId] = useState("");
+  const [exportCampaignId, setExportCampaignId] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const [statusFilter, setStatusFilter] = useState("needs_review");
   const [gradeFilter, setGradeFilter] = useState("all");
@@ -307,6 +309,7 @@ export default function LeadEngineApp() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
+  const [assignmentCampaignId, setAssignmentCampaignId] = useState("");
   const [activeView, setActiveView] = useState<ViewKey>("discovery");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [leadPage, setLeadPage] = useState<LeadPage>(EMPTY_LEAD_PAGE);
@@ -319,7 +322,9 @@ export default function LeadEngineApp() {
     try {
       const data = await api<Workspace>("/api/workspace");
       setWorkspace(data);
-      setActiveCampaignId((current) => data.campaigns.some((item) => item.id === current) ? current : data.campaigns[0]?.id || "");
+      const businessCampaigns = data.campaigns.filter((item) => item.id !== "system:unassigned");
+      setActiveCampaignId((current) => businessCampaigns.some((item) => item.id === current) ? current : businessCampaigns[0]?.id || "");
+      setExportCampaignId((current) => businessCampaigns.some((item) => item.id === current) ? current : businessCampaigns[0]?.id || "");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "无法加载独立实验数据库"); }
     finally { setLoading(false); }
   }, []);
@@ -332,11 +337,11 @@ export default function LeadEngineApp() {
   }, [load, workspace.engineState?.status]);
 
   useEffect(() => {
-    if (!activeCampaignId) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       setLeadLoading(true);
-      const parameters = new URLSearchParams({ campaignId: activeCampaignId, page: String(page), pageSize: "25" });
+      const parameters = new URLSearchParams({ page: String(page), pageSize: "25" });
+      if (reviewCampaignId !== "all") parameters.set("campaignId", reviewCampaignId);
       if (statusFilter !== "all") parameters.set("status", statusFilter);
       if (gradeFilter !== "all") parameters.set("grade", gradeFilter);
       if (countryFilter !== "all") parameters.set("country", countryFilter);
@@ -360,7 +365,7 @@ export default function LeadEngineApp() {
       }).finally(() => { if (!controller.signal.aborted) setLeadLoading(false); });
     }, 220);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [activeCampaignId, contactFilter, countryFilter, gradeFilter, leadRefreshKey, page, productFilter, search, sortBy, sourceFilter, specialFilter, statusFilter, typeFilter]);
+  }, [contactFilter, countryFilter, gradeFilter, leadRefreshKey, page, productFilter, reviewCampaignId, search, sortBy, sourceFilter, specialFilter, statusFilter, typeFilter]);
 
   useEffect(() => {
     if (!drawerOpen || !selectedLeadId) return;
@@ -374,7 +379,10 @@ export default function LeadEngineApp() {
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [drawerOpen, leadRefreshKey, selectedLeadId]);
 
-  const activeCampaign = workspace.campaigns.find((campaign) => campaign.id === activeCampaignId) || null;
+  const businessCampaigns = workspace.campaigns.filter((campaign) => campaign.id !== "system:unassigned");
+  const activeBusinessCampaigns = businessCampaigns.filter((campaign) => campaign.status === "active");
+  const activeCampaign = businessCampaigns.find((campaign) => campaign.id === activeCampaignId) || null;
+  const exportCampaign = businessCampaigns.find((campaign) => campaign.id === exportCampaignId) || null;
   const visibleLeads = leadPage.rows;
   const selectedLead = leadDetail?.lead || null;
   const selectedCompany = leadDetail?.company || null;
@@ -386,28 +394,40 @@ export default function LeadEngineApp() {
   const selectedContactVerifications = leadDetail?.contactVerifications || [];
   const selectedDomains = leadDetail?.domains.map((domain) => domain.normalizedDomain) || [];
   const counts = leadPage.facets.statusCounts;
-  const gradeCounts = leadPage.facets.gradeCounts;
   const countries = leadPage.facets.countries;
   const companyTypes = leadPage.facets.companyTypes;
   const sourceTypes = leadPage.facets.sourceTypes;
   const pageCount = leadPage.pagination.pageCount;
   const approvedCount = Number(counts.approved || 0);
+  const exportApprovedCount = Number(workspace.leadCounts[exportCampaignId]?.approved || 0);
+  const totalApprovedCount = businessCampaigns.reduce((sum, campaign) => sum + Number(workspace.leadCounts[campaign.id]?.approved || 0), 0);
   const rejectedCount = Number(counts.rejected || 0);
   const campaignDiscoverySources = workspace.discoverySources.filter((source) => source.campaignId === activeCampaignId);
-  const campaignDiscoveryRuns = workspace.discoveryRuns.filter((run) => run.campaignId === activeCampaignId);
+  const globalDiscoverySources = workspace.discoverySources.filter((source) => businessCampaigns.some((campaign) => campaign.id === source.campaignId));
+  const globalDiscoveryRuns = workspace.discoveryRuns.filter((run) => businessCampaigns.some((campaign) => campaign.id === run.campaignId));
   const discoverySourceById = new Map(workspace.discoverySources.map((source) => [source.id, source]));
   const dueSourceCount = campaignDiscoverySources.filter((source) => source.status === "active" && source.cadence !== "manual" && source.nextRunAt && new Date(source.nextRunAt) <= new Date()).length;
   const engine = workspace.engineState;
   const todayTarget = workspace.dailyTargets[0] || null;
   const todayRemaining = Math.max(0, (todayTarget?.targetCount || engine?.dailyTarget || 20) - (todayTarget?.qualifiedCount || 0));
   const openAlerts = workspace.discoveryAlerts.filter((alert) => !alert.resolvedAt);
-  const latestRun = campaignDiscoveryRuns[0] || null;
+  const latestRun = globalDiscoveryRuns[0] || null;
+  const campaignById = new Map(workspace.campaigns.map((campaign) => [campaign.id, campaign]));
+  const globalSourceOverview = [...new Set(globalDiscoverySources.map((source) => source.sourceUrl))].map((sourceUrl) => {
+    const rows = globalDiscoverySources.filter((source) => source.sourceUrl === sourceUrl);
+    const representative = rows.find((source) => source.enabled && source.status === "active") || rows[0];
+    return { ...representative, activeCampaignCount: rows.filter((source) => source.enabled && source.status === "active").length };
+  });
+  const reviewCampaignName = reviewCampaignId === "all" ? "全部 Campaign"
+    : reviewCampaignId === "system:unassigned" ? "待分配"
+      : businessCampaigns.find((campaign) => campaign.id === reviewCampaignId)?.name || "Campaign";
   const campaignMarket = activeCampaign?.targetMarkets || jsonList(activeCampaign?.targetCountriesJson)[0] || "";
   const campaignLeadCount = Number(workspace.leadCounts[activeCampaignId]?.all || 0);
   const campaignLabel = activeCampaign
     ? `${localizedCountry(campaignMarket)}${PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeadCount} 家`
     : "尚未选择 Campaign";
   const approvalGaps = selectedLead && selectedCompany ? [
+    selectedLead.campaignId === "system:unassigned" ? "必须先分配到 Campaign" : "",
     selectedLead.hardGateStatus !== "pass" ? "强制准入尚未通过" : "",
     selectedLead.currentScore < 60 ? "评分低于 60" : "",
     selectedLead.evidenceCoverage < 40 ? "证据覆盖率低于 40%" : "",
@@ -511,10 +531,10 @@ export default function LeadEngineApp() {
   }
 
   async function exportApproved() {
-    if (!activeCampaign || !approvedCount) return;
+    if (!exportCampaign || !exportApprovedCount) return;
     setPending(true); setError(""); setNotice("");
     try {
-      const response = await fetch("/api/exports/crm", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: activeCampaign.id }) });
+      const response = await fetch("/api/exports/crm", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: exportCampaign.id }) });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({})) as { message?: string; error?: string };
         throw new Error(payload.message || payload.error || "导出未完成");
@@ -577,15 +597,28 @@ export default function LeadEngineApp() {
     finally { setPending(false); }
   }
 
+  async function assignSelectedLead() {
+    if (!selectedLead || selectedLead.campaignId !== "system:unassigned" || !assignmentCampaignId) return;
+    setPending(true); setError(""); setNotice("");
+    try {
+      const result = await api<{ campaign: Campaign }>(`/api/leads/${selectedLead.id}/assign`, {
+        method: "POST", body: JSON.stringify({ campaignId: assignmentCampaignId }),
+      });
+      setDrawerOpen(false); setAssignmentCampaignId(""); await load(); setLeadRefreshKey((value) => value + 1);
+      setNotice(`客户已分配到 ${result.campaign.name}，仍保留为待审核状态。`);
+    } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "客户分配失败"); }
+    finally { setPending(false); }
+  }
+
   async function controlEngine(action: "start" | "pause" | "resume" | "stop" | "run_batch") {
-    if (action === "start" && (!activeCampaignId || activeCampaign?.status !== "active")) {
-      setError("请先选择并启用一个 Campaign。"); return;
+    if (action === "start" && !activeBusinessCampaigns.length) {
+      setError("请先启用至少一个 Campaign。"); return;
     }
     setPending(true); setError(""); setNotice("");
     try {
       await api("/api/engine/control", {
         method: "POST",
-        body: JSON.stringify({ action, campaignId: activeCampaignId, dailyTarget: 20, timezone: "Asia/Shanghai", runNow: true }),
+        body: JSON.stringify({ action, dailyTarget: 20, timezone: "Asia/Shanghai", runNow: true }),
       });
       await load();
       if (action === "start" || action === "run_batch") setLeadRefreshKey((value) => value + 1);
@@ -632,24 +665,13 @@ export default function LeadEngineApp() {
       </aside>
 
       <header className={styles.topBar}>
-        <label className={styles.campaignSwitcher}>
-          <span>当前 Campaign</span>
-          <select
-            value={activeCampaignId}
-            aria-label="切换 Campaign"
-            onChange={(event) => { setActiveCampaignId(event.target.value); setSelectedLeadId(""); setDrawerOpen(false); setStatusFilter("needs_review"); setPage(1); }}
-          >
-            <option value="">尚未创建 Campaign</option>
-            {workspace.campaigns.map((campaign) => {
-              const market = campaign.targetMarkets || jsonList(campaign.targetCountriesJson)[0] || "";
-              const leadCount = Number(workspace.leadCounts[campaign.id]?.all || 0);
-              return <option key={campaign.id} value={campaign.id}>{localizedCountry(market)}{PRODUCT_LABELS[campaign.productTrack] || "眼镜"} · {leadCount} 家</option>;
-            })}
-          </select>
-          <small>{campaignLabel}</small>
-        </label>
+        <div className={styles.campaignSwitcher}>
+          <span>{activeView === "discovery" ? "全局自动发现" : VIEW_LABELS[activeView]}</span>
+          <strong>{activeView === "review" ? reviewCampaignName : activeView === "discovery" ? `${activeBusinessCampaigns.length} 个运行中 Campaign` : "眼镜客户开发引擎"}</strong>
+          <small>{activeView === "discovery" ? "系统按各 Campaign 市场自动轮换来源与归类" : "私有环境 · 人工批准后才能导出"}</small>
+        </div>
 
-        <div className={styles.summaryMetrics} aria-label="Campaign 状态概览">
+        {activeView === "review" ? <div className={styles.summaryMetrics} aria-label="审核状态概览">
           <button type="button" className={statusFilter === "needs_review" && activeView === "review" ? styles.metricActive : ""} onClick={() => { setActiveView("review"); setStatusFilter("needs_review"); setDrawerOpen(false); setPage(1); }}>
             <span>待审核</span><b className={styles.metricBlue}>{counts.needs_review || 0}</b>
           </button>
@@ -659,7 +681,7 @@ export default function LeadEngineApp() {
           <button type="button" className={statusFilter === "approved" && activeView === "review" ? styles.metricActive : ""} onClick={() => { setActiveView("review"); setStatusFilter("approved"); setDrawerOpen(false); setPage(1); }}>
             <span>已批准</span><b className={styles.metricGreen}>{approvedCount}</b>
           </button>
-        </div>
+        </div> : null}
       </header>
 
       {error ? <div className={styles.error} role="alert">{error}</div> : null}
@@ -668,8 +690,17 @@ export default function LeadEngineApp() {
       {activeView === "review" ? (
         <section className={[styles.reviewWorkspace, !drawerOpen && styles.workspaceExpanded].filter(Boolean).join(" ")} aria-label={VIEW_LABELS.review}>
           <div className={styles.reviewHeader}>
-            <div>
+            <div className={styles.reviewTitleGroup}>
               <h1>{statusFilter === "needs_review" ? "待审核客户" : STATUS_LABELS[statusFilter] || "客户审核"}</h1>
+              <label className={styles.reviewCampaignPicker}>审核 Campaign
+                <select value={reviewCampaignId} onChange={(event) => { setReviewCampaignId(event.target.value); setSelectedLeadId(""); setDrawerOpen(false); setPage(1); }}>
+                  <option value="all">全部 Campaign</option>
+                  <option value="system:unassigned">待分配（{workspace.leadCounts["system:unassigned"]?.all || 0}）</option>
+                  {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>
+                    {campaign.name} · 待审核 {workspace.leadCounts[campaign.id]?.needs_review || 0} / 淘汰 {workspace.leadCounts[campaign.id]?.rejected || 0}
+                  </option>)}
+                </select>
+              </label>
             </div>
             <details className={styles.filterDisclosure}>
               <summary><IconSearch size={19} />筛选与搜索</summary>
@@ -714,6 +745,12 @@ export default function LeadEngineApp() {
                 <span className={styles.resultCount}>找到 {leadPage.pagination.total} 家</span>
               </div>
             </details>
+          </div>
+
+          <div className={styles.reviewStatusTabs} aria-label="手机审核状态">
+            <button type="button" data-active={statusFilter === "needs_review"} onClick={() => { setStatusFilter("needs_review"); setPage(1); }}>待审核 <b>{counts.needs_review || 0}</b></button>
+            <button type="button" data-active={statusFilter === "rejected"} onClick={() => { setStatusFilter("rejected"); setPage(1); }}>已淘汰 <b>{rejectedCount}</b></button>
+            <button type="button" data-active={statusFilter === "approved"} onClick={() => { setStatusFilter("approved"); setPage(1); }}>已批准 <b>{approvedCount}</b></button>
           </div>
 
           <div className={styles.tableFrame} aria-busy={loading || leadLoading}>
@@ -791,8 +828,8 @@ export default function LeadEngineApp() {
             </div>
 
             {loading || leadLoading ? <div className={styles.emptyState}><IconClock size={26} /><b>正在读取私有数据库…</b></div> : null}
-            {!loading && !activeCampaign ? <div className={styles.emptyState}><IconTargetArrow size={28} /><b>先创建第一个 Campaign</b><p>建议从一个产品赛道、20–30 家候选公司开始。</p><button type="button" onClick={() => setActiveView("campaign")}>创建 Campaign</button></div> : null}
-            {!loading && !leadLoading && activeCampaign && !visibleLeads.length ? <div className={styles.emptyState}><IconSearch size={28} /><b>当前筛选没有客户</b><p>调整筛选条件，或在高级工具中导入已审核数据。</p><button type="button" onClick={() => setActiveView("advanced")}>打开高级工具</button></div> : null}
+            {!loading && !businessCampaigns.length ? <div className={styles.emptyState}><IconTargetArrow size={28} /><b>先创建第一个 Campaign</b><p>建议从一个产品赛道、20–30 家候选公司开始。</p><button type="button" onClick={() => setActiveView("campaign")}>创建 Campaign</button></div> : null}
+            {!loading && !leadLoading && businessCampaigns.length > 0 && !visibleLeads.length ? <div className={styles.emptyState}><IconSearch size={28} /><b>{statusFilter === "needs_review" && rejectedCount ? "这个 Campaign 暂无待审核客户" : "当前筛选没有客户"}</b><p>{statusFilter === "needs_review" && rejectedCount ? `已找到 ${rejectedCount} 家，但都未通过自动准入；可查看淘汰原因。` : "切换 Campaign、状态或清除筛选条件后再查看。"}</p>{statusFilter === "needs_review" && rejectedCount ? <button type="button" onClick={() => { setStatusFilter("rejected"); setPage(1); }}>查看 {rejectedCount} 家已淘汰客户</button> : <button type="button" onClick={() => { setStatusFilter("all"); setGradeFilter("all"); setCountryFilter("all"); setTypeFilter("all"); setProductFilter("all"); setContactFilter("all"); setSourceFilter("all"); setSpecialFilter("all"); setSearch(""); setPage(1); }}>清除筛选</button>}</div> : null}
             {!loading && !leadLoading && visibleLeads.length ? <div className={styles.pagination}><span>第 {Math.min(page, pageCount)} / {pageCount} 页 · 共 {leadPage.pagination.total} 家</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>上一页</button><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => Math.min(pageCount, value + 1))}>下一页</button></div></div> : null}
           </div>
         </section>
@@ -803,14 +840,20 @@ export default function LeadEngineApp() {
           <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>CAMPAIGN CONTROL</span><h1>Campaign 管理</h1><p>定义市场、客户类型与排除规则；每日审核页只显示与当前任务相关的信息。</p></div><IconTargetArrow size={34} /></div>
           <div className={styles.toolGrid}>
             <section className={styles.toolSection}>
-              <h2>当前 Campaign</h2>
+              <h2>编辑 Campaign</h2>
+              <label className={styles.field}>选择 Campaign
+                <select value={activeCampaignId} onChange={(event) => setActiveCampaignId(event.target.value)}>
+                  <option value="">尚未创建 Campaign</option>
+                  {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+                </select>
+              </label>
               {activeCampaign ? (
                 <>
                   <div className={styles.campaignOverview}>
                     <div><span>任务</span><b>{activeCampaign.name}</b></div>
                     <div><span>市场</span><b>{campaignLabel}</b></div>
                     <div><span>状态</span><b>{STATUS_LABELS[activeCampaign.status] || activeCampaign.status}</b></div>
-                    <div><span>评分结构</span><b>S {gradeCounts.S || 0} · A {gradeCounts.A || 0} · B {gradeCounts.B || 0}</b></div>
+                    <div><span>客户记录</span><b>{workspace.leadCounts[activeCampaign.id]?.all || 0} 家</b></div>
                   </div>
                   <label className={styles.field}>Campaign 状态
                     <select value={activeCampaign.status} disabled={pending} onChange={(event) => void changeCampaignStatus(event.target.value)}>
@@ -864,8 +907,8 @@ export default function LeadEngineApp() {
           <div className={styles.toolHeader}>
             <div>
               <span className={styles.sectionKicker}>PERSISTENT DAILY DISCOVERY</span>
-              <h1>自动找客户</h1>
-              <p>服务器按 Asia/Shanghai 统计业务日，每 15 分钟可执行一个受控批次；浏览器关闭不影响持久化状态。搜索线索、合格客户和人工批准严格分开。</p>
+              <h1>全局自动找客户</h1>
+              <p>无需先选择 Campaign。系统根据所有运行中 Campaign 的国家、客户类型与产品条件轮换公开来源，再按证据自动归类；无法可靠归类的客户进入待分配。</p>
             </div>
             <IconRadar size={34} />
           </div>
@@ -874,7 +917,7 @@ export default function LeadEngineApp() {
             <div className={styles.engineControl}>
               <div><span>当前运行状态</span><b data-status={engine?.status || "stopped"}>{engine?.status === "running" ? "已标记运行" : engine?.status === "paused" ? "已暂停" : "已停止"}</b><small>时区：{engine?.timezone || "Asia/Shanghai"} · 后台持续运行需已启用 Cron</small></div>
               <div className={styles.engineActions}>
-                <button className={styles.primaryButton} type="button" disabled={pending || engine?.status === "running" || activeCampaign?.status !== "active"} onClick={() => void controlEngine("start")}><IconPlayerPlay size={18} />开始自动找客户</button>
+                <button className={styles.primaryButton} type="button" disabled={pending || engine?.status === "running" || !activeBusinessCampaigns.length} onClick={() => void controlEngine("start")}><IconPlayerPlay size={18} />开始自动找客户</button>
                 <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "running"} onClick={() => void controlEngine("pause")}><IconPlayerPause size={18} />暂停</button>
                 <button className={styles.secondaryButton} type="button" disabled={pending || engine?.status !== "paused"} onClick={() => void controlEngine("resume")}><IconPlayerPlay size={18} />恢复</button>
                 <button className={styles.secondaryButton} type="button" disabled={pending || !engine || engine.status === "stopped"} onClick={() => void controlEngine("stop")}><IconX size={18} />停止</button>
@@ -890,11 +933,12 @@ export default function LeadEngineApp() {
               <span>最近运行：<b>{formatDate(engine?.lastRunAt)}</b></span>
               <span>下次运行：<b>{formatDate(engine?.nextRunAt)}</b></span>
               <span>当前来源：<b>{latestRun ? discoverySourceById.get(latestRun.sourceId)?.name || "来源已删除" : "等待下一批"}</b></span>
+              <span>后台目标：<b>{latestRun ? campaignById.get(latestRun.campaignId)?.name || "Campaign 已删除" : "自动轮换"}</b></span>
               <span>原始 / 解析 / 官网 / 有效联系：<b>{todayTarget?.rawDiscoveredCount || 0} / {todayTarget?.parsedCount || 0} / {todayTarget?.websiteVerifiedCount || 0} / {todayTarget?.validContactCount || 0}</b></span>
             </div>
             {todayTarget?.deficitReason || engine?.lastError ? <div className={styles.engineAlert}><IconAlertTriangle size={19} /><span>{todayTarget?.deficitReason || engine?.lastError}</span></div> : null}
             {openAlerts.length ? <div className={styles.alertList}>{openAlerts.slice(0, 5).map((alert) => <article key={alert.id} data-severity={alert.severity}><b>{alert.severity === "critical" ? "重要告警" : "来源提醒"}</b><span>{alert.message}</span><small>{formatDate(alert.createdAt)}</small></article>)}</div> : null}
-            <div className={styles.engineExports}><span>自动合格客户可在审核台筛选和查看证据；人工批准后才能导出。</span><button className={styles.secondaryButton} type="button" disabled={!approvedCount} onClick={() => setActiveView("export")}><IconFileExport size={17} />前往 CRM 导出</button></div>
+            <div className={styles.engineExports}><span>自动合格客户可在审核台按 Campaign 查看证据；人工批准后才能导出。</span><button className={styles.secondaryButton} type="button" disabled={!totalApprovedCount} onClick={() => setActiveView("export")}><IconFileExport size={17} />前往 CRM 导出</button></div>
           </section>
 
           <div className={styles.discoveryPrinciples}>
@@ -906,26 +950,26 @@ export default function LeadEngineApp() {
           <section className={[styles.toolSection, styles.sourceOverview].join(" ")}>
             <div className={styles.sectionTitleRow}><h2>来源运行概览</h2><button className={styles.secondaryButton} type="button" onClick={() => setActiveView("advanced")}><IconSettings size={17} />管理来源</button></div>
             <div className={styles.sourceOverviewGrid}>
-              {campaignDiscoverySources.map((source) => (
+              {globalSourceOverview.map((source) => (
                 <article key={source.id}>
                   <div><b>{source.name}</b><span className={source.enabled && source.status === "active" ? styles.sourceActive : styles.sourcePaused}>{source.enabled && source.status === "active" ? `${source.tier}级 · 已启用` : "已暂停"}</span></div>
-                  <p>{source.lastDiscoveredCount} 发现 · {source.lastQualifiedCount} 合格 · {source.failureCount} 失败</p>
-                  <small>{source.cadence === "manual" ? "仅手动" : `下次：${formatDate(source.nextRunAt)}`}</small>
+                  <p>{source.activeCampaignCount} 个 Campaign 使用</p>
+                  <small>{source.region} · {source.cadence === "manual" ? "仅手动" : `下次：${formatDate(source.nextRunAt)}`}</small>
                 </article>
               ))}
-              {!campaignDiscoverySources.length ? <div className={styles.emptyCompact}><IconRadar size={28} /><b>尚未添加来源</b><span>在高级工具中添加已批准的公开行业目录。</span></div> : null}
+              {!globalSourceOverview.length ? <div className={styles.emptyCompact}><IconRadar size={28} /><b>尚未准备来源</b><span>启用 Campaign 后，引擎会按市场准备官方来源。</span></div> : null}
             </div>
           </section>
 
           <section className={[styles.toolSection, styles.discoveryHistory].join(" ")}>
             <div className={styles.sectionTitleRow}><h2>采集批次日志</h2><span className={styles.muted}>每一次访问、去重、排除和失败都会保留</span></div>
             <div className={styles.runList}>
-              {campaignDiscoveryRuns.map((run) => {
+              {globalDiscoveryRuns.map((run) => {
                 const runItems = workspace.discoveryItems.filter((item) => item.runId === run.id);
                 return (
                   <article key={run.id}>
                     <div className={styles.runSummary}>
-                      <div><b>{discoverySourceById.get(run.sourceId)?.name || "已删除来源"}</b><span>{formatDate(run.startedAt)} · {run.trigger === "scheduled" ? "定时" : "手动"}</span></div>
+                      <div><b>{discoverySourceById.get(run.sourceId)?.name || "已删除来源"}</b><span>{campaignById.get(run.campaignId)?.name || "Campaign 已删除"} · {formatDate(run.startedAt)} · {run.trigger === "scheduled" ? "定时" : "手动"}</span></div>
                       <strong data-status={run.status}>{run.status === "completed" ? "完成" : run.status === "partial" ? "部分完成" : run.status === "failed" ? "失败" : "运行中"}</strong>
                     </div>
                     <div className={styles.runMetrics}><span>原始发现 <b>{run.rawDiscoveredCount ?? run.discoveredCount}</b></span><span>成功解析 <b>{run.parsedCount || 0}</b></span><span>官网核验 <b>{run.websiteVerifiedCount || 0}</b></span><span>有效联系 <b>{run.validContactCount || 0}</b></span><span>自动合格 <b>{run.qualifiedCount || 0}</b></span><span>重复 <b>{run.duplicateCount}</b></span><span>准入失败 <b>{run.mandatoryGateFailedCount || run.excludedCount}</b></span><span>采集失败 <b>{run.failedCount}</b></span></div>
@@ -934,7 +978,7 @@ export default function LeadEngineApp() {
                   </article>
                 );
               })}
-              {!campaignDiscoveryRuns.length ? <p className={styles.muted}>尚无采集批次。开始引擎后等待服务器定时运行；手工诊断入口位于高级工具。</p> : null}
+              {!globalDiscoveryRuns.length ? <p className={styles.muted}>尚无采集批次。开始引擎后等待服务器定时运行；手工诊断入口位于高级工具。</p> : null}
             </div>
           </section>
         </section>
@@ -943,6 +987,12 @@ export default function LeadEngineApp() {
       {activeView === "advanced" ? (
         <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.advanced}>
           <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>MAINTENANCE & FALLBACKS</span><h1>高级工具</h1><p>日常自动找客户不需要这些入口；仅在扩充来源、手工诊断、补录或恢复时使用。</p></div><IconSettings size={34} /></div>
+          <label className={styles.contextPicker}>维护或导入到 Campaign
+            <select value={activeCampaignId} onChange={(event) => setActiveCampaignId(event.target.value)}>
+              <option value="">请选择 Campaign</option>
+              {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+            </select>
+          </label>
 
           <details className={styles.advancedSection} open>
             <summary><span><IconRadar size={20} />来源维护与手工诊断</span><small>{campaignDiscoverySources.length} 个来源 · {dueSourceCount} 个到期</small></summary>
@@ -984,7 +1034,7 @@ export default function LeadEngineApp() {
           <details className={styles.advancedSection}>
             <summary><span><IconUpload size={20} />已审核数据导入与审计</span><small>恢复、补录和外部研究导入</small></summary>
             <div className={styles.toolGrid}>
-              <section className={styles.toolSection}><h2>导入到当前 Campaign</h2><p className={styles.muted}>{campaignLabel}</p><div className={styles.templateLinks}><a href="/qixin-lead-engine-template.csv" download>下载 CSV 模板</a><a href="/qixin-lead-engine-template.json" download>下载 JSON 模板</a></div><form className={styles.importForm} onSubmit={importFile}><label className={styles.fileField}>选择已审核文件<input name="file" type="file" accept=".csv,.json,text/csv,application/json" required disabled={!activeCampaignId || activeCampaign?.status !== "active" || pending} /></label><button className={styles.primaryButton} type="submit" disabled={!activeCampaignId || activeCampaign?.status !== "active" || pending}>{pending ? "正在处理…" : activeCampaign?.status !== "active" ? "先把 Campaign 设为运行中" : "导入当前 Campaign"}</button></form>{importReport ? <div className={styles.importReport}><b>写入 {importReport.imported} 条，跳过 {importReport.skipped} 条</b>{importReport.results?.filter((item) => item.status !== "imported").slice(0, 5).map((item) => <span key={String(item.row)}>第 {String(item.row)} 行：{String(item.error || item.status)}</span>)}</div> : null}</section>
+              <section className={styles.toolSection}><h2>导入到所选 Campaign</h2><p className={styles.muted}>{campaignLabel}</p><div className={styles.templateLinks}><a href="/qixin-lead-engine-template.csv" download>下载 CSV 模板</a><a href="/qixin-lead-engine-template.json" download>下载 JSON 模板</a></div><form className={styles.importForm} onSubmit={importFile}><label className={styles.fileField}>选择已审核文件<input name="file" type="file" accept=".csv,.json,text/csv,application/json" required disabled={!activeCampaignId || activeCampaign?.status !== "active" || pending} /></label><button className={styles.primaryButton} type="submit" disabled={!activeCampaignId || activeCampaign?.status !== "active" || pending}>{pending ? "正在处理…" : activeCampaign?.status !== "active" ? "先把 Campaign 设为运行中" : "导入所选 Campaign"}</button></form>{importReport ? <div className={styles.importReport}><b>写入 {importReport.imported} 条，跳过 {importReport.skipped} 条</b>{importReport.results?.filter((item) => item.status !== "imported").slice(0, 5).map((item) => <span key={String(item.row)}>第 {String(item.row)} 行：{String(item.error || item.status)}</span>)}</div> : null}</section>
               <section className={styles.toolSection}><h2>导入审计</h2><div className={styles.auditList}>{workspace.imports.filter((run) => run.campaignId === activeCampaignId).slice(0, 8).map((run) => <article key={run.id}><div><b>{run.originalFilename || "结构化导入"}</b><span>{formatDate(run.createdAt)}</span></div><strong>{run.importedCount}/{run.rowCount} 写入</strong></article>)}{!workspace.imports.some((run) => run.campaignId === activeCampaignId) ? <p className={styles.muted}>尚无导入记录。</p> : null}</div><div className={styles.guardrails}><b><IconShieldLock size={18} />明确禁止</b><span>无授权搜索或额度消耗</span><span>邮箱猜测与自动补全</span><span>自动生成或发送开发信</span><span>直接写生产 CRM</span></div></section>
             </div>
           </details>
@@ -994,13 +1044,19 @@ export default function LeadEngineApp() {
       {activeView === "export" ? (
         <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.export}>
           <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>CONTROLLED CRM HANDOFF</span><h1>CRM 导出</h1><p>只有人工批准并通过准入门槛的公司才能生成兼容文件。</p></div><IconFileExport size={34} /></div>
+          <label className={styles.contextPicker}>导出 Campaign
+            <select value={exportCampaignId} onChange={(event) => setExportCampaignId(event.target.value)}>
+              <option value="">请选择 Campaign</option>
+              {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+            </select>
+          </label>
           <section className={styles.exportPanel}>
-            <div className={styles.exportCount}><span>当前可导出</span><b>{approvedCount}</b><small>家已批准客户</small></div>
-            <div className={styles.exportCopy}><h2>{approvedCount ? "导出已批准客户" : "暂无可导出客户"}</h2><p>导出只生成 CRM 兼容 CSV 并记录批次，不会调用或写入生产 CRM。下载后仍需人工确认导入。</p><button className={styles.primaryButton} type="button" disabled={!approvedCount || pending} onClick={() => void exportApproved()}><IconDownload size={18} />导出 {approvedCount} 家已批准客户</button></div>
+            <div className={styles.exportCount}><span>当前可导出</span><b>{exportApprovedCount}</b><small>家已批准客户</small></div>
+            <div className={styles.exportCopy}><h2>{exportApprovedCount ? "导出已批准客户" : "暂无可导出客户"}</h2><p>导出只生成 CRM 兼容 CSV 并记录批次，不会调用或写入生产 CRM。下载后仍需人工确认导入。</p><button className={styles.primaryButton} type="button" disabled={!exportApprovedCount || pending} onClick={() => void exportApproved()}><IconDownload size={18} />导出 {exportApprovedCount} 家已批准客户</button></div>
           </section>
           <section className={styles.toolSection}>
             <h2>导出审计</h2>
-            <div className={styles.auditList}>{workspace.exports.filter((run) => run.campaignId === activeCampaignId).map((run) => <article key={run.id}><div><b>CRM 兼容 CSV</b><span>{formatDate(run.createdAt)}</span></div><strong>{run.rowCount} 家</strong></article>)}{!workspace.exports.some((run) => run.campaignId === activeCampaignId) ? <p className={styles.muted}>尚无导出记录。</p> : null}</div>
+            <div className={styles.auditList}>{workspace.exports.filter((run) => run.campaignId === exportCampaignId).map((run) => <article key={run.id}><div><b>CRM 兼容 CSV</b><span>{formatDate(run.createdAt)}</span></div><strong>{run.rowCount} 家</strong></article>)}{!workspace.exports.some((run) => run.campaignId === exportCampaignId) ? <p className={styles.muted}>尚无导出记录。</p> : null}</div>
           </section>
         </section>
       ) : null}
@@ -1067,6 +1123,15 @@ export default function LeadEngineApp() {
               </div>
 
               <div className={styles.reviewDock}>
+                {selectedLead.campaignId === "system:unassigned" ? <div className={styles.assignmentBox}>
+                  <label>先分配到 Campaign
+                    <select value={assignmentCampaignId} onChange={(event) => setAssignmentCampaignId(event.target.value)}>
+                      <option value="">请选择目标 Campaign</option>
+                      {businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}
+                    </select>
+                  </label>
+                  <button type="button" className={styles.primaryButton} disabled={pending || !assignmentCampaignId} onClick={() => void assignSelectedLead()}>确认分配</button>
+                </div> : null}
                 <label>审核备注<input value={reviewNotes} onChange={(event) => setReviewNotes(event.target.value)} placeholder="淘汰时必须填写原因" /></label>
                 {approvalGaps.length ? <div className={styles.gapSummary}><IconAlertTriangle size={17} /><span>{approvalGaps.slice(0, 3).join(" · ")}</span></div> : <div className={styles.readySummary}><IconCheck size={17} /><span>已满足批准闸门，仍需你做最终判断。</span></div>}
                 <button type="button" className={styles.approveButton} onClick={() => review("approved")} disabled={pending || approvalGaps.length > 0}>

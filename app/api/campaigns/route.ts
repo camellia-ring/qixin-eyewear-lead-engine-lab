@@ -10,6 +10,7 @@ import {
   crmProductInterests,
   safeJsonList,
 } from "@/lib/lead-engine";
+import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 
 function targetCount(value: unknown, fallback = 30) {
   const count = Number(value ?? fallback);
@@ -60,6 +61,7 @@ export async function PATCH(request: Request) {
   try {
     const body = await jsonBody(request);
     const id = textValue(body.id, { field: "id", required: true, max: 100 });
+    if (id === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "system_campaign_read_only");
     const db = getDb();
     const [current] = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
     if (!current) throw new ApiError(404, "campaign_not_found");

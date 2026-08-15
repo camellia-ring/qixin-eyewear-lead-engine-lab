@@ -15,10 +15,9 @@ export async function POST(request: Request) {
     const action = textValue(body.action, { field: "action", required: true, max: 30 });
     if (!ACTIONS.has(action)) throw new ApiError(400, "invalid_engine_action");
     if (action === "start") {
-      const campaignId = textValue(body.campaignId, { field: "campaignId", required: true, max: 100 });
       const dailyTarget = Number(body.dailyTarget ?? 20);
       const timezone = textValue(body.timezone || "Asia/Shanghai", { field: "timezone", required: true, max: 80 });
-      const state = await startAutomaticEngine(campaignId, dailyTarget, timezone);
+      const state = await startAutomaticEngine(dailyTarget, timezone);
       const firstBatch = body.runNow === false ? null : await runAutomaticDiscoveryBatch();
       return Response.json({ state, firstBatch });
     }
@@ -29,7 +28,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     if (/not_found/.test(message)) return apiFailure(new ApiError(404, message));
-    if (/not_active|not_started/.test(message)) return apiFailure(new ApiError(409, message));
+    if (/not_active|not_started|no_active_campaigns/.test(message)) return apiFailure(new ApiError(409, message));
     if (/invalid_/.test(message)) return apiFailure(new ApiError(400, message));
     return apiFailure(error);
   }

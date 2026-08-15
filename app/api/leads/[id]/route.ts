@@ -24,8 +24,8 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
     const [companyRows, sourceRows, claimRows, scoreRunRows, reviewRows, domainRows, contactCountRows, verificationRows] = await Promise.all([
       db.select().from(prospectCompanies).where(eq(prospectCompanies.id, lead.companyId)).limit(1),
-      db.select().from(leadSources).where(eq(leadSources.leadId, id)).orderBy(desc(leadSources.retrievedAt)),
-      db.select().from(evidenceClaims).where(eq(evidenceClaims.leadId, id)).orderBy(desc(evidenceClaims.createdAt)),
+      db.select().from(leadSources).where(eq(leadSources.companyId, lead.companyId)).orderBy(desc(leadSources.retrievedAt)),
+      db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, lead.companyId)).orderBy(desc(evidenceClaims.createdAt)),
       db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, id)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
       db.select().from(leadReviewDecisions).where(eq(leadReviewDecisions.leadId, id)).orderBy(desc(leadReviewDecisions.createdAt)),
       db.select({
@@ -35,7 +35,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       }).from(companyDomainLinks).innerJoin(companyDomains, eq(companyDomainLinks.domainId, companyDomains.id))
         .where(eq(companyDomainLinks.companyId, lead.companyId)),
       db.select({ value: count() }).from(prospectContacts).where(eq(prospectContacts.companyId, lead.companyId)),
-      db.select().from(contactVerifications).where(eq(contactVerifications.leadId, id)).orderBy(desc(contactVerifications.verifiedAt)),
+      db.select().from(contactVerifications).where(eq(contactVerifications.companyId, lead.companyId)).orderBy(desc(contactVerifications.verifiedAt)),
     ]);
     const company = companyRows[0];
     if (!company) throw new ApiError(404, "company_not_found");

@@ -105,6 +105,7 @@
 
 .campaignSwitcher { min-width: 260px; display: flex; flex-direction: column; justify-content: center; }
 .campaignSwitcher > span { color: #8792a0; font-size: 12px; }
+.campaignSwitcher > strong { margin-top: 2px; color: var(--ink); font-size: 20px; line-height: 1.2; letter-spacing: -.02em; }
 .campaignSwitcher select {
   max-width: 440px;
   height: 36px;
@@ -173,6 +174,10 @@
 .workspaceExpanded { grid-column: 2 / 4; }
 
 .reviewHeader { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.reviewTitleGroup { min-width: 0; display: flex; align-items: center; gap: 18px; }
+.reviewCampaignPicker { display: grid; gap: 4px; color: #748191; font-size: 11px; font-weight: 700; }
+.reviewCampaignPicker select, .contextPicker select { min-width: min(360px, 42vw); min-height: 42px; padding: 0 34px 0 12px; border: 1px solid #cfd5dc; border-radius: 7px; background: #fff; color: #344150; font-size: 14px; }
+.reviewStatusTabs { display: none; }
 .sectionKicker { color: #8290a2; font-size: 11px; font-weight: 800; letter-spacing: .13em; }
 .reviewHeader h1, .toolHeader h1 { margin: 5px 0 0; font-size: 28px; line-height: 1.2; letter-spacing: -.03em; }
 .reviewHeader p, .toolHeader p { margin: 7px 0 0; color: var(--muted); font-size: 14px; line-height: 1.55; }
@@ -338,6 +343,9 @@
 .reviewDock { padding: 16px 22px 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; border-top: 1px solid #dfe3e8; background: #fff; }
 .reviewDock label { grid-column: 1 / -1; display: grid; gap: 6px; color: #667281; font-size: 12px; font-weight: 700; }
 .reviewDock input { width: 100%; min-height: 42px; padding: 0 11px; border: 1px solid #d4d9df; border-radius: 7px; color: var(--ink); font-size: 14px; }
+.assignmentBox { grid-column: 1 / -1; padding: 11px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 9px; border: 1px solid #b9d2f3; border-radius: 8px; background: #f2f7ff; }
+.assignmentBox label { grid-column: auto; }
+.assignmentBox select { width: 100%; min-width: 0; min-height: 42px; padding: 0 32px 0 10px; border: 1px solid #b9c8db; border-radius: 7px; background: #fff; color: var(--ink); font-size: 13px; }
 .reviewMaintenance { grid-column: 1 / -1; border-top: 1px solid #e7eaee; }
 .reviewMaintenance summary { min-height: 42px; display: flex; align-items: center; justify-content: center; color: #6d7987; cursor: pointer; font-size: 12px; font-weight: 700; list-style: none; }
 .reviewMaintenance summary::-webkit-details-marker { display: none; }
@@ -354,6 +362,8 @@
 .approveButton:disabled, .rejectButton:disabled, .keepButton:disabled { cursor: not-allowed; opacity: .58; }
 
 .toolWorkspace { grid-column: 2 / 4; grid-row: 2; min-width: 0; min-height: 0; padding: 34px clamp(24px, 4vw, 60px) 60px; overflow-y: auto; background: var(--canvas); }
+.contextPicker { max-width: 520px; margin: 20px 0 0; display: grid; gap: 7px; color: #667382; font-size: 13px; font-weight: 700; }
+.contextPicker select { width: 100%; min-width: 0; }
 .toolHeader { padding-bottom: 24px; display: flex; align-items: flex-start; justify-content: space-between; gap: 30px; border-bottom: 1px solid #dfe3e8; }
 .toolHeader > svg { color: var(--blue); }
 .toolGrid, .researchLayout { margin-top: 26px; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(320px, .85fr); align-items: start; gap: 22px; }
@@ -553,13 +563,20 @@
   .topBar { grid-column: 1; grid-row: 1; min-height: 76px; padding: 0 14px; }
   .campaignSwitcher { min-width: 0; flex: 1; }
   .campaignSwitcher > span { display: block; font-size: 10px; }
+  .campaignSwitcher > strong { font-size: 16px; }
   .campaignSwitcher select { width: 100%; height: 32px; padding-right: 24px; font-size: 15px; }
   .campaignSwitcher small { display: block; max-width: calc(100vw - 28px); overflow: hidden; color: #7c8794; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
   .summaryMetrics { display: none; }
   .error, .notice { top: 86px; right: 12px; left: 12px; max-width: none; }
   .reviewWorkspace, .workspaceExpanded { grid-column: 1; grid-row: 2; padding: 14px 10px 10px; }
   .reviewHeader { align-items: stretch; flex-direction: column; gap: 14px; }
+  .reviewTitleGroup { align-items: stretch; flex-direction: column; gap: 10px; }
   .reviewHeader h1 { margin-top: 0; font-size: 23px; }
+  .reviewCampaignPicker select { width: 100%; min-width: 0; min-height: 48px; font-size: 14px; }
+  .reviewStatusTabs { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .reviewStatusTabs button { min-width: 0; min-height: 46px; padding: 7px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d7dde4; border-radius: 9px; background: #fff; color: #526171; font-size: 11px; }
+  .reviewStatusTabs button[data-active="true"] { border-color: #78a8e9; background: var(--blue-soft); color: var(--blue); }
+  .reviewStatusTabs b { font-size: 15px; }
   .filterDisclosure { align-self: stretch; }
   .filterDisclosure > summary { min-height: 46px; justify-content: center; }
   .filterPanel { width: 100%; margin-top: 8px; padding: 12px; position: static; box-shadow: none; }
@@ -590,6 +607,8 @@
   .drawerBody { padding: 18px 16px 28px; overscroll-behavior: contain; }
   .reviewDock { max-height: 48dvh; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; }
   .reviewDock input, .approveButton, .rejectButton, .keepButton { min-height: 48px; }
+  .assignmentBox { grid-template-columns: 1fr; }
+  .assignmentBox .primaryButton { width: 100%; }
   .toolWorkspace { grid-column: 1; grid-row: 2; padding: 20px 12px 34px; }
   .toolHeader { gap: 14px; }
   .toolHeader h1 { font-size: 24px; }

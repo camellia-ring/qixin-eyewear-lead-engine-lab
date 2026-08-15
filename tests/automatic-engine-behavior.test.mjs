@@ -10,6 +10,7 @@ import {
 } from "../lib/discovery.ts";
 import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts } from "../lib/engine-policy.ts";
 import { qualifyEvidence } from "../lib/qualification.ts";
+import { normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
 
 function evidence(overrides = {}) {
   return {
@@ -67,6 +68,25 @@ test("Asia/Shanghai date boundary and source fallback are deterministic", () => 
   assert.equal(chooseNextSource(sources, ["a", "b", "c"]), null);
 });
 
+test("global discovery routes by verified country, customer type and product evidence", () => {
+  const campaigns = [
+    { id: "usa-lenses", name: "USA lenses", productTrack: "optical_lenses", targetCountriesJson: '["United States"]', targetMarkets: "", productTypesJson: '["optical lenses"]', customerTypesJson: '["光学镜片批发商"]', status: "active" },
+    { id: "poland-lenses", name: "Poland lenses", productTrack: "optical_lenses", targetCountriesJson: '["Poland"]', targetMarkets: "", productTypesJson: '["optical lenses"]', customerTypesJson: '["光学镜片批发商"]', status: "active" },
+  ];
+  const routed = routeCampaigns(campaigns, evidence(), "光学镜片批发商", ["普通光学镜片"]);
+  assert.deepEqual(routed.map((campaign) => campaign.id), ["usa-lenses"]);
+  assert.equal(routeCampaigns(campaigns, evidence({ country: "" }), "光学镜片批发商", ["普通光学镜片"]).length, 0);
+  assert.equal(normalizeCountry("USA"), "united states");
+});
+
+test("one verified company may route to multiple matching active campaigns", () => {
+  const campaigns = ["usa-core", "usa-progressive"].map((id) => ({
+    id, name: id, productTrack: "optical_lenses", targetCountriesJson: '["USA"]', targetMarkets: "",
+    productTypesJson: '["progressive lens"]', customerTypesJson: '["Wholesaler"]', status: "active",
+  }));
+  assert.deepEqual(routeCampaigns(campaigns, evidence(), "光学镜片批发商", ["渐进镜片"]).map((campaign) => campaign.id), ["usa-core", "usa-progressive"]);
+});
+
 test("paid discovery provider is disabled without both explicit approval flag and credentials", async () => {
   const provider = createDiscoveryProvider({ enablePaidProviders: "false", openAiApiKey: "not-used", openAiDiscoveryModel: "not-used" });
   assert.equal(provider.enabled, false);
@@ -76,9 +96,16 @@ test("paid discovery provider is disabled without both explicit approval flag an
 test("automatic qualification never bypasses the human export gate", async () => {
   const route = await readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8");
   assert.match(route, /workflowStatus, "approved"/);
+  assert.match(route, /unassigned_leads_cannot_export/);
   assert.match(route, /crmExportRuns/);
   assert.match(route, /crmExportItems/);
   await assert.rejects(access(new URL("../app/api/exports/leads/route.ts", import.meta.url)), { code: "ENOENT" });
+});
+
+test("engine start is global and no longer requires a selected campaign", async () => {
+  const route = await readFile(new URL("../app/api/engine/control/route.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(route, /required: true[^\n]+campaignId/);
+  assert.match(route, /startAutomaticEngine\(dailyTarget, timezone\)/);
 });
 
 test("Vision Council parser extracts official company website, category and public phone", () => {

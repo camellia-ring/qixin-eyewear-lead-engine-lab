@@ -12,11 +12,13 @@ import {
 } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import { crmProductInterests, csvCell, safeJsonList } from "@/lib/lead-engine";
+import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 
 export async function POST(request: Request) {
   try {
     const body = await jsonBody(request);
     const campaignId = textValue(body.campaignId, { field: "campaignId", required: true, max: 100 });
+    if (campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "unassigned_leads_cannot_export");
     const db = getDb();
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
     if (!campaign) throw new ApiError(404, "campaign_not_found");
@@ -31,19 +33,18 @@ export async function POST(request: Request) {
     if (!leads.length) throw new ApiError(409, "no_approved_leads");
 
     const companyIds = [...new Set(leads.map((lead) => lead.companyId))];
-    const leadIds = leads.map((lead) => lead.id);
     const [companies, contacts, sources] = await Promise.all([
       db.select().from(prospectCompanies).where(inArray(prospectCompanies.id, companyIds)),
       db.select().from(prospectContacts).where(and(
         inArray(prospectContacts.companyId, companyIds),
         eq(prospectContacts.isPrimary, true),
       )),
-      db.select().from(leadSources).where(inArray(leadSources.leadId, leadIds)),
+      db.select().from(leadSources).where(inArray(leadSources.companyId, companyIds)),
     ]);
     const companyById = new Map(companies.map((company) => [company.id, company]));
     const primaryByCompany = new Map(contacts.map((contact) => [contact.companyId, contact]));
-    const sourcesByLead = new Map<string, typeof sources>();
-    for (const source of sources) sourcesByLead.set(source.leadId || "", [...(sourcesByLead.get(source.leadId || "") || []), source]);
+    const sourcesByCompany = new Map<string, typeof sources>();
+    for (const source of sources) sourcesByCompany.set(source.companyId, [...(sourcesByCompany.get(source.companyId) || []), source]);
 
     const columns = [
       "company_name", "country_code", "website", "contact_name", "job_title", "email",
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       const company = companyById.get(lead.companyId);
       if (!company) continue;
       const contact = primaryByCompany.get(company.id);
-      const leadSourcesForRow = sourcesByLead.get(lead.id) || [];
+      const leadSourcesForRow = sourcesByCompany.get(company.id) || [];
       const detailedProducts = safeJsonList(lead.recommendedProductsJson);
       const notes = [
         `Lead Engine campaign: ${campaign.name}.`,

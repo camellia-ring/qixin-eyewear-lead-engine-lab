@@ -10,7 +10,6 @@ import {
 } from "@/db/schema";
 import { recoverStaleDiscoveryRuns, runDiscoverySource, type RunCounts } from "@/lib/discovery-runner";
 import {
-  chooseNextSource,
   dailyProgress,
   dateInTimezone,
   DEFAULT_DAILY_TARGET,
@@ -19,6 +18,8 @@ import {
   mergeDailyCounts,
 } from "@/lib/engine-policy";
 import { seedOfficialSourceRegistry } from "@/lib/source-registry";
+import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
 function dailyId(targetDate: string, timezone: string) {
   return `${targetDate}|${timezone}`;
@@ -50,18 +51,23 @@ export async function addRunToDailyTarget(targetDate: string, timezone: string, 
   return updated;
 }
 
-async function activeCampaign(campaignId: string) {
+async function activeBusinessCampaigns() {
   const db = getDb();
-  const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
-  if (!campaign) throw new Error("campaign_not_found");
-  if (campaign.status !== "active") throw new Error("campaign_not_active");
-  return campaign;
+  const rows = await db.select().from(campaigns).where(eq(campaigns.status, "active"));
+  return rows.filter((campaign) => campaign.id !== UNASSIGNED_CAMPAIGN_ID);
 }
 
-export async function startAutomaticEngine(campaignId: string, dailyTarget = DEFAULT_DAILY_TARGET, timezone = DEFAULT_TIMEZONE) {
+async function prepareActiveCampaigns() {
+  await ensureUnassignedCampaign();
+  const active = await activeBusinessCampaigns();
+  if (!active.length) throw new Error("no_active_campaigns");
+  for (const campaign of active) await seedOfficialSourceRegistry(campaign.id);
+  return active;
+}
+
+export async function startAutomaticEngine(dailyTarget = DEFAULT_DAILY_TARGET, timezone = DEFAULT_TIMEZONE) {
   if (!Number.isInteger(dailyTarget) || dailyTarget < 1 || dailyTarget > 200) throw new Error("invalid_daily_target");
-  await activeCampaign(campaignId);
-  await seedOfficialSourceRegistry(campaignId);
+  await prepareActiveCampaigns();
   await recoverStaleDiscoveryRuns();
   const db = getDb();
   const now = new Date();
@@ -69,13 +75,13 @@ export async function startAutomaticEngine(campaignId: string, dailyTarget = DEF
   const targetDate = dateInTimezone(now, timezone);
   await ensureDailyTarget(targetDate, timezone, dailyTarget);
   await db.insert(engineState).values({
-    id: "global", status: "running", timezone, dailyTarget, activeCampaignId: campaignId,
+    id: "global", status: "running", timezone, dailyTarget, activeCampaignId: null,
     startedAt: timestamp, pausedAt: null, stoppedAt: null, lastHeartbeatAt: timestamp,
     nextRunAt: timestamp, lastError: null, updatedAt: timestamp,
   }).onConflictDoUpdate({
     target: engineState.id,
     set: {
-      status: "running", timezone, dailyTarget, activeCampaignId: campaignId,
+      status: "running", timezone, dailyTarget, activeCampaignId: null,
       startedAt: timestamp, pausedAt: null, stoppedAt: null, lastHeartbeatAt: timestamp,
       nextRunAt: timestamp, lastError: null, updatedAt: timestamp,
     },
@@ -97,8 +103,8 @@ export async function pauseAutomaticEngine() {
 export async function resumeAutomaticEngine() {
   const db = getDb();
   const [current] = await db.select().from(engineState).where(eq(engineState.id, "global")).limit(1);
-  if (!current?.activeCampaignId) throw new Error("engine_not_started");
-  await activeCampaign(current.activeCampaignId);
+  if (!current) throw new Error("engine_not_started");
+  await prepareActiveCampaigns();
   const now = new Date().toISOString();
   const [state] = await db.update(engineState).set({
     status: "running", pausedAt: null, stoppedAt: null, lastHeartbeatAt: now,
@@ -130,10 +136,11 @@ export async function runAutomaticDiscoveryBatch() {
   const db = getDb();
   await recoverStaleDiscoveryRuns();
   const [state] = await db.select().from(engineState).where(eq(engineState.id, "global")).limit(1);
-  if (!state || state.status !== "running" || !state.activeCampaignId) {
+  if (!state || state.status !== "running") {
     return { status: state?.status || "stopped", ran: false, reason: "engine_not_running" };
   }
-  await activeCampaign(state.activeCampaignId);
+  const active = await prepareActiveCampaigns();
+  const activeIds = new Set(active.map((campaign) => campaign.id));
   const now = new Date();
   const timestamp = now.toISOString();
   const targetDate = dateInTimezone(now, state.timezone);
@@ -145,19 +152,26 @@ export async function runAutomaticDiscoveryBatch() {
     return { status: "target_reached", ran: false, target, progress: dailyProgress(target.targetCount, target.qualifiedCount) };
   }
 
-  const registeredSources = await db.select().from(discoverySources).where(and(
-    eq(discoverySources.campaignId, state.activeCampaignId),
+  const registeredSources = (await db.select().from(discoverySources).where(and(
     eq(discoverySources.enabled, true),
     eq(discoverySources.status, "active"),
     eq(discoverySources.requiresLogin, false),
     eq(discoverySources.isPaid, false),
-  )).orderBy(asc(discoverySources.tier), asc(discoverySources.priority));
+  )).orderBy(asc(discoverySources.tier), asc(discoverySources.priority)))
+    .filter((source) => activeIds.has(source.campaignId));
   const sources = registeredSources.filter((source) => !source.nextRunAt || source.nextRunAt <= timestamp);
   const todayRuns = await db.select({ sourceId: discoveryRuns.sourceId }).from(discoveryRuns).where(and(
-    eq(discoveryRuns.campaignId, state.activeCampaignId), eq(discoveryRuns.targetDate, targetDate),
+    eq(discoveryRuns.targetDate, targetDate),
   ));
   const used = new Set(todayRuns.map((run) => run.sourceId));
-  const source = chooseNextSource(sources, used);
+  const runsByCampaign = new Map<string, number>();
+  for (const sourceId of used) {
+    const campaignId = registeredSources.find((candidate) => candidate.id === sourceId)?.campaignId;
+    if (campaignId) runsByCampaign.set(campaignId, (runsByCampaign.get(campaignId) || 0) + 1);
+  }
+  const source = sources
+    .filter((candidate) => !used.has(candidate.id))
+    .sort((left, right) => (runsByCampaign.get(left.campaignId) || 0) - (runsByCampaign.get(right.campaignId) || 0))[0] || null;
   if (!source) {
     const remaining = Math.max(0, target.targetCount - target.qualifiedCount);
     const reason = `A级/B级可用来源已耗尽，当日仍缺 ${remaining} 家；没有使用低质量记录填充。`;
@@ -186,6 +200,7 @@ export async function runAutomaticDiscoveryBatch() {
     });
   }
   await db.update(engineState).set({
+    activeCampaignId: source.campaignId,
     lastHeartbeatAt: timestamp, lastRunAt: timestamp,
     nextRunAt: remaining > 0 && remainingSources > 0 ? nextBatch(now) : nextBatch(now, 60),
     lastError: result.status === "failed" ? result.errors.join("；").slice(0, 1000) : null,
@@ -193,7 +208,7 @@ export async function runAutomaticDiscoveryBatch() {
   }).where(eq(engineState.id, "global"));
   return {
     status: target.qualifiedCount >= target.targetCount ? "target_reached" : "batch_completed",
-    ran: true, source: { id: source.id, name: source.name }, result, target,
+    ran: true, source: { id: source.id, name: source.name, campaignId: source.campaignId }, result, target,
     progress: dailyProgress(target.targetCount, target.qualifiedCount), remainingSources,
   };
 }

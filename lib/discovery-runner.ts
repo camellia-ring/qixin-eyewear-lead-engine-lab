@@ -42,6 +42,8 @@ import {
 } from "@/lib/discovery";
 import { createDiscoveryProvider } from "@/lib/discovery-provider";
 import { qualifyEvidence } from "@/lib/qualification";
+import { routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
 type Trigger = "manual" | "scheduled";
 export type RunCounts = {
@@ -101,7 +103,7 @@ async function findDuplicate(candidate: DiscoveryCandidate) {
 }
 
 async function persistVerifiedCandidate(
-  campaign: typeof campaigns.$inferSelect,
+  discoveryGoalCampaign: typeof campaigns.$inferSelect,
   source: typeof discoverySources.$inferSelect,
   candidate: DiscoveryCandidate,
   evidence: SiteEvidence,
@@ -122,10 +124,18 @@ async function persistVerifiedCandidate(
     officialWebsiteVerified: evidence.pages.length > 0 && normalizedDomain(evidence.pages[0].url) === domain,
     sourceIsOfficial: /association|official_exhibitor|official_directory/.test(source.sourceType),
   });
+  const baseLeadQualification = { hardGateStatus: qualification.hardGateStatus };
   const now = new Date().toISOString();
   const companyId = crypto.randomUUID();
-  const leadId = crypto.randomUUID();
-  const scoreRunId = crypto.randomUUID();
+  await ensureUnassignedCampaign();
+  const activeCampaignRows = (await db.select().from(campaigns).where(eq(campaigns.status, "active")))
+    .filter((campaign) => campaign.id !== UNASSIGNED_CAMPAIGN_ID);
+  const matchedCampaigns = routeCampaigns(activeCampaignRows, evidence, qualification.customerType, qualification.productDirections);
+  const unassignedCampaign = await ensureUnassignedCampaign();
+  const targetCampaigns = matchedCampaigns.length ? matchedCampaigns : [unassignedCampaign];
+  const isUnassigned = !matchedCampaigns.length;
+  const leadIds = targetCampaigns.map(() => crypto.randomUUID());
+  const leadId = leadIds[0];
   const pageSourceIds = evidence.pages.map(() => crypto.randomUUID());
   const claimIds: string[] = [];
 
@@ -168,24 +178,32 @@ async function persistVerifiedCandidate(
     }).onConflictDoNothing();
   }
 
-  await db.insert(campaignLeads).values({
-    id: leadId,
-    campaignId: campaign.id,
-    companyId,
-    qualificationResult: qualification.qualified ? "qualified" : "rejected",
-    workflowStatus: qualification.qualified ? "needs_review" : "rejected",
-    productTrack: campaign.productTrack,
-    recommendedProductsJson: JSON.stringify(qualification.productDirections),
-    riskSummary: qualification.failures.join("；") || "自动筛选合格；人工批准前不得导出到 CRM 或联系。",
-    hardGateStatus: qualification.hardGateStatus,
-    hardGateReason: qualification.qualified ? qualification.reasons.join("；") : qualification.failures.join("；"),
-    currentScore: score.total,
-    grade: score.grade,
-    evidenceCoverage: score.evidenceCoverage,
-    scoreConfidence: score.confidence,
-    autoQualifiedAt: qualification.qualified ? now : null,
-    lastVerifiedAt: now,
-  });
+  for (let index = 0; index < targetCampaigns.length; index += 1) {
+    const campaign = targetCampaigns[index];
+    const needsAssignment = campaign.id === UNASSIGNED_CAMPAIGN_ID;
+    await db.insert(campaignLeads).values({
+      id: leadIds[index],
+      campaignId: campaign.id,
+      companyId,
+      qualificationResult: needsAssignment && qualification.qualified ? "near_match" : qualification.qualified ? "qualified" : "rejected",
+      workflowStatus: qualification.qualified ? "needs_review" : "rejected",
+      productTrack: needsAssignment ? discoveryGoalCampaign.productTrack : campaign.productTrack,
+      recommendedProductsJson: JSON.stringify(qualification.productDirections),
+      riskSummary: needsAssignment
+        ? "客户通过全局准入，但缺少可验证的国家、客户类型或产品 Campaign 匹配证据；需要人工分配。"
+        : qualification.failures.join("；") || "自动筛选合格；人工批准前不得导出到 CRM 或联系。",
+      hardGateStatus: needsAssignment && qualification.qualified ? "needs_review" : baseLeadQualification.hardGateStatus,
+      hardGateReason: needsAssignment
+        ? "未可靠匹配任何运行中的 Campaign"
+        : qualification.qualified ? qualification.reasons.join("；") : qualification.failures.join("；"),
+      currentScore: score.total,
+      grade: score.grade,
+      evidenceCoverage: score.evidenceCoverage,
+      scoreConfidence: score.confidence,
+      autoQualifiedAt: qualification.qualified ? now : null,
+      lastVerifiedAt: now,
+    });
+  }
 
   if (candidate.directoryUrl) {
     const directorySourceId = crypto.randomUUID();
@@ -254,22 +272,26 @@ async function persistVerifiedCandidate(
     });
   }
 
-  await db.insert(leadScoreRuns).values({
-    id: scoreRunId, leadId, rubricVersion: RUBRIC_VERSION, totalScore: score.total, grade: score.grade,
-    evidenceCoverage: score.evidenceCoverage, overallConfidence: score.confidence,
-    modelIdentifier: "deterministic_public_rules_v2",
-  });
-  for (const [dimension, value] of Object.entries(score.breakdown)) {
-    const [positiveReason, negativeReason] = scoreInput.reasons[dimension] || ["", "证据不足"];
-    await db.insert(leadScoreDimensions).values({
-      id: crypto.randomUUID(), scoreRunId, dimension, score: value,
-      maxScore: ({ productMatchScore: 25, customerTypeScore: 20, purchasingSignalsScore: 15, marketMoqFitScore: 15, contactabilityScore: 10, accountPotentialScore: 10, dataQualityScore: 5 } as Record<string, number>)[dimension],
-      positiveReason: positiveReason || null, negativeReason: negativeReason || null,
-      evidenceIdsJson: JSON.stringify(claimIds),
+  for (const routedLeadId of leadIds) {
+    const scoreRunId = crypto.randomUUID();
+    await db.insert(leadScoreRuns).values({
+      id: scoreRunId, leadId: routedLeadId, rubricVersion: RUBRIC_VERSION, totalScore: score.total, grade: score.grade,
+      evidenceCoverage: score.evidenceCoverage, overallConfidence: score.confidence,
+      modelIdentifier: "deterministic_public_rules_v2",
     });
+    for (const [dimension, value] of Object.entries(score.breakdown)) {
+      const [positiveReason, negativeReason] = scoreInput.reasons[dimension] || ["", "证据不足"];
+      await db.insert(leadScoreDimensions).values({
+        id: crypto.randomUUID(), scoreRunId, dimension, score: value,
+        maxScore: ({ productMatchScore: 25, customerTypeScore: 20, purchasingSignalsScore: 15, marketMoqFitScore: 15, contactabilityScore: 10, accountPotentialScore: 10, dataQualityScore: 5 } as Record<string, number>)[dimension],
+        positiveReason: positiveReason || null, negativeReason: negativeReason || null,
+        evidenceIdsJson: JSON.stringify(claimIds),
+      });
+    }
   }
   return {
     duplicate: false as const, companyId, leadId, qualified: qualification.qualified,
+    leadIds, campaignIds: targetCampaigns.map((campaign) => campaign.id), isUnassigned,
     evidenceCount: claimIds.length, failures: qualification.failures,
   };
 }
@@ -429,7 +451,9 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
         } else if (result.qualified) {
           counts.imported += 1;
           counts.qualified += 1;
-          await recordItem(runId, candidate, "imported", "自动筛选合格并进入待人工审核；未发送任何消息", result.companyId, evidence.companyName, result.evidenceCount);
+          await recordItem(runId, candidate, "imported", result.isUnassigned
+            ? "自动筛选合格，但证据不足以匹配 Campaign，已进入待分配；未发送任何消息"
+            : `自动筛选合格并路由至 ${result.campaignIds.length} 个 Campaign；进入待人工审核，未发送任何消息`, result.companyId, evidence.companyName, result.evidenceCount);
         } else {
           counts.imported += 1;
           counts.excluded += 1;

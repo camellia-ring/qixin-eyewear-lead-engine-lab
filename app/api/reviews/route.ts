@@ -12,6 +12,7 @@ import {
 } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import { REVIEW_DECISIONS, SCORE_LIMITS } from "@/lib/lead-engine";
+import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 
 export async function POST(request: Request) {
   try {
@@ -29,10 +30,11 @@ export async function POST(request: Request) {
     if (!company) throw new ApiError(404, "company_not_found");
 
     if (decision === "approved") {
+      if (lead.campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "assign_campaign_before_approval");
       const [contacts, sources, claims, scoreRuns] = await Promise.all([
         db.select().from(prospectContacts).where(eq(prospectContacts.companyId, company.id)).limit(1),
-        db.select().from(leadSources).where(eq(leadSources.leadId, leadId)).limit(1),
-        db.select().from(evidenceClaims).where(eq(evidenceClaims.leadId, leadId)),
+        db.select().from(leadSources).where(eq(leadSources.companyId, company.id)).limit(1),
+        db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, company.id)),
         db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, leadId)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
       ]);
       const scoreRun = scoreRuns[0];
