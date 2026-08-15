@@ -11,14 +11,14 @@
 
 ## 后台 Cron
 
-应用内的 `scheduled()` 处理器每次只运行一个小批次，计划频率为每 15 分钟。Sites 应用部署和 Cron 启用是两件事：只有 `wrangler.cron.example.jsonc` 中的 D1 `database_id` 已确认属于这个私有 Lead Engine，并完成独立 Worker 部署后，关闭页面仍自动运行的能力才算启用。
+后台每次只运行一个小批次，计划频率为每 15 分钟。Sites 应用部署和 Cron 启用是两件事。当前正式配置 `wrangler.cron.jsonc` 使用独立 Worker 经 Sites 的受保护 API 触发批次，继续由 Sites 应用读写原有私有 D1；`SITES_BYPASS_TOKEN` 只作为 Cloudflare Worker secret 保存，不写入源码。`wrangler.cron.example.jsonc` 保留为未来能够核验实际 D1 ID 时的直接绑定备选方案。
 
-上线前必须核对：
+当前上线核验：
 
-- D1 名称、ID 和 `DB` binding 与 Sites 项目使用的是同一私有数据库。
-- `ENABLE_PAID_PROVIDERS=false`。
-- 没有生产 CRM、官网 D1/R2 或发信凭据。
-- Cron Trigger 可在 Cloudflare 控制台看到，且 `engine_state.last_heartbeat_at` 会推进。
+- Cron 目标 URL 是当前 owner-only Lead Engine Sites 项目；机器令牌以 `secret_text` 保存，没有出现在源码或日志中。
+- 正式 Trigger 为 `*/15 * * * *`；Worker 的 `workers.dev` 和 Preview URL 均关闭。
+- `ENABLE_PAID_PROVIDERS=false`，没有生产 CRM、官网 D1/R2 或发信凭据。
+- 2026-08-15 首个真实 Cron 获得 HTTP 200；停止态下 `last_run_at` 不推进。负责人启动引擎后，应继续核验 `last_heartbeat_at` 推进和完整运行日漏斗。
 
 ## 来源与解析器
 

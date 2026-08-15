@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "qixin-lead-engine-cron",
+  "main": "worker/cron-proxy.ts",
+  "compatibility_date": "2026-08-15",
+  "workers_dev": false,
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  "vars": {
+    "LEAD_ENGINE_URL": "https://qixin-lead-engine-lab.dfgydong.chatgpt.site"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

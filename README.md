@@ -49,6 +49,6 @@ node --import tsx scripts/controlled-real-source-run.ts
 
 ## 部署
 
-Sites 承载私有应用和独立 D1。后台 Cron 必须使用同一个私有 Lead Engine D1 单独部署；复制 `wrangler.cron.example.jsonc`，填写已核验的 D1 ID 后再执行部署。不要把生产 CRM、官网 D1/R2 或任何生产写凭据绑定到本项目。
+Sites 承载私有应用和独立 D1。当前后台 Cron 使用 `wrangler.cron.jsonc` 单独部署，通过 Sites 的受保护 API 触发原应用批次，因此不会复制或迁移 D1；机器访问令牌必须以 `SITES_BYPASS_TOKEN` secret 保存。`wrangler.cron.example.jsonc` 仅保留为未来能够核验实际 D1 ID 时的直接绑定备选。不要把生产 CRM、官网 D1/R2 或任何生产写凭据绑定到本项目。
 
 详细说明见 `docs/operations.md`、`docs/migration-and-recovery.md` 和 `docs/source-registry.md`。
