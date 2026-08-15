@@ -19,7 +19,9 @@
 4. 企业官网最多跟随 3 个相关内部页，提取眼镜业务、B2B、产品和公开通用商务联系证据。
 5. 以域名、规范公司名、品牌和身份键去重；强制门槛失败、重复和失败项分别记账。
 6. 只有官网已核验、属于目标客户、产品匹配、存在有效公开商务联系、证据覆盖率达标且总分达到 60 的公司，才计入 `qualified_count`。
-7. 中文工作台展示今日漏斗、来源健康、告警、筛选审核、证据明细和手工重新核验；CSV 导出仍需人工批准。
+7. 中文工作台展示今日漏斗、来源健康、告警和分页审核；客户证据在打开详情时按需读取。调研、导入、手工采集和重新核验收在“高级工具/维护”中，CRM CSV 只有一个带审计的人工批准导出入口。
+
+手机端使用底部五项主导航，客户列表改为可点按卡片，筛选面板、审核详情和主要操作均按触控尺寸布局；审核详情以全屏方式打开，不需要横向滚动表格。
 
 ## 数据与迁移
 
@@ -49,6 +51,6 @@ node --import tsx scripts/controlled-real-source-run.ts
 
 ## 部署
 
-Sites 承载私有应用和独立 D1。当前后台 Cron 使用 `wrangler.cron.jsonc` 单独部署，通过 Sites 的受保护 API 触发原应用批次，因此不会复制或迁移 D1；机器访问令牌必须以 `SITES_BYPASS_TOKEN` secret 保存。`wrangler.cron.example.jsonc` 仅保留为未来能够核验实际 D1 ID 时的直接绑定备选。不要把生产 CRM、官网 D1/R2 或任何生产写凭据绑定到本项目。
+Sites 承载私有应用和独立 D1。当前后台 Cron 只使用 `worker/cron-proxy.ts` 与 `wrangler.cron.jsonc` 单独部署，通过 Sites 的受保护 API 触发原应用批次，因此不会复制或迁移 D1；机器访问令牌必须以 `SITES_BYPASS_TOKEN` secret 保存。Sites 应用自身不包含第二套 `scheduled()` 入口。不要把生产 CRM、官网 D1/R2 或任何生产写凭据绑定到本项目。
 
 详细说明见 `docs/operations.md`、`docs/migration-and-recovery.md` 和 `docs/source-registry.md`。

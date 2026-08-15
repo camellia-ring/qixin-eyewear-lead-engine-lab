@@ -1,12 +1,9 @@
-import { asc, desc } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaigns,
   campaignLeads,
-  companyDomainLinks,
-  companyDomains,
   crmExportRuns,
-  contactVerifications,
   dailyDiscoveryTargets,
   discoveryAlerts,
   discoveryRunAttempts,
@@ -14,14 +11,7 @@ import {
   discoveryRuns,
   discoverySources,
   engineState,
-  evidenceClaims,
   leadImportRuns,
-  leadReviewDecisions,
-  leadScoreDimensions,
-  leadScoreRuns,
-  leadSources,
-  prospectCompanies,
-  prospectContacts,
   parserVersions,
   sourceHealth,
 } from "@/db/schema";
@@ -33,16 +23,7 @@ export async function GET() {
     const db = getDb();
     const [
       campaignRows,
-      leadRows,
-      companyRows,
-      contactRows,
-      domainRows,
-      domainLinkRows,
-      sourceRows,
-      claimRows,
-      scoreRunRows,
-      scoreDimensionRows,
-      reviewRows,
+      leadCountRows,
       importRows,
       exportRows,
       discoverySourceRows,
@@ -52,50 +33,43 @@ export async function GET() {
       dailyTargetRows,
       discoveryAttemptRows,
       sourceHealthRows,
-      contactVerificationRows,
       discoveryAlertRows,
       parserVersionRows,
     ] = await Promise.all([
       db.select().from(campaigns).orderBy(desc(campaigns.updatedAt)),
-      db.select().from(campaignLeads).orderBy(desc(campaignLeads.currentScore), desc(campaignLeads.updatedAt)).limit(500),
-      db.select().from(prospectCompanies).orderBy(asc(prospectCompanies.companyName)).limit(500),
-      db.select().from(prospectContacts).orderBy(desc(prospectContacts.isPrimary), asc(prospectContacts.fullName)).limit(1000),
-      db.select().from(companyDomains).orderBy(asc(companyDomains.normalizedDomain)).limit(1000),
-      db.select().from(companyDomainLinks).limit(1500),
-      db.select().from(leadSources).orderBy(desc(leadSources.retrievedAt)).limit(2000),
-      db.select().from(evidenceClaims).orderBy(desc(evidenceClaims.createdAt)).limit(3000),
-      db.select().from(leadScoreRuns).orderBy(desc(leadScoreRuns.createdAt)).limit(1000),
-      db.select().from(leadScoreDimensions).limit(7000),
-      db.select().from(leadReviewDecisions).orderBy(desc(leadReviewDecisions.createdAt)).limit(1500),
-      db.select().from(leadImportRuns).orderBy(desc(leadImportRuns.createdAt)).limit(500),
-      db.select().from(crmExportRuns).orderBy(desc(crmExportRuns.createdAt)).limit(500),
+      db.select({
+        campaignId: campaignLeads.campaignId,
+        workflowStatus: campaignLeads.workflowStatus,
+        value: count(),
+      }).from(campaignLeads).groupBy(campaignLeads.campaignId, campaignLeads.workflowStatus),
+      db.select().from(leadImportRuns).orderBy(desc(leadImportRuns.createdAt)).limit(200),
+      db.select().from(crmExportRuns).orderBy(desc(crmExportRuns.createdAt)).limit(200),
       db.select().from(discoverySources).orderBy(desc(discoverySources.updatedAt)).limit(500),
-      db.select().from(discoveryRuns).orderBy(desc(discoveryRuns.createdAt)).limit(500),
-      db.select().from(discoveryRunItems).orderBy(desc(discoveryRunItems.createdAt)).limit(2000),
+      db.select().from(discoveryRuns).orderBy(desc(discoveryRuns.createdAt)).limit(200),
+      db.select().from(discoveryRunItems).orderBy(desc(discoveryRunItems.createdAt)).limit(600),
       db.select().from(engineState).limit(1),
       db.select().from(dailyDiscoveryTargets).orderBy(desc(dailyDiscoveryTargets.targetDate)).limit(60),
-      db.select().from(discoveryRunAttempts).orderBy(desc(discoveryRunAttempts.createdAt)).limit(1000),
-      db.select().from(sourceHealth).orderBy(desc(sourceHealth.checkedAt)).limit(1000),
-      db.select().from(contactVerifications).orderBy(desc(contactVerifications.verifiedAt)).limit(3000),
-      db.select().from(discoveryAlerts).orderBy(desc(discoveryAlerts.createdAt)).limit(500),
+      db.select().from(discoveryRunAttempts).orderBy(desc(discoveryRunAttempts.createdAt)).limit(300),
+      db.select().from(sourceHealth).orderBy(desc(sourceHealth.checkedAt)).limit(300),
+      db.select().from(discoveryAlerts).orderBy(desc(discoveryAlerts.createdAt)).limit(200),
       db.select().from(parserVersions).orderBy(desc(parserVersions.createdAt)).limit(100),
     ]);
+
+    const leadCounts: Record<string, Record<string, number>> = {};
+    for (const row of leadCountRows) {
+      const campaignCounts = leadCounts[row.campaignId] || { all: 0 };
+      campaignCounts[row.workflowStatus] = Number(row.value || 0);
+      campaignCounts.all += Number(row.value || 0);
+      leadCounts[row.campaignId] = campaignCounts;
+    }
+
     return Response.json({
       campaigns: campaignRows.map((campaign) => ({
         ...campaign,
         searchKeywords: buildSearchKeywords(campaign),
         researchBrief: researchBrief(campaign),
       })),
-      leads: leadRows,
-      companies: companyRows,
-      contacts: contactRows,
-      domains: domainRows,
-      domainLinks: domainLinkRows,
-      sources: sourceRows,
-      claims: claimRows,
-      scoreRuns: scoreRunRows,
-      scoreDimensions: scoreDimensionRows,
-      reviews: reviewRows,
+      leadCounts,
       imports: importRows,
       exports: exportRows,
       discoverySources: discoverySourceRows,
@@ -105,7 +79,6 @@ export async function GET() {
       dailyTargets: dailyTargetRows,
       discoveryAttempts: discoveryAttemptRows,
       sourceHealth: sourceHealthRows,
-      contactVerifications: contactVerificationRows,
       discoveryAlerts: discoveryAlertRows,
       parserVersions: parserVersionRows,
     }, { headers: { "Cache-Control": "private, no-store" } });

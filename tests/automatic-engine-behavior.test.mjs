@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { createDiscoveryProvider } from "../lib/discovery-provider.ts";
 import {
   extractExhibitorCardCandidates,
@@ -74,10 +74,11 @@ test("paid discovery provider is disabled without both explicit approval flag an
 });
 
 test("automatic qualification never bypasses the human export gate", async () => {
-  const route = await readFile(new URL("../app/api/exports/leads/route.ts", import.meta.url), "utf8");
-  assert.match(route, /human_approval_required_before_export/);
+  const route = await readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8");
   assert.match(route, /workflowStatus, "approved"/);
-  assert.doesNotMatch(route, /qualificationResult, "qualified"/);
+  assert.match(route, /crmExportRuns/);
+  assert.match(route, /crmExportItems/);
+  await assert.rejects(access(new URL("../app/api/exports/leads/route.ts", import.meta.url)), { code: "ENOENT" });
 });
 
 test("Vision Council parser extracts official company website, category and public phone", () => {

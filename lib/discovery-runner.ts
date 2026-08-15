@@ -1,5 +1,5 @@
 import { env } from "cloudflare:workers";
-import { and, desc, eq, lte, ne } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaigns,
@@ -515,18 +515,6 @@ export async function recoverStaleDiscoveryRuns(maxAgeMinutes = 30) {
     }).where(eq(discoveryRuns.id, run.id));
   }
   return stale.length;
-}
-
-export async function runDueDiscoverySources(limit = 1) {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const due = await db.select().from(discoverySources).where(and(
-    eq(discoverySources.enabled, true), eq(discoverySources.status, "active"),
-    ne(discoverySources.cadence, "manual"), lte(discoverySources.nextRunAt, now),
-  )).orderBy(discoverySources.priority).limit(Math.max(1, Math.min(1, limit)));
-  const results = [];
-  for (const source of due) results.push(await runDiscoverySource(source.id, "scheduled"));
-  return { checkedAt: now, dueCount: due.length, results };
 }
 
 export function scheduleFromCadence(cadence: string, from = new Date()) {

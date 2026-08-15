@@ -100,3 +100,22 @@ test("opens verified company websites safely without replacing evidence review",
   assert.match(ui, /rel="noopener noreferrer"/);
   assert.match(ui, /查看证据与审核/);
 });
+
+test("loads review data page-by-page and keeps maintenance out of the primary mobile flow", async () => {
+  const [workspace, leads, detail, ui, css] = await Promise.all([
+    readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/leads/[id]/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.module.css", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(workspace, /leadScoreDimensions|evidenceClaims|prospectContacts/);
+  assert.match(leads, /pageSize/);
+  assert.match(leads, /statusCounts/);
+  assert.match(detail, /scoreDimensions/);
+  assert.match(ui, /高级工具/);
+  assert.match(ui, /mobileLeadList/);
+  assert.doesNotMatch(ui, /\/api\/discovery\/run-due|\/api\/exports\/leads/);
+  assert.match(css, /grid-template-columns: repeat\(5/);
+  assert.match(css, /safe-area-inset-bottom/);
+});

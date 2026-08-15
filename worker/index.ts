@@ -1,7 +1,6 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
-import { runAutomaticDiscoveryBatch } from "@/lib/automatic-engine";
 
 interface Env {
   ASSETS: Fetcher;
@@ -45,11 +44,6 @@ const worker = {
     }
 
     return handler.fetch(request, env, ctx);
-  },
-
-  async scheduled(_controller: ScheduledController, _env: Env, ctx: ExecutionContext): Promise<void> {
-    // Cron is UTC; business-day accounting is calculated inside the engine with its persisted timezone.
-    ctx.waitUntil(runAutomaticDiscoveryBatch());
   },
 };
 

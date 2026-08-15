@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, like, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaignLeads, prospectCompanies } from "@/db/schema";
 import { apiFailure } from "@/lib/api";
@@ -56,7 +56,9 @@ export async function GET(request: Request) {
     const sortColumn = SORTS[sortKey || "score"] || campaignLeads.currentScore;
     const order = parameters.get("order") === "asc" ? asc(sortColumn) : desc(sortColumn);
     const db = getDb();
-    const [rows, totals] = await Promise.all([
+    const campaignId = parameters.get("campaignId");
+    const campaignWhere = campaignId ? eq(campaignLeads.campaignId, campaignId) : undefined;
+    const [rows, totals, statusRows, gradeRows, countryRows, typeRows, sourceRows] = await Promise.all([
       db.select({
         leadId: campaignLeads.id,
         campaignId: campaignLeads.campaignId,
@@ -64,6 +66,7 @@ export async function GET(request: Request) {
         qualificationResult: campaignLeads.qualificationResult,
         hardGateStatus: campaignLeads.hardGateStatus,
         hardGateReason: campaignLeads.hardGateReason,
+        riskSummary: campaignLeads.riskSummary,
         score: campaignLeads.currentScore,
         grade: campaignLeads.grade,
         evidenceCoverage: campaignLeads.evidenceCoverage,
@@ -73,8 +76,12 @@ export async function GET(request: Request) {
         companyName: prospectCompanies.companyName,
         country: prospectCompanies.country,
         region: prospectCompanies.region,
+        companyType: prospectCompanies.companyType,
         customerType: prospectCompanies.customerType,
         companyRole: prospectCompanies.companyRole,
+        productsJson: prospectCompanies.productsJson,
+        brandsJson: prospectCompanies.brandsJson,
+        wholesaleSignal: prospectCompanies.wholesaleSignal,
         productDirectionsJson: prospectCompanies.productDirectionsJson,
         website: prospectCompanies.website,
         primaryDomain: prospectCompanies.primaryDomain,
@@ -91,10 +98,34 @@ export async function GET(request: Request) {
         .where(where).orderBy(order).limit(pageSize).offset((page - 1) * pageSize),
       db.select({ value: count() }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(where),
+      db.select({ key: campaignLeads.workflowStatus, value: count() }).from(campaignLeads)
+        .where(campaignWhere).groupBy(campaignLeads.workflowStatus),
+      db.select({ key: campaignLeads.grade, value: count() }).from(campaignLeads)
+        .where(campaignWhere).groupBy(campaignLeads.grade),
+      db.selectDistinct({ value: prospectCompanies.country }).from(campaignLeads)
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id))
+        .where(and(campaignWhere, isNotNull(prospectCompanies.country))).orderBy(asc(prospectCompanies.country)),
+      db.selectDistinct({ customerType: prospectCompanies.customerType, companyType: prospectCompanies.companyType }).from(campaignLeads)
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(campaignWhere),
+      db.selectDistinct({ value: prospectCompanies.sourceType }).from(campaignLeads)
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id))
+        .where(and(campaignWhere, isNotNull(prospectCompanies.sourceType))).orderBy(asc(prospectCompanies.sourceType)),
     ]);
     const total = totals[0]?.value || 0;
+    const statusCounts = Object.fromEntries(statusRows.map((row) => [row.key, Number(row.value || 0)]));
+    statusCounts.all = Object.values(statusCounts).reduce((sum, value) => sum + value, 0);
+    const gradeCounts = Object.fromEntries(gradeRows.map((row) => [row.key, Number(row.value || 0)]));
+    const companyTypes = [...new Set(typeRows.map((row) => row.customerType || row.companyType).filter(Boolean) as string[])].sort();
     return Response.json({
-      rows, pagination: { page, pageSize, total, pageCount: Math.max(1, Math.ceil(total / pageSize)) },
+      rows,
+      pagination: { page, pageSize, total, pageCount: Math.max(1, Math.ceil(total / pageSize)) },
+      facets: {
+        statusCounts,
+        gradeCounts,
+        countries: countryRows.map((row) => row.value).filter(Boolean),
+        companyTypes,
+        sourceTypes: sourceRows.map((row) => row.value).filter(Boolean),
+      },
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiFailure(error);
