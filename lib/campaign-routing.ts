@@ -56,10 +56,15 @@ export function campaignCountries(campaign: Pick<RoutableCampaign, "targetCountr
 }
 
 function productMatches(campaign: RoutableCampaign, evidence: SiteEvidence, productDirections: string[]) {
-  const configured = jsonStringList(campaign.productTypesJson);
-  const haystack = [...configured, ...productDirections, ...evidence.productTerms, ...evidence.eyewearTerms].join(" ").toLocaleLowerCase();
+  const haystack = [...productDirections, ...evidence.productTerms, ...evidence.eyewearTerms].join(" ").toLocaleLowerCase();
   if (campaign.productTrack === "optical_lenses") return /(镜片|lens|photochromic|progressive|varifocal|polycarbonate|aspheric|blue light)/i.test(haystack);
   if (campaign.productTrack === "optical_frames") return /(镜架|frame|eyewear|spectacle|glasses|sunglass)/i.test(haystack);
+  if (campaign.productTrack === "sunglasses") return /(太阳镜|sunglass|sun eyewear)/i.test(haystack);
+  if (campaign.productTrack === "reading_glasses") return /(老花|reading glasses|readers)/i.test(haystack);
+  if (campaign.productTrack === "blue_light_glasses") return /(防蓝光|blue light|blue-light|computer glasses)/i.test(haystack);
+  if (campaign.productTrack === "kids_eyewear") return /(儿童|kids|children)/i.test(haystack);
+  if (campaign.productTrack === "sports_eyewear") return /(运动|sports|cycling|performance)/i.test(haystack);
+  if (campaign.productTrack === "protective_eyewear" || campaign.productTrack === "safety_lenses") return /(安全|防护|safety|protective|polycarbonate|impact-resistant)/i.test(haystack);
   return evidence.eyewearTerms.length > 0 || productDirections.length > 0;
 }
 

@@ -76,6 +76,7 @@ test("global discovery routes by verified country, customer type and product evi
   const routed = routeCampaigns(campaigns, evidence(), "光学镜片批发商", ["普通光学镜片"]);
   assert.deepEqual(routed.map((campaign) => campaign.id), ["usa-lenses"]);
   assert.equal(routeCampaigns(campaigns, evidence({ country: "" }), "光学镜片批发商", ["普通光学镜片"]).length, 0);
+  assert.equal(routeCampaigns(campaigns, evidence({ eyewearTerms: ["optical frame"], productTerms: ["optical frame"] }), "眼镜分销商", ["其他相关眼镜产品"]).length, 0);
   assert.equal(normalizeCountry("USA"), "united states");
 });
 
