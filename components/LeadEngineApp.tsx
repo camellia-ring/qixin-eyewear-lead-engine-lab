@@ -428,7 +428,10 @@ export default function LeadEngineApp() {
   const reviewCampaignName = reviewCampaignId === "all" ? "统一客户库"
     : reviewCampaignId === "system:unassigned" ? "待分配"
       : businessCampaigns.find((campaign) => campaign.id === reviewCampaignId)?.name || "Campaign";
-  const campaignMarket = activeCampaign ? REGION_PRESETS[activeCampaign.regionKey as keyof typeof REGION_PRESETS]?.label || activeCampaign.targetMarkets || jsonList(activeCampaign.targetCountriesJson)[0] || "" : "";
+  const campaignMarket = activeCampaign
+    ? (activeCampaign.regionKey !== "custom" ? REGION_PRESETS[activeCampaign.regionKey as keyof typeof REGION_PRESETS]?.label : "")
+      || activeCampaign.targetMarkets || jsonList(activeCampaign.targetCountriesJson)[0] || ""
+    : "";
   const campaignLeadCount = Number(workspace.leadCounts[activeCampaignId]?.all || 0);
   const campaignLabel = activeCampaign
     ? `${localizedCountry(campaignMarket)} · ${jsonList(activeCampaign.productTracksJson).map((track) => PRODUCT_LABELS[track] || track).join(" / ") || PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeadCount} 家`
