@@ -68,10 +68,18 @@ export function normalizeProductTracks(values: string[], fallback?: string) {
   return [...new Set(valid)] as ProductTrack[];
 }
 
-export function campaignStrategyName(regionKey: RegionKey, productTracks: string[]) {
+export function campaignStrategyName(regionKey: RegionKey, countries: string[] = []) {
   const region = REGION_PRESETS[regionKey].label;
-  const products = productTracks.length === 1 ? PRODUCT_TRACK_LABELS[productTracks[0]] || productTracks[0] : "多产品眼镜渠道";
-  return `${region} · ${products}`;
+  if (regionKey === "global") return region;
+  const selectedCountries = [...new Set(countries.map((country) => country.trim()).filter(Boolean))];
+  const presetCountries = REGION_PRESETS[regionKey].countries;
+  const usesWholePreset = presetCountries.length === selectedCountries.length
+    && presetCountries.every((country) => selectedCountries.includes(country));
+  if (!selectedCountries.length || usesWholePreset) return region;
+  const countrySummary = selectedCountries.length <= 3
+    ? selectedCountries.join(" / ")
+    : `${selectedCountries.slice(0, 2).join(" / ")} 等 ${selectedCountries.length} 国`;
+  return regionKey === "custom" ? countrySummary : `${region} · ${countrySummary}`;
 }
 
 export function defaultCampaignCountries(regionKey: RegionKey) {

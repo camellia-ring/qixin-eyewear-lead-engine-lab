@@ -67,6 +67,10 @@ export default function CampaignStrategyForm({ campaign }: { campaign?: Strategy
 
       <fieldset className={styles.strategyChoiceGroup}>
         <legend>产品赛道 <small>可多选</small></legend>
+        <div className={styles.strategyChoiceActions}>
+          <button type="button" onClick={() => setProductTracks(CAMPAIGN_PRODUCT_TRACKS.map((product) => product.value))}>全选</button>
+          <button type="button" onClick={() => setProductTracks([])}>清空</button>
+        </div>
         <div className={styles.strategyChips}>
           {CAMPAIGN_PRODUCT_TRACKS.map((product) => (
             <label key={product.value} data-selected={productTracks.includes(product.value)}>
@@ -86,6 +90,10 @@ export default function CampaignStrategyForm({ campaign }: { campaign?: Strategy
 
       <fieldset className={styles.strategyChoiceGroup}>
         <legend>客户类型 <small>可多选，客户可同时拥有多个标签</small></legend>
+        <div className={styles.strategyChoiceActions}>
+          <button type="button" onClick={() => setCustomerTypes([...CAMPAIGN_CUSTOMER_TYPES])}>全选</button>
+          <button type="button" onClick={() => setCustomerTypes([])}>清空</button>
+        </div>
         <div className={styles.strategyChips}>
           {CAMPAIGN_CUSTOMER_TYPES.map((type) => (
             <label key={type} data-selected={customerTypes.includes(type)}>

@@ -16,7 +16,9 @@ import {
   sourceHealth,
 } from "@/db/schema";
 import { apiFailure } from "@/lib/api";
-import { buildSearchKeywords, researchBrief } from "@/lib/lead-engine";
+import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { campaignStrategyName, isRegionKey } from "@/lib/campaign-strategy";
+import { buildSearchKeywords, researchBrief, safeJsonList } from "@/lib/lead-engine";
 
 export async function GET() {
   try {
@@ -65,11 +67,17 @@ export async function GET() {
     }
 
     return Response.json({
-      campaigns: campaignRows.map((campaign) => ({
-        ...campaign,
-        searchKeywords: buildSearchKeywords(campaign),
-        researchBrief: researchBrief(campaign),
-      })),
+      campaigns: campaignRows.map((campaign) => {
+        const displayName = campaign.id !== UNASSIGNED_CAMPAIGN_ID && isRegionKey(campaign.regionKey)
+          ? campaignStrategyName(campaign.regionKey, safeJsonList(campaign.targetCountriesJson))
+          : campaign.name;
+        const displayCampaign = { ...campaign, name: displayName };
+        return {
+          ...displayCampaign,
+          searchKeywords: buildSearchKeywords(displayCampaign),
+          researchBrief: researchBrief(displayCampaign),
+        };
+      }),
       leadCounts,
       imports: importRows,
       exports: exportRows,

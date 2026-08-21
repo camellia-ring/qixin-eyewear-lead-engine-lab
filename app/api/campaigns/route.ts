@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     const strategy = strategyInput(body);
     const productTrack = strategy.productTracks[0];
     if (!PRODUCT_TRACKS.has(productTrack)) throw new ApiError(400, "invalid_product_track");
-    const name = textValue(body.name, { field: "name", max: 160 }) || campaignStrategyName(strategy.regionKey, strategy.productTracks);
+    const name = campaignStrategyName(strategy.regionKey, strategy.countries);
     const id = crypto.randomUUID();
     const db = getDb();
     const [campaign] = await db.insert(campaigns).values({
@@ -108,11 +108,8 @@ export async function PATCH(request: Request) {
     const strategy = strategyInput(body, current);
     const productTrack = strategy.productTracks[0];
     if (!PRODUCT_TRACKS.has(productTrack)) throw new ApiError(400, "invalid_product_track");
-    const strategyChanged = body.regionKey !== undefined || body.productTracks !== undefined;
     const [campaign] = await db.update(campaigns).set({
-      name: body.name === undefined
-        ? strategyChanged ? campaignStrategyName(strategy.regionKey, strategy.productTracks) : current.name
-        : textValue(body.name, { field: "name", required: true, max: 160 }),
+      name: campaignStrategyName(strategy.regionKey, strategy.countries),
       productTrack,
       targetCountriesJson: JSON.stringify(strategy.countries),
       targetMarkets: REGION_PRESETS[strategy.regionKey].label,
@@ -132,7 +129,13 @@ export async function PATCH(request: Request) {
       status: body.status === undefined ? current.status : validateStatus(body.status, current.status),
       updatedAt: new Date().toISOString(),
     }).where(eq(campaigns.id, id)).returning();
-    const matchRefresh = await refreshAllCompanyCampaignMemberships();
+    const routingChanged = current.status !== campaign.status
+      || current.regionKey !== campaign.regionKey
+      || current.targetCountriesJson !== campaign.targetCountriesJson
+      || current.productTracksJson !== campaign.productTracksJson
+      || current.customerTypesJson !== campaign.customerTypesJson
+      || current.strategyPriority !== campaign.strategyPriority;
+    const matchRefresh = routingChanged ? await refreshAllCompanyCampaignMemberships() : null;
     return Response.json({ campaign, matchRefresh });
   } catch (error) {
     return apiFailure(error);

@@ -11,6 +11,7 @@ import {
 import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts } from "../lib/engine-policy.ts";
 import { qualifyEvidence } from "../lib/qualification.ts";
 import { campaignMatchesCompany, normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
+import { campaignStrategyName } from "../lib/campaign-strategy.ts";
 
 function evidence(overrides = {}) {
   return {
@@ -87,6 +88,13 @@ test("one verified company may route to multiple matching active campaigns", () 
     productTypesJson: '["progressive lens"]', customerTypesJson: '["Wholesaler"]', status: "active",
   }));
   assert.deepEqual(routeCampaigns(campaigns, evidence(), "光学镜片批发商", ["渐进镜片"]).map((campaign) => campaign.id), ["usa-core", "usa-progressive"]);
+});
+
+test("Campaign names use only the selected region and countries", () => {
+  assert.equal(campaignStrategyName("global"), "全球");
+  assert.equal(campaignStrategyName("north_america", ["United States"]), "北美 · United States");
+  assert.equal(campaignStrategyName("custom", ["Poland", "Mexico"]), "Poland / Mexico");
+  assert.doesNotMatch(campaignStrategyName("middle_east", ["United Arab Emirates"]), /镜片|眼镜|渠道/);
 });
 
 test("multi-product companies appear in every matching regional Campaign and use priority for the primary order", () => {

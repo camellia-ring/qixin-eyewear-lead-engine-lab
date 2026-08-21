@@ -63,8 +63,8 @@ test("keeps Sites, storage, and CRM handoff isolated", async () => {
   assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, null);
-  assert.match(agents, /Never read from or write to the production QIXIN CRM, website D1, or website R2 bindings/);
-  assert.match(agents, /Do not add a production CRM write credential/);
+  assert.match(agents, /Never access the production QIXIN CRM, website D1\/R2/);
+  assert.match(agents, /add production write credentials/);
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });
 
@@ -102,9 +102,10 @@ test("opens verified company websites safely without replacing evidence review",
 });
 
 test("uses simplified regional Campaigns, multi-label matching, and keeps outbound disabled", async () => {
-  const [schema, campaignApi, routing, leadsApi, strategyForm, ui] = await Promise.all([
+  const [schema, campaignApi, membership, routing, leadsApi, strategyForm, ui] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/campaigns/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/campaign-membership.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/campaign-routing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/CampaignStrategyForm.tsx", import.meta.url), "utf8"),
@@ -114,12 +115,18 @@ test("uses simplified regional Campaigns, multi-label matching, and keeps outbou
     assert.match(schema, new RegExp(field));
   }
   assert.match(campaignApi, /refreshAllCompanyCampaignMemberships/);
+  assert.match(campaignApi, /routingChanged \? await refreshAllCompanyCampaignMemberships\(\) : null/);
+  assert.match(membership, /db\.batch/);
+  assert.doesNotMatch(membership, /for \(const company of companies\)[\s\S]{0,200}await refreshCompanyCampaignMemberships/);
   assert.match(routing, /campaignMatchesCompany/);
   assert.match(leadsApi, /primaryCampaignId/);
   assert.match(leadsApi, /productDirections/);
   assert.match(strategyForm, /产品赛道/);
   assert.match(strategyForm, /客户类型/);
   assert.match(strategyForm, /开发优先级/);
+  assert.equal((strategyForm.match(/className=\{styles\.strategyChoiceActions\}/g) || []).length, 2);
+  assert.match(ui, /aria-label="关闭通知"/);
+  assert.match(ui, /8_000/);
   assert.match(ui, /AI 外联：尚未启用/);
   assert.doesNotMatch(`${campaignApi}\n${routing}`, /sendEmail|mailer|SMTP|resend\.emails/i);
 });

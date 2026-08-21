@@ -25,7 +25,6 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { SCORE_LIMITS } from "@/lib/lead-engine";
-import { PRODUCT_TRACK_LABELS, REGION_PRESETS } from "@/lib/campaign-strategy";
 import CampaignStrategyForm from "./CampaignStrategyForm";
 import styles from "./LeadEngineApp.module.css";
 
@@ -127,7 +126,6 @@ const SCORE_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰",
 };
-const PRODUCT_LABELS = PRODUCT_TRACK_LABELS;
 const PRODUCT_DIRECTIONS = ["普通光学镜片", "非球面镜片", "防蓝光镜片", "变色镜片", "渐进镜片", "PC安全镜片", "老花镜", "其他相关眼镜产品"];
 const CONFIDENCE_LABELS: Record<string, string> = { high: "高", medium: "中等", low: "低" };
 const COUNTRY_LABELS: Record<string, string> = {
@@ -322,8 +320,9 @@ export default function LeadEngineApp() {
   const [leadRefreshKey, setLeadRefreshKey] = useState(0);
   const [importReport, setImportReport] = useState<{ imported: number; skipped: number; results?: Array<Record<string, unknown>> } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true); setError("");
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError("");
     try {
       const data = await api<Workspace>("/api/workspace");
       setWorkspace(data);
@@ -331,10 +330,15 @@ export default function LeadEngineApp() {
       setActiveCampaignId((current) => businessCampaigns.some((item) => item.id === current) ? current : businessCampaigns[0]?.id || "");
       setExportCampaignId((current) => businessCampaigns.some((item) => item.id === current) ? current : businessCampaigns[0]?.id || "");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "无法加载独立实验数据库"); }
-    finally { setLoading(false); }
+    finally { if (!silent) setLoading(false); }
   }, []);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(""), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
   useEffect(() => {
     if (workspace.engineState?.status !== "running") return;
     const timer = window.setInterval(() => { void load(); setLeadRefreshKey((value) => value + 1); }, 30_000);
@@ -428,13 +432,9 @@ export default function LeadEngineApp() {
   const reviewCampaignName = reviewCampaignId === "all" ? "统一客户库"
     : reviewCampaignId === "system:unassigned" ? "待分配"
       : businessCampaigns.find((campaign) => campaign.id === reviewCampaignId)?.name || "Campaign";
-  const campaignMarket = activeCampaign
-    ? (activeCampaign.regionKey !== "custom" ? REGION_PRESETS[activeCampaign.regionKey as keyof typeof REGION_PRESETS]?.label : "")
-      || activeCampaign.targetMarkets || jsonList(activeCampaign.targetCountriesJson)[0] || ""
-    : "";
   const campaignLeadCount = Number(workspace.leadCounts[activeCampaignId]?.all || 0);
   const campaignLabel = activeCampaign
-    ? `${localizedCountry(campaignMarket)} · ${jsonList(activeCampaign.productTracksJson).map((track) => PRODUCT_LABELS[track] || track).join(" / ") || PRODUCT_LABELS[activeCampaign.productTrack] || "眼镜"} · ${campaignLeadCount} 家`
+    ? `${activeCampaign.name} · ${campaignLeadCount} 家`
     : "尚未选择 Campaign";
   const approvalGaps = selectedLead && selectedCompany ? [
     selectedLead.campaignId === "system:unassigned" ? "必须先分配到 Campaign" : "",
@@ -488,13 +488,17 @@ export default function LeadEngineApp() {
     const data = new FormData(event.currentTarget);
     setPending(true); setError(""); setNotice("");
     try {
-      await api("/api/campaigns", { method: "PATCH", body: JSON.stringify({
+      const result = await api<{ campaign: Campaign; matchRefresh: { companies: number; added: number; stale: number } | null }>("/api/campaigns", { method: "PATCH", body: JSON.stringify({
         id: activeCampaign.id,
         regionKey: data.get("regionKey"), productTracks: formList(data, "productTracks"),
         targetCountries: formList(data, "targetCountries"), customerTypes: formList(data, "customerTypes"),
         strategyPriority: Number(data.get("strategyPriority") || 50),
       }) });
-      await load(); setLeadRefreshKey((value) => value + 1); setNotice("Campaign 策略已更新；现有客户已按证据重新匹配，历史归属仍保留。");
+      void load(true);
+      if (result.matchRefresh) setLeadRefreshKey((value) => value + 1);
+      setNotice(result.matchRefresh
+        ? "Campaign 策略已更新；现有客户已按证据重新匹配，历史归属仍保留。"
+        : "Campaign 已保存；策略条件未变化，无需重新匹配客户。");
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "Campaign 更新失败"); }
     finally { setPending(false); }
   }
@@ -606,7 +610,8 @@ export default function LeadEngineApp() {
         method: "POST", body: JSON.stringify({ campaignId: assignmentCampaignId }),
       });
       setDrawerOpen(false); setAssignmentCampaignId(""); await load(); setLeadRefreshKey((value) => value + 1);
-      setNotice(`客户已分配到 ${result.campaign.name}，仍保留为待审核状态。`);
+      const assignedCampaignName = businessCampaigns.find((campaign) => campaign.id === result.campaign.id)?.name || result.campaign.name;
+      setNotice(`客户已分配到 ${assignedCampaignName}，仍保留为待审核状态。`);
     } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "客户分配失败"); }
     finally { setPending(false); }
   }
@@ -685,8 +690,8 @@ export default function LeadEngineApp() {
         </div> : null}
       </header>
 
-      {error ? <div className={styles.error} role="alert">{error}</div> : null}
-      {notice ? <div className={styles.notice} role="status">{notice}</div> : null}
+      {error ? <div className={styles.error} role="alert"><span>{error}</span><button type="button" onClick={() => setError("")} aria-label="关闭错误提示"><IconX size={18} /></button></div> : null}
+      {notice ? <div className={styles.notice} role="status"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="关闭通知"><IconX size={18} /></button></div> : null}
 
       {activeView === "review" ? (
         <section className={[styles.reviewWorkspace, !drawerOpen && styles.workspaceExpanded].filter(Boolean).join(" ")} aria-label={VIEW_LABELS.review}>
@@ -1107,7 +1112,7 @@ export default function LeadEngineApp() {
                   <div className={styles.auditList}>
                     {selectedMemberships.map((membership) => <article key={membership.leadId}>
                       <div>
-                        <b>{membership.campaignName}{selectedCompany.primaryCampaignId === membership.campaignId ? " · 主 Campaign" : ""}</b>
+                        <b>{campaignById.get(membership.campaignId)?.name || membership.campaignName}{selectedCompany.primaryCampaignId === membership.campaignId ? " · 主 Campaign" : ""}</b>
                         <span>{membership.matchStatus === "stale" ? "历史归属" : membership.assignmentType === "manual" ? "人工归属" : "证据自动匹配"} · 优先级 {membership.strategyPriority}</span>
                         {membership.matchReason ? <p>{membership.matchReason}</p> : null}
                       </div>

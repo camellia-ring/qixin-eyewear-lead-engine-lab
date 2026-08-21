@@ -50,6 +50,6 @@ test("keeps automated discoveries behind human approval with paid providers defa
   assert.match(provider, /if \(!explicitlyEnabled \|\| !config\.openAiApiKey \|\| !config\.openAiDiscoveryModel\)/);
   assert.match(reviewRoute, /decision === "approved"/);
   assert.match(reviewRoute, /hard_gate_not_passed/);
-  assert.match(agents, /Paid, authenticated, personal-contact, or credit-consuming providers stay disabled/);
-  assert.match(agents, /Do not add personal-contact enrichment, guessed emails, email generation, email sending/);
+  assert.match(agents, /paid, authenticated, personal-contact, or credit-consuming providers require explicit owner approval/i);
+  assert.match(agents, /Do not add personal-contact enrichment, guessed emails, email generation or sending/);
 });

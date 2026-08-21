@@ -150,13 +150,19 @@
   top: 112px;
   right: 24px;
   max-width: min(440px, calc(100vw - 48px));
-  padding: 13px 16px;
+  padding: 13px 12px 13px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
   border: 1px solid;
   border-radius: 8px;
   background: #fff;
   font-size: 14px;
   line-height: 1.5;
 }
+.error span, .notice span { min-width: 0; flex: 1; }
+.error button, .notice button { width: 30px; height: 30px; margin-top: -4px; padding: 0; display: grid; place-items: center; flex: 0 0 30px; border: 0; border-radius: 6px; background: transparent; color: currentColor; cursor: pointer; }
+.error button:hover, .notice button:hover { background: rgba(0, 0, 0, .06); }
 .error { border-color: #efb5ae; color: #a0332b; }
 .notice { border-color: #add3bc; color: #246841; }
 
@@ -385,6 +391,8 @@
 .strategyChoiceGroup { grid-column: 1 / -1; min-width: 0; margin: 0; padding: 14px; border: 1px solid #dfe4ea; border-radius: 8px; }
 .strategyChoiceGroup legend { padding: 0 5px; color: #4d5a68; font-size: 13px; font-weight: 800; }
 .strategyChoiceGroup legend small { margin-left: 5px; color: #8b95a1; font-weight: 500; }
+.strategyChoiceActions { margin-bottom: 10px; display: flex; gap: 8px; }
+.strategyChoiceActions button { min-height: 32px; padding: 0 11px; border: 1px solid #cbd4df; border-radius: 6px; background: #fff; color: #526171; cursor: pointer; font-size: 12px; }
 .strategyChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .strategyChips label, .countryGrid label { min-height: 36px; padding: 7px 10px; display: inline-flex; align-items: center; gap: 7px; border: 1px solid #d7dde4; border-radius: 999px; background: #fff; color: #596675; cursor: pointer; font-size: 12px; font-weight: 650; }
 .strategyChips label[data-selected="true"], .countryGrid label[data-selected="true"] { border-color: #8fb6e8; background: #edf5ff; color: #225eac; }
