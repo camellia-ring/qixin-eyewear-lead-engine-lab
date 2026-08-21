@@ -11,4 +11,10 @@ Follow `E:\aQiXin\.agents\skills\aqixin-knowledge\SKILL.md` as well as these rep
 
 ## GitHub synchronization
 
-- The confirmed GitHub source remote is `origin`; `sites` is the Sites source/deployment remote. After validation, commit only task-scoped changes and push the current branch to `origin`. Routine GitHub synchronization never authorizes pushing to `sites` or deploying Sites.
+- The confirmed GitHub source remote is `origin`; `sites` is the Sites source/deployment remote. After validation, commit only task-scoped changes and push the current branch to `origin`. GitHub synchronization alone is not deployment evidence; deployment follows the separately confirmed policy below.
+
+## Sites deployment
+
+- After task-scoped Lead Engine changes pass the necessary checks and the exact commit is pushed to `origin`, save and deploy that commit to the existing private Sites project without requesting per-release approval.
+- Before deploying, confirm the worktree and GitHub branch are synchronized, the existing Sites project ID is reused, access remains owner-only, and any migration is forward-only with the required backup evidence. Use the private deployment path and verify the terminal deployment status and live application behavior.
+- This standing authorization does not permit creating or replacing the Sites project, changing access, environment variables, D1/R2 bindings, secrets, tunnels, or enabling discovery/outreach. Stop and report any shared/public access, remote divergence, failed validation, unsafe migration, deployment failure, or rollback ambiguity.
