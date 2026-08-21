@@ -9,7 +9,10 @@ test("implements bounded, auditable public-source discovery", async () => {
     readFile(new URL("../lib/discovery.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/discovery/sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    Promise.all([
+      "../components/LeadEngineApp.tsx",
+      "../components/lead-engine/AutomaticDiscoveryView.tsx",
+    ].map((file) => readFile(new URL(file, import.meta.url), "utf8"))).then((parts) => parts.join("\n")),
   ]);
 
   for (const table of ["discovery_sources", "discovery_runs", "discovery_run_items"]) {

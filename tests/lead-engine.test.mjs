@@ -2,18 +2,36 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+const uiFiles = [
+  "../components/LeadEngineApp.tsx",
+  "../components/lead-engine/AutomaticDiscoveryView.tsx",
+  "../components/lead-engine/LeadReviewView.tsx",
+  "../components/lead-engine/LeadReviewDrawer.tsx",
+  "../components/lead-engine/CampaignView.tsx",
+  "../components/lead-engine/ExportView.tsx",
+  "../components/lead-engine/AdvancedToolsView.tsx",
+  "../components/lead-engine/model.ts",
+  "../hooks/useLeadEngineState.ts",
+  "../hooks/useAutoDismiss.ts",
+  "../hooks/useLeadReviewFilters.ts",
+];
+
+async function readLeadEngineUi() {
+  return (await Promise.all(uiFiles.map((file) => readFile(new URL(file, import.meta.url), "utf8")))).join("\n");
+}
+
 test("builds the complete isolated Lead Engine shell", async () => {
   const [layout, page, ui] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readLeadEngineUi(),
   ]);
   assert.match(layout, /QIXIN Lead Engine Lab/);
   assert.match(page, /LeadEngineApp/);
-  assert.match(ui, /可审计的销售机会/);
-  assert.match(ui, /生产系统未连接/);
-  assert.match(ui, /创建简化区域 Campaign/);
-  assert.match(ui, /批准后才能生成 CRM 文件/);
+  assert.match(ui, /全局自动找客户/);
+  assert.match(ui, /私有环境 · 人工批准后才能导出/);
+  assert.match(ui, /Campaign 管理/);
+  assert.match(ui, /只有人工批准并通过准入门槛/);
   assert.match(ui, /开始自动找客户/);
   assert.doesNotMatch(`${layout}\n${page}\n${ui}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
@@ -93,7 +111,7 @@ test("covers the complete QIXIN product catalog in campaign research and CRM han
 });
 
 test("opens verified company websites safely without replacing evidence review", async () => {
-  const ui = await readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8");
+  const ui = await readLeadEngineUi();
   assert.match(ui, /function companyWebsiteUrl/);
   assert.match(ui, /url\.protocol === "http:" \|\| url\.protocol === "https:"/);
   assert.match(ui, /target="_blank"/);
@@ -109,7 +127,7 @@ test("uses simplified regional Campaigns, multi-label matching, and keeps outbou
     readFile(new URL("../lib/campaign-routing.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/CampaignStrategyForm.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readLeadEngineUi(),
   ]);
   for (const field of ["regionKey", "productTracksJson", "strategyPriority", "automationConfigJson", "customerTypesJson", "primaryCampaignId", "matchStatus"]) {
     assert.match(schema, new RegExp(field));
@@ -136,7 +154,7 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/leads/[id]/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readLeadEngineUi(),
     readFile(new URL("../components/LeadEngineApp.module.css", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(workspace, /leadScoreDimensions|evidenceClaims|prospectContacts/);
@@ -148,4 +166,35 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.doesNotMatch(ui, /\/api\/discovery\/run-due|\/api\/exports\/leads/);
   assert.match(css, /grid-template-columns: repeat\(5/);
   assert.match(css, /safe-area-inset-bottom/);
+});
+
+test("keeps each primary workspace in an independent component with client state hooks", async () => {
+  const [shell, stateHook, dismissHook, filterHook] = await Promise.all([
+    readFile(new URL("../components/LeadEngineApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useAutoDismiss.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadReviewFilters.ts", import.meta.url), "utf8"),
+  ]);
+  for (const component of ["AutomaticDiscoveryView", "LeadReviewView", "CampaignView", "ExportView", "AdvancedToolsView"]) {
+    assert.match(shell, new RegExp(component));
+  }
+  assert.match(stateHook, /export function useLeadEngineState/);
+  assert.match(dismissHook, /export function useAutoDismiss/);
+  assert.match(filterHook, /export function useLeadReviewFilters/);
+  assert.ok(shell.split(/\r?\n/).length < 100, "LeadEngineApp should remain a small composition shell");
+});
+
+test("provides a repeatable D1-compatible Campaign save benchmark", async () => {
+  const [packageJson, benchmark, baseline] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/benchmark-campaign-save.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../docs/performance/campaign-save-d1-baseline.md", import.meta.url), "utf8"),
+  ]);
+  assert.match(packageJson, /bench:campaign-save/);
+  assert.match(benchmark, /campaignMatchesCompany/);
+  assert.match(benchmark, /Math\.ceil\(operations\.length \/ 80\)/);
+  assert.match(benchmark, /p50Ms/);
+  assert.match(benchmark, /p95Ms/);
+  assert.match(baseline, /5,000/);
+  assert.match(baseline, /不是线上延迟声明/);
 });
