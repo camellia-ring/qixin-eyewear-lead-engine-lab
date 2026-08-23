@@ -548,7 +548,7 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
   }
 }
 
-export async function recoverStaleDiscoveryRuns(maxAgeMinutes = 30) {
+export async function recoverStaleDiscoveryRuns(maxAgeMinutes = 5) {
   const db = getDb();
   const cutoff = new Date(Date.now() - maxAgeMinutes * 60_000).toISOString();
   const stale = await db.select({ id: discoveryRuns.id }).from(discoveryRuns).where(and(

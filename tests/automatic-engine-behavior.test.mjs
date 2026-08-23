@@ -142,6 +142,7 @@ test("engine start is global and no longer requires a selected campaign", async 
   const route = await readFile(new URL("../app/api/engine/control/route.ts", import.meta.url), "utf8");
   assert.doesNotMatch(route, /required: true[^\n]+campaignId/);
   assert.match(route, /startAutomaticEngine\(dailyTarget, timezone\)/);
+  assert.match(route, /body\.runNow === true/);
 });
 
 test("Vision Council parser extracts official company website, category and public phone", () => {

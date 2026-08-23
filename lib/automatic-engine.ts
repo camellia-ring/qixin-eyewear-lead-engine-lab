@@ -140,7 +140,9 @@ export async function runAutomaticDiscoveryBatch() {
   if (!state || state.status !== "running") {
     return { status: state?.status || "stopped", ran: false, reason: "engine_not_running" };
   }
-  const active = await prepareActiveCampaigns();
+  await ensureUnassignedCampaign();
+  const active = await activeBusinessCampaigns();
+  if (!active.length) throw new Error("no_active_campaigns");
   const activeIds = new Set(active.map((campaign) => campaign.id));
   const now = new Date();
   const timestamp = now.toISOString();

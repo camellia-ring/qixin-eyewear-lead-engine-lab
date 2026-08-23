@@ -721,9 +721,10 @@ export async function collectSiteEvidence(candidate: DiscoveryCandidate): Promis
   if (!candidate.websiteUrl) throw new Error("company_website_unresolved");
   const homepage = await fetchPublicHtml(candidate.websiteUrl);
   const pages = [homepage];
-  for (const url of internalPageLinks(homepage, 3)) {
-    try { pages.push(await fetchPublicHtml(url)); } catch { /* A failed supporting page does not discard the homepage evidence. */ }
-  }
+  const supportingPages = await Promise.all(internalPageLinks(homepage, 3).map(async (url) => {
+    try { return await fetchPublicHtml(url); } catch { return null; }
+  }));
+  pages.push(...supportingPages.filter((page): page is PublicPage => Boolean(page)));
   const combined = pages.map((page) => page.text).join("\n");
   const eyewearTerms = uniqueMatches(combined, EYEWEAR_TERMS);
   const b2bTerms = uniqueMatches(combined, B2B_TERMS);

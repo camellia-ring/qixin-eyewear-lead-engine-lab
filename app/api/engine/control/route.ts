@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       const dailyTarget = Number(body.dailyTarget ?? 20);
       const timezone = textValue(body.timezone || "Asia/Shanghai", { field: "timezone", required: true, max: 80 });
       const state = await startAutomaticEngine(dailyTarget, timezone);
-      const firstBatch = body.runNow === false ? null : await runAutomaticDiscoveryBatch();
+      const firstBatch = body.runNow === true ? await runAutomaticDiscoveryBatch() : null;
       return Response.json({ state, firstBatch });
     }
     if (action === "pause") return Response.json({ state: await pauseAutomaticEngine() });
