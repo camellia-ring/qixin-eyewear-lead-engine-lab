@@ -8,7 +8,7 @@
     "crons": ["*/15 * * * *"]
   },
   "vars": {
-    "LEAD_ENGINE_URL": "https://qixin-lead-engine-lab.dfgydong.chatgpt.site"
+    "LEAD_ENGINE_URL": "https://qixin-lead-engine-lab.yukaotaki.chatgpt.site"
   },
   "observability": {
     "enabled": true
