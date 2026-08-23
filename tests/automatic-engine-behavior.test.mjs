@@ -132,17 +132,34 @@ test("paid discovery provider is disabled without both explicit approval flag an
 test("automatic qualification never bypasses the human export gate", async () => {
   const route = await readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8");
   assert.match(route, /workflowStatus, "approved"/);
-  assert.match(route, /unassigned_leads_cannot_export/);
+  assert.match(route, /system_campaign_cannot_export/);
   assert.match(route, /crmExportRuns/);
   assert.match(route, /crmExportItems/);
   await assert.rejects(access(new URL("../app/api/exports/leads/route.ts", import.meta.url)), { code: "ENOENT" });
 });
 
 test("engine start is global and no longer requires a selected campaign", async () => {
-  const route = await readFile(new URL("../app/api/engine/control/route.ts", import.meta.url), "utf8");
+  const [route, stateHook] = await Promise.all([
+    readFile(new URL("../app/api/engine/control/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
+  ]);
   assert.doesNotMatch(route, /required: true[^\n]+campaignId/);
   assert.match(route, /startAutomaticEngine\(dailyTarget, timezone\)/);
-  assert.match(route, /body\.runNow === true/);
+  assert.doesNotMatch(route, /body\.runNow === true/);
+  assert.doesNotMatch(stateHook, /runNow:\s*true/);
+  assert.match(stateHook, /首批由后台执行/);
+});
+
+test("official discovery sources use a stable global pool instead of a display Campaign", async () => {
+  const [routing, registry, engine] = await Promise.all([
+    readFile(new URL("../lib/campaign-routing.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/source-registry.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/automatic-engine.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(routing, /GLOBAL_DISCOVERY_CAMPAIGN_ID = "system:global-discovery"/);
+  assert.match(registry, /campaignId: GLOBAL_DISCOVERY_CAMPAIGN_ID/);
+  assert.doesNotMatch(registry, /globalAnchorId/);
+  assert.match(engine, /source\.campaignId === GLOBAL_DISCOVERY_CAMPAIGN_ID/);
 });
 
 test("Vision Council parser extracts official company website, category and public phone", () => {

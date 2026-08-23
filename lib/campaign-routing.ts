@@ -3,6 +3,12 @@ import { REGION_PRESETS, isRegionKey, normalizeProductTracks } from "@/lib/campa
 
 export const UNASSIGNED_CAMPAIGN_ID = "system:unassigned";
 export const UNASSIGNED_CAMPAIGN_NAME = "待分配客户";
+export const GLOBAL_DISCOVERY_CAMPAIGN_ID = "system:global-discovery";
+export const GLOBAL_DISCOVERY_CAMPAIGN_NAME = "全局来源池";
+
+export function isSystemCampaignId(campaignId: string | null | undefined) {
+  return campaignId === UNASSIGNED_CAMPAIGN_ID || campaignId === GLOBAL_DISCOVERY_CAMPAIGN_ID;
+}
 
 export type RoutableCampaign = {
   id: string;
@@ -120,7 +126,7 @@ export function campaignMatchesEvidence(
   customerType: string | string[],
   productDirections: string[],
 ) {
-  if (campaign.id === UNASSIGNED_CAMPAIGN_ID || campaign.status !== "active") return false;
+  if (isSystemCampaignId(campaign.id) || campaign.status !== "active") return false;
   const targets = targetCountries(campaign);
   const evidenceCountry = normalizeCountry(evidence.country);
   if (targets.length && (!evidenceCountry || !targets.includes(evidenceCountry))) return false;
@@ -129,7 +135,7 @@ export function campaignMatchesEvidence(
 }
 
 export function campaignMatchesCompany(campaign: RoutableCampaign, company: RoutableCompany) {
-  if (campaign.id === UNASSIGNED_CAMPAIGN_ID || campaign.status !== "active") return false;
+  if (isSystemCampaignId(campaign.id) || campaign.status !== "active") return false;
   const targets = targetCountries(campaign);
   const companyCountry = normalizeCountry(company.country);
   if (targets.length && (!companyCountry || !targets.includes(companyCountry))) return false;

@@ -160,12 +160,27 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.doesNotMatch(workspace, /leadScoreDimensions|evidenceClaims|prospectContacts/);
   assert.match(leads, /pageSize/);
   assert.match(leads, /statusCounts/);
+  assert.match(leads, /selectedRegions/);
+  assert.match(leads, /regions/);
   assert.match(detail, /scoreDimensions/);
   assert.match(ui, /高级工具/);
   assert.match(ui, /mobileLeadList/);
   assert.doesNotMatch(ui, /\/api\/discovery\/run-due|\/api\/exports\/leads/);
   assert.match(css, /grid-template-columns: repeat\(5/);
   assert.match(css, /safe-area-inset-bottom/);
+});
+
+test("reviews the unified customer library by evidence dimensions rather than Campaign", async () => {
+  const [review, stateHook, filters] = await Promise.all([
+    readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadReviewFilters.ts", import.meta.url), "utf8"),
+  ]);
+  for (const label of ["客户范围", "地区", "国家", "客户类型", "产品分类"]) assert.match(review, new RegExp(label));
+  assert.match(review, /统一客户库每家公司只显示一次/);
+  assert.doesNotMatch(review, /reviewCampaignId|setReviewCampaignId|切换 Campaign|这个 Campaign/);
+  assert.doesNotMatch(stateHook, /parameters\.set\("campaignId", reviewCampaignId\)/);
+  assert.match(filters, /regionFilter/);
 });
 
 test("keeps each primary workspace in an independent component with client state hooks", async () => {

@@ -2,14 +2,14 @@ import { and, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaigns, campaignLeads, leadReviewDecisions, prospectCompanies } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
-import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { isSystemCampaignId, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
     const body = await jsonBody(request);
     const campaignId = textValue(body.campaignId, { field: "campaignId", required: true, max: 100 });
-    if (campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(400, "invalid_assignment_campaign");
+    if (isSystemCampaignId(campaignId)) throw new ApiError(400, "invalid_assignment_campaign");
     const db = getDb();
     const [lead, campaign] = await Promise.all([
       db.select().from(campaignLeads).where(eq(campaignLeads.id, id)).limit(1).then((rows) => rows[0]),

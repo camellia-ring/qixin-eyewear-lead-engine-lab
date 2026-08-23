@@ -12,13 +12,13 @@ import {
 } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import { crmProductInterests, csvCell, safeJsonList } from "@/lib/lead-engine";
-import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { isSystemCampaignId } from "@/lib/campaign-routing";
 
 export async function POST(request: Request) {
   try {
     const body = await jsonBody(request);
     const campaignId = textValue(body.campaignId, { field: "campaignId", required: true, max: 100 });
-    if (campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "unassigned_leads_cannot_export");
+    if (isSystemCampaignId(campaignId)) throw new ApiError(409, "system_campaign_cannot_export");
     const db = getDb();
     const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
     if (!campaign) throw new ApiError(404, "campaign_not_found");

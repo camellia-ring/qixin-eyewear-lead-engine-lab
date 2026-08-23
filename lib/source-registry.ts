@@ -2,7 +2,13 @@ import { and, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaigns, discoverySources, parserVersions } from "@/db/schema";
 import { normalizedDomain } from "@/lib/discovery";
-import { campaignCountries, normalizeCountry, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import {
+  GLOBAL_DISCOVERY_CAMPAIGN_ID,
+  campaignCountries,
+  isSystemCampaignId,
+  normalizeCountry,
+} from "@/lib/campaign-routing";
+import { ensureGlobalDiscoveryCampaign } from "@/lib/system-campaign";
 
 export type SourceDefinition = {
   key: string;
@@ -236,22 +242,19 @@ function sourceFitsCampaign(source: SourceDefinition, campaign: { targetCountrie
   return targets.some((target) => markets.has(target));
 }
 
-export async function seedOfficialSourceRegistry(campaignId: string) {
+export async function seedOfficialSourceRegistry() {
   const db = getDb();
   const now = new Date().toISOString();
-  const [campaign] = await db.select().from(campaigns).where(eq(campaigns.id, campaignId)).limit(1);
-  if (!campaign) throw new Error("campaign_not_found");
+  await ensureGlobalDiscoveryCampaign();
   const activeCampaigns = (await db.select().from(campaigns).where(eq(campaigns.status, "active")))
-    .filter((candidate) => candidate.id !== UNASSIGNED_CAMPAIGN_ID)
-    .sort((left, right) => right.strategyPriority - left.strategyPriority || left.id.localeCompare(right.id));
-  const globalAnchorId = activeCampaigns[0]?.id || campaignId;
+    .filter((candidate) => !isSystemCampaignId(candidate.id));
+  if (!activeCampaigns.length) throw new Error("no_active_campaigns");
   for (const source of OFFICIAL_SOURCE_REGISTRY) {
-    const globalSource = source.markets.includes("Global");
-    const enabled = source.enabled && sourceFitsCampaign(source, campaign) && (!globalSource || campaignId === globalAnchorId);
+    const enabled = source.enabled && activeCampaigns.some((campaign) => sourceFitsCampaign(source, campaign));
     const baseParserConfig = { ...(source.parserConfig || {}), repeatDuringDay: Boolean(source.repeatDuringDay) };
     const values = {
-      id: `official:${source.key}:${campaignId}`,
-      campaignId,
+      id: `official:${source.key}:${GLOBAL_DISCOVERY_CAMPAIGN_ID}`,
+      campaignId: GLOBAL_DISCOVERY_CAMPAIGN_ID,
       name: source.name,
       sourceUrl: source.url,
       normalizedDomain: normalizedDomain(source.url),
@@ -320,7 +323,6 @@ export async function seedOfficialSourceRegistry(campaignId: string) {
       accessNotes: `已由规范来源 ${values.id} 取代；避免同一官方目录重复运行。`,
       updatedAt: now,
     }).where(and(
-      eq(discoverySources.campaignId, campaignId),
       eq(discoverySources.sourceUrl, source.url),
       ne(discoverySources.id, values.id),
     ));
@@ -340,5 +342,12 @@ export async function seedOfficialSourceRegistry(campaignId: string) {
     }).onConflictDoNothing();
   }
 
-  return db.select().from(discoverySources).where(eq(discoverySources.campaignId, campaignId));
+  return db.select().from(discoverySources).where(eq(discoverySources.campaignId, GLOBAL_DISCOVERY_CAMPAIGN_ID));
+}
+
+export async function ensureOfficialSourceRegistry() {
+  const db = getDb();
+  const [existing] = await db.select({ id: discoverySources.id }).from(discoverySources)
+    .where(eq(discoverySources.id, `official:mido:${GLOBAL_DISCOVERY_CAMPAIGN_ID}`)).limit(1);
+  return existing ? null : seedOfficialSourceRegistry();
 }

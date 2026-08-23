@@ -62,7 +62,7 @@ export type LeadListRow = {
 export type LeadPage = {
   rows: LeadListRow[];
   pagination: { page: number; pageSize: number; total: number; pageCount: number };
-  facets: { statusCounts: Record<string, number>; gradeCounts: Record<string, number>; countries: string[]; companyTypes: string[]; productDirections: string[]; sourceTypes: string[] };
+  facets: { statusCounts: Record<string, number>; gradeCounts: Record<string, number>; regions: Array<{ value: string; label: string }>; countries: string[]; companyTypes: string[]; productDirections: string[]; sourceTypes: string[] };
 };
 export type LeadDetail = {
   lead: Lead; company: Company; sources: Source[]; claims: Claim[]; scoreRun: ScoreRun | null;
@@ -78,7 +78,7 @@ export type Workspace = {
 };
 
 export const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyTargets: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
-export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
+export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, regions: [], countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
 export const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 export const SCORE_LABELS: Record<string, string> = { productMatchScore: "产品匹配", customerTypeScore: "客户 / 渠道类型", purchasingSignalsScore: "采购与批发信号", marketMoqFitScore: "市场、MOQ 与运营适配", contactabilityScore: "可联系性", accountPotentialScore: "客户潜力", dataQualityScore: "数据新鲜度与完整度" };
 export const STATUS_LABELS: Record<string, string> = { all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰" };
@@ -89,7 +89,13 @@ export const VIEW_LABELS = { review: "客户审核", campaign: "Campaign", disco
 export type ViewKey = keyof typeof VIEW_LABELS;
 
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(path, { credentials: "same-origin", cache: "no-store", ...options, headers: { "Content-Type": "application/json", ...(options?.headers || {}) } });
+  let response: Response;
+  try {
+    response = await fetch(path, { credentials: "same-origin", cache: "no-store", ...options, headers: { "Content-Type": "application/json", ...(options?.headers || {}) } });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    throw new Error("网络请求中断。系统状态会自动刷新，请勿重复点击。");
+  }
   const payload = await response.json().catch(() => ({})) as T & { message?: string; error?: string };
   if (!response.ok) throw new Error(payload.message || payload.error || "请求未完成");
   return payload;

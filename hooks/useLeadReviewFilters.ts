@@ -3,6 +3,7 @@ import { useState } from "react";
 export function useLeadReviewFilters() {
   const [statusFilter, setStatusFilter] = useState("needs_review");
   const [gradeFilter, setGradeFilter] = useState("all");
+  const [regionFilter, setRegionFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [productFilter, setProductFilter] = useState("all");
@@ -16,6 +17,7 @@ export function useLeadReviewFilters() {
   function clearFilters() {
     setStatusFilter("all");
     setGradeFilter("all");
+    setRegionFilter("all");
     setCountryFilter("all");
     setTypeFilter("all");
     setProductFilter("all");
@@ -27,9 +29,9 @@ export function useLeadReviewFilters() {
   }
 
   return {
-    statusFilter, gradeFilter, countryFilter, typeFilter, productFilter, contactFilter,
+    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilter, productFilter, contactFilter,
     sourceFilter, specialFilter, sortBy, page, search, setStatusFilter, setGradeFilter,
-    setCountryFilter, setTypeFilter, setProductFilter, setContactFilter, setSourceFilter,
+    setRegionFilter, setCountryFilter, setTypeFilter, setProductFilter, setContactFilter, setSourceFilter,
     setSpecialFilter, setSortBy, setPage, setSearch, clearFilters,
   };
 }

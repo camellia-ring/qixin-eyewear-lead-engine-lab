@@ -2,6 +2,8 @@ import { and, asc, count, desc, eq, isNotNull, like, ne, or, sql, type SQL } fro
 import { getDb } from "@/db";
 import { campaignLeads, prospectCompanies } from "@/db/schema";
 import { apiFailure } from "@/lib/api";
+import { normalizeCountry } from "@/lib/campaign-routing";
+import { isRegionKey, REGION_PRESETS } from "@/lib/campaign-strategy";
 import { safeJsonList } from "@/lib/lead-engine";
 
 const SORTS = {
@@ -57,6 +59,12 @@ export async function GET(request: Request) {
     }
     const countryCondition = oneOf(prospectCompanies.country, values(parameters, "country"));
     if (countryCondition) conditions.push(countryCondition);
+    const selectedRegions = values(parameters, "region").filter(isRegionKey);
+    if (selectedRegions.length && !selectedRegions.includes("global")) {
+      const regionCountries = [...new Set(selectedRegions.flatMap((region) => REGION_PRESETS[region].countries))];
+      const regionCondition = oneOf(prospectCompanies.country, regionCountries);
+      if (regionCondition) conditions.push(regionCondition);
+    }
     const customerTypes = values(parameters, "customerType");
     if (customerTypes.length) {
       const condition = or(oneOf(prospectCompanies.customerType, customerTypes), jsonContains(prospectCompanies.customerTypesJson, customerTypes));
@@ -155,12 +163,18 @@ export async function GET(request: Request) {
       ...safeJsonList(row.customerTypesJson), row.customerType, row.companyType,
     ]).filter(Boolean) as string[])].sort();
     const productDirections = [...new Set(productRows.flatMap((row) => safeJsonList(row.value)))].sort();
+    const presentCountries = new Set(countryRows.map((row) => normalizeCountry(row.value)));
+    const regions = Object.entries(REGION_PRESETS)
+      .filter(([value, preset]) => value !== "global" && value !== "custom"
+        && preset.countries.some((country) => presentCountries.has(normalizeCountry(country))))
+      .map(([value, preset]) => ({ value, label: preset.label }));
     return Response.json({
       rows,
       pagination: { page, pageSize, total, pageCount: Math.max(1, Math.ceil(total / pageSize)) },
       facets: {
         statusCounts,
         gradeCounts,
+        regions,
         countries: countryRows.map((row) => row.value).filter(Boolean),
         companyTypes,
         productDirections,

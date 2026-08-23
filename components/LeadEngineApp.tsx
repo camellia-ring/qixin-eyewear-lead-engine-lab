@@ -12,7 +12,7 @@ import styles from "./LeadEngineApp.module.css";
 
 export default function LeadEngineApp() {
   const state = useLeadEngineState();
-  const { activeBusinessCampaigns, activeView, approvedCount, counts, error, notice, rejectedCount, reviewCampaignName, statusFilter } = state;
+  const { activeBusinessCampaigns, activeView, approvedCount, counts, error, notice, rejectedCount, statusFilter } = state;
   return <main className={styles.shell}>
     <p className={styles.srOnly}>可审计的销售机会。生产系统未连接。创建简化区域 Campaign。批准后才能生成 CRM 文件。</p>
     <aside className={styles.sidebar}>
@@ -27,7 +27,7 @@ export default function LeadEngineApp() {
       <div className={styles.sidebarFoot}><div className={styles.privateStatus}><IconShieldLock size={18} /><span><b>私有实验环境</b><small>无自动发送 · 无 CRM 直写</small></span></div><button type="button" onClick={() => state.setActiveView("advanced")}><IconSettings size={20} /><span>高级工具与维护</span></button></div>
     </aside>
     <header className={styles.topBar}>
-      <div className={styles.campaignSwitcher}><span>{activeView === "discovery" ? "全局自动发现" : VIEW_LABELS[activeView]}</span><strong>{activeView === "review" ? reviewCampaignName : activeView === "discovery" ? `${activeBusinessCampaigns.length} 个运行中 Campaign` : "眼镜客户开发引擎"}</strong><small>{activeView === "discovery" ? "系统按各 Campaign 市场自动轮换来源与归类" : "私有环境 · 人工批准后才能导出"}</small></div>
+      <div className={styles.campaignSwitcher}><span>{activeView === "discovery" ? "全局自动发现" : VIEW_LABELS[activeView]}</span><strong>{activeView === "review" ? "统一客户库" : activeView === "discovery" ? `${activeBusinessCampaigns.length} 个运行中 Campaign` : "眼镜客户开发引擎"}</strong><small>{activeView === "discovery" ? "全局来源池核验后按各 Campaign 条件自动归类" : "私有环境 · 人工批准后才能导出"}</small></div>
       {activeView === "review" ? <div className={styles.summaryMetrics} aria-label="审核状态概览"><button type="button" className={statusFilter === "needs_review" ? styles.metricActive : ""} onClick={() => { state.setStatusFilter("needs_review"); state.setDrawerOpen(false); state.setPage(1); }}><span>待审核</span><b className={styles.metricBlue}>{counts.needs_review || 0}</b></button><button type="button" className={statusFilter === "rejected" ? styles.metricActive : ""} onClick={() => { state.setStatusFilter("rejected"); state.setDrawerOpen(false); state.setPage(1); }}><span>已淘汰</span><b className={styles.metricRed}>{rejectedCount}</b></button><button type="button" className={statusFilter === "approved" ? styles.metricActive : ""} onClick={() => { state.setStatusFilter("approved"); state.setDrawerOpen(false); state.setPage(1); }}><span>已批准</span><b className={styles.metricGreen}>{approvedCount}</b></button></div> : null}
     </header>
     {error ? <div className={styles.error} role="alert"><span>{error}</span><button type="button" aria-label="关闭错误提示" onClick={() => state.setError("")}><IconX size={18} /></button></div> : null}

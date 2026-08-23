@@ -11,6 +11,7 @@ import {
 import {
   campaignMatchesCompany,
   campaignProductTracks,
+  isSystemCampaignId,
   UNASSIGNED_CAMPAIGN_ID,
 } from "@/lib/campaign-routing";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
@@ -77,7 +78,7 @@ async function refreshCampaignMemberships(companyId?: string) {
     db.select().from(leadScoreRuns).orderBy(desc(leadScoreRuns.createdAt)),
     db.select().from(leadScoreDimensions),
   ]);
-  const businessCampaigns = activeCampaigns.filter((campaign) => campaign.id !== UNASSIGNED_CAMPAIGN_ID);
+  const businessCampaigns = activeCampaigns.filter((campaign) => !isSystemCampaignId(campaign.id));
   const membershipsByCompany = new Map<string, Array<typeof campaignLeads.$inferSelect>>();
   for (const membership of memberships) {
     const companyMemberships = membershipsByCompany.get(membership.companyId) || [];

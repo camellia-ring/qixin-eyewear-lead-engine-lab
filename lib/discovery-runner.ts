@@ -42,7 +42,7 @@ import {
 } from "@/lib/discovery";
 import { createDiscoveryProvider } from "@/lib/discovery-provider";
 import { qualifyEvidence } from "@/lib/qualification";
-import { campaignProductTracks, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { campaignProductTracks, isSystemCampaignId, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 import { ENGINE_BATCH_MINUTES } from "@/lib/engine-policy";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
@@ -134,7 +134,7 @@ async function persistVerifiedCandidate(
   const companyId = crypto.randomUUID();
   await ensureUnassignedCampaign();
   const activeCampaignRows = (await db.select().from(campaigns).where(eq(campaigns.status, "active")))
-    .filter((campaign) => campaign.id !== UNASSIGNED_CAMPAIGN_ID);
+    .filter((campaign) => !isSystemCampaignId(campaign.id));
   const matchedCampaigns = routeCampaigns(activeCampaignRows, evidence, qualification.customerTypes, qualification.productDirections);
   const unassignedCampaign = await ensureUnassignedCampaign();
   const targetCampaigns = matchedCampaigns.length ? matchedCampaigns : [unassignedCampaign];
