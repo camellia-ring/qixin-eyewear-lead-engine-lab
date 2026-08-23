@@ -1,4 +1,5 @@
 import { SCORE_LIMITS } from "@/lib/lead-engine";
+import { normalizeBusinessRoles } from "@/lib/customer-scope";
 
 export type SearchKeyword = { keyword: string; locale: string; purpose: string };
 export type Campaign = {
@@ -49,6 +50,12 @@ export type DailyTarget = { id: string; targetDate: string; timezone: string; ta
 export type ContactVerification = { id: string; companyId: string; leadId?: string; contactType: string; contactValue?: string; sourceUrl: string; sourceTitle?: string; sameCompanyDomain: boolean; businessUse: boolean; status: string; failureReason?: string; verifiedAt: string };
 export type DiscoveryAlert = { id: string; sourceId?: string; runId?: string; targetDate?: string; severity: string; alertType: string; message: string; resolvedAt?: string; createdAt: string };
 export type SourceHealth = { id: string; sourceId: string; checkedAt: string; status: string; discoveredCount: number; qualifiedCount: number; duplicateCount: number; failureCount: number; latencyMs?: number; note?: string };
+export type ReclassificationDryRun = {
+  generatedAt: string; mode: "read_only"; considered: number; possibleCandidates: number; manualReview: number;
+  stillExcluded: number; duplicates: number; topBusinessRoles: Array<{ label: string; count: number }>;
+  topProductDirections: Array<{ label: string; count: number }>; topExclusionReasons: Array<{ label: string; count: number }>;
+  samples: Array<{ companyId: string; companyName: string; outcome: string; reasons: string[] }>; limitations: string;
+};
 export type LeadListRow = {
   leadId: string; campaignId: string; companyId: string; workflowStatus: string; qualificationResult: string;
   assignmentType: string; matchStatus: string; matchReason?: string; hardGateStatus: string; hardGateReason?: string;
@@ -82,7 +89,6 @@ export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, page
 export const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 export const SCORE_LABELS: Record<string, string> = { productMatchScore: "产品匹配", customerTypeScore: "客户 / 渠道类型", purchasingSignalsScore: "采购与批发信号", marketMoqFitScore: "市场、MOQ 与运营适配", contactabilityScore: "可联系性", accountPotentialScore: "客户潜力", dataQualityScore: "数据新鲜度与完整度" };
 export const STATUS_LABELS: Record<string, string> = { all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰" };
-export const PRODUCT_DIRECTIONS = ["普通光学镜片", "非球面镜片", "防蓝光镜片", "变色镜片", "渐进镜片", "PC安全镜片", "老花镜", "其他相关眼镜产品"];
 export const CONFIDENCE_LABELS: Record<string, string> = { high: "高", medium: "中等", low: "低" };
 const COUNTRY_LABELS: Record<string, string> = { "United Kingdom": "英国", UK: "英国", Germany: "德国", France: "法国", Italy: "意大利", Spain: "西班牙" };
 export const VIEW_LABELS = { review: "客户审核", campaign: "Campaign", discovery: "自动发现", export: "CRM 导出", advanced: "高级工具" } as const;
@@ -107,7 +113,7 @@ export function formatDate(value?: string) { if (!value) return "未记录"; con
 export function downloadText(filename: string, content: string, type = "text/plain;charset=utf-8") { const url = URL.createObjectURL(new Blob([content], { type })); const link = document.createElement("a"); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url); }
 export function localizedCountry(value?: string) { return value ? COUNTRY_LABELS[value] || value : "未记录"; }
 export function localizedCompanyType(value?: string) { if (!value) return "类型待确认"; const normalized = value.toLocaleLowerCase(); if (normalized.includes("manufacturer")) return "眼镜制造商"; if (normalized.includes("retail chain")) return "眼镜零售连锁"; if (normalized.includes("special") && normalized.includes("distributor")) return "特种镜架经销商"; if (normalized.includes("wholesaler") && normalized.includes("brand")) return "眼镜品牌 / 批发商"; if (normalized.includes("distributor") && normalized.includes("brand")) return "眼镜品牌 / 经销商"; if (normalized.includes("retailer") && normalized.includes("brand")) return "眼镜品牌 / 零售商"; if (normalized.includes("wholesaler")) return "独立眼镜批发商"; if (normalized.includes("distributor")) return "眼镜分销商"; if (normalized.includes("retailer")) return "眼镜零售商"; if (normalized.includes("brand")) return "眼镜品牌"; return value; }
-export function customerTypeLabel(company: { customerTypesJson?: string; customerType?: string; companyType?: string }) { const values = jsonList(company.customerTypesJson); return values.length ? values.join(" · ") : company.customerType || localizedCompanyType(company.companyType); }
+export function customerTypeLabel(company: { customerTypesJson?: string; customerType?: string; companyType?: string }) { const values = normalizeBusinessRoles([...jsonList(company.customerTypesJson), company.customerType || ""]); return values.length ? values.join(" · ") : localizedCompanyType(company.companyType); }
 export function companyWebsiteUrl(company?: Pick<Company, "website" | "primaryDomain">) { const rawValue = company?.website || company?.primaryDomain; if (!rawValue) return ""; try { const url = new URL(/^https?:\/\//i.test(rawValue) ? rawValue : `https://${rawValue}`); return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : ""; } catch { return ""; } }
 export function companySignal(company?: Pick<Company, "productsJson" | "brandsJson" | "businessEmail" | "contactChannel" | "wholesaleSignal">) { if (!company) return "证据待加载"; const products = jsonList(company.productsJson); const brands = jsonList(company.brandsJson); return [company.wholesaleSignal, products.length ? `产品 ${products.slice(0, 2).join("、")}` : "", brands.length ? `品牌 ${brands.slice(0, 2).join("、")}` : "", company.businessEmail || company.contactChannel ? "有公开商务渠道" : "商务渠道待补"].filter(Boolean).join(" · "); }
 export function compactRisk(lead?: Lead) { if (!lead) return "风险待加载"; return [lead.hardGateStatus !== "pass" ? lead.hardGateReason || "强制准入未通过" : "", lead.riskSummary].filter(Boolean).join("；") || "未发现阻断性风险，仍需人工判断。"; }

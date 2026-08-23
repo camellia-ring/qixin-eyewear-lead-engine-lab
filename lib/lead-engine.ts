@@ -1,4 +1,18 @@
-export const RUBRIC_VERSION = "qixin-v1.1";
+import {
+  BUSINESS_ROLE_DEFINITIONS,
+  MARKET_SEARCH_PROFILES,
+  PRODUCT_TRACK_DEFINITIONS,
+  PRODUCT_TRACKS,
+  businessRoleOptions,
+  productTrackMatchesValues,
+  type ProductTrack,
+} from "@/lib/customer-scope";
+
+export { PRODUCT_TRACK_DEFINITIONS, PRODUCT_TRACKS } from "@/lib/customer-scope";
+export type { ProductTrack } from "@/lib/customer-scope";
+
+export const RUBRIC_VERSION = "qixin-v1.2";
+export const EXTERNAL_IMPORT_RUBRIC_VERSION = "qixin-v1.2-external-input";
 
 export const SCORE_LIMITS = Object.freeze({
   productMatchScore: 25,
@@ -27,25 +41,10 @@ export type HardGateStatus = "pass" | "fail" | "needs_review";
 export const WORKFLOW_STATUSES = new Set(["discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"]);
 export const REVIEW_DECISIONS = new Set(["needs_review", "approved", "rejected"]);
 export const CAMPAIGN_STATUSES = new Set(["draft", "active", "paused", "completed"]);
-export const PRODUCT_TRACK_DEFINITIONS = Object.freeze({
-  optical_frames: { crm: ["Optical frames"], search: ["optical frames", "eyeglass frames", "spectacle frames"] },
-  sunglasses: { crm: ["Sunglasses"], search: ["sunglasses", "sun eyewear", "fashion sunglasses"] },
-  reading_glasses: { crm: ["Reading glasses"], search: ["reading glasses", "readers eyewear", "ready readers"] },
-  blue_light_glasses: { crm: ["Blue light glasses"], search: ["blue light glasses", "computer glasses", "screen eyewear"] },
-  kids_eyewear: { crm: ["Kids eyewear"], search: ["kids eyewear", "children's glasses", "children's optical frames"] },
-  sports_eyewear: { crm: ["Sports eyewear"], search: ["sports eyewear", "performance sunglasses", "cycling glasses"] },
-  protective_eyewear: { crm: ["Protective eyewear"], search: ["protective eyewear", "safety glasses", "industrial eye protection"] },
-  optical_lenses: { crm: ["Optical lenses"], search: ["optical lenses", "ophthalmic lenses", "prescription lenses"] },
-  // Retained for existing V0/V1 campaigns; new campaigns should use protective_eyewear.
-  safety_lenses: { crm: ["Protective eyewear", "Optical lenses"], search: ["safety lenses", "protective lenses", "industrial eye protection"] },
-});
-
-export type ProductTrack = keyof typeof PRODUCT_TRACK_DEFINITIONS;
-export const PRODUCT_TRACKS = new Set(Object.keys(PRODUCT_TRACK_DEFINITIONS));
 export const CONFIDENCE_LEVELS = new Set(["low", "medium", "high"]);
 export const HARD_GATE_STATUSES = new Set(["pass", "fail", "needs_review"]);
 
-export const DEFAULT_CUSTOMER_TYPES = ["Importer", "Distributor", "Wholesaler", "Eyewear Brand", "Private Label Brand"];
+export const DEFAULT_CUSTOMER_TYPES = businessRoleOptions();
 export const DEFAULT_EXCLUSIONS = [
   "普通单体零售店",
   "医院或眼科诊所",
@@ -53,38 +52,6 @@ export const DEFAULT_EXCLUSIONS = [
   "与眼镜无关的公司",
   "中国供应商或直接竞争工厂",
   "已拒绝、退订或禁止联系",
-];
-
-const COUNTRY_SEARCH_PROFILES: Array<{
-  match: RegExp;
-  market: string;
-  locale: string;
-  types: string[];
-  products: Partial<Record<ProductTrack, string[]>>;
-}> = [
-  { match: /germany|deutschland|\bde\b/i, market: "Deutschland", locale: "de", types: ["Großhändler", "Importeur", "Distributor", "Brillenmarke"], products: {
-    optical_frames: ["Brillenfassungen", "Brillengestelle"], sunglasses: ["Sonnenbrillen"], reading_glasses: ["Lesebrillen"],
-    blue_light_glasses: ["Blaulichtfilterbrillen"], kids_eyewear: ["Kinderbrillen"], sports_eyewear: ["Sportbrillen"],
-    protective_eyewear: ["Schutzbrillen"], optical_lenses: ["Brillengläser", "optische Linsen"], safety_lenses: ["Schutzbrillen", "Sicherheitsgläser"],
-  } },
-  { match: /spain|españa|\bes\b/i, market: "España", locale: "es", types: ["mayorista", "importador", "distribuidor", "marca de gafas"], products: {
-    optical_frames: ["monturas ópticas", "monturas de gafas"], sunglasses: ["gafas de sol"], reading_glasses: ["gafas de lectura"],
-    blue_light_glasses: ["gafas para luz azul"], kids_eyewear: ["gafas infantiles"], sports_eyewear: ["gafas deportivas"],
-    protective_eyewear: ["gafas de seguridad"], optical_lenses: ["lentes oftálmicas", "lentes ópticas"], safety_lenses: ["gafas de seguridad", "lentes protectoras"],
-  } },
-  { match: /poland|polska|\bpl\b/i, market: "Polska", locale: "pl", types: ["hurtownia", "importer", "dystrybutor", "marka okularów"], products: {
-    optical_frames: ["oprawki okularowe"], sunglasses: ["okulary przeciwsłoneczne"], reading_glasses: ["okulary do czytania"],
-    blue_light_glasses: ["okulary blokujące światło niebieskie"], kids_eyewear: ["okulary dziecięce"], sports_eyewear: ["okulary sportowe"],
-    protective_eyewear: ["okulary ochronne"], optical_lenses: ["soczewki okularowe", "soczewki optyczne"], safety_lenses: ["okulary ochronne", "soczewki ochronne"],
-  } },
-  { match: /saudi|uae|emirates|arabia|السعودية|الإمارات/i, market: "الشرق الأوسط", locale: "ar", types: ["مستورد نظارات", "موزع نظارات", "تاجر جملة نظارات"], products: {
-    optical_frames: ["إطارات نظارات طبية"], sunglasses: ["نظارات شمسية"], reading_glasses: ["نظارات قراءة"],
-    blue_light_glasses: ["نظارات حجب الضوء الأزرق"], kids_eyewear: ["نظارات أطفال"], sports_eyewear: ["نظارات رياضية"],
-    protective_eyewear: ["نظارات واقية"], optical_lenses: ["عدسات بصرية", "عدسات طبية"], safety_lenses: ["نظارات واقية", "عدسات حماية"],
-  } },
-  { match: /united kingdom|great britain|england|\buk\b|\bgb\b/i, market: "United Kingdom", locale: "en", types: ["wholesaler", "importer", "distributor", "eyewear brand"], products: Object.fromEntries(
-    Object.entries(PRODUCT_TRACK_DEFINITIONS).map(([track, definition]) => [track, definition.search]),
-  ) as Record<ProductTrack, string[]> },
 ];
 
 export function boundedScore(value: unknown, max: number) {
@@ -135,6 +102,33 @@ export function normalizeWebsite(value: unknown) {
   };
 }
 
+const COMMON_SECOND_LEVEL_SUFFIXES = new Set([
+  "co.uk", "org.uk", "com.au", "com.br", "com.mx", "com.cn", "com.hk", "co.jp", "co.kr", "co.nz", "co.za", "com.sg", "com.my", "com.tr", "com.pl",
+]);
+
+export function registrableDomain(value: unknown) {
+  const hostname = String(value ?? "").trim().toLocaleLowerCase().replace(/^https?:\/\//, "").split(/[/?#]/)[0].replace(/^www\./, "").replace(/:\d+$/, "");
+  const labels = hostname.split(".").filter(Boolean);
+  if (labels.length <= 2) return hostname;
+  const suffix = labels.slice(-2).join(".");
+  return COMMON_SECOND_LEVEL_SUFFIXES.has(suffix) ? labels.slice(-3).join(".") : labels.slice(-2).join(".");
+}
+
+function domainOrganizationKey(value: unknown) {
+  const domain = registrableDomain(value);
+  return domain.split(".")[0]?.replace(/[^a-z0-9]+/g, "") || "";
+}
+
+export function domainsLikelySame(left: unknown, right: unknown) {
+  const leftDomain = registrableDomain(left);
+  const rightDomain = registrableDomain(right);
+  if (!leftDomain || !rightDomain) return false;
+  if (leftDomain === rightDomain) return true;
+  const leftKey = domainOrganizationKey(leftDomain);
+  const rightKey = domainOrganizationKey(rightDomain);
+  return leftKey.length >= 4 && leftKey === rightKey;
+}
+
 export function normalizeSourceUrl(value: unknown) {
   const source = String(value ?? "").trim();
   if (!source) return "";
@@ -159,7 +153,7 @@ export function normalizeCompanyName(value: unknown) {
   return String(value ?? "")
     .normalize("NFKC")
     .toLocaleLowerCase()
-    .replace(/\b(gmbh|ltd|limited|inc|llc|corp|corporation|company|co|sarl|s\.a\.?|b\.v\.?|spa|oy)\b/gi, " ")
+    .replace(/\b(gmbh|ag|kg|ltd|limited|inc|llc|corp|corporation|company|co|sarl|s\.a\.?|b\.v\.?|n\.v\.?|spa|srl|sas|oy|ab|as|aps|pte|pty|plc|sp\.?\s*z\.?\s*o\.?\s*o\.?)\b/gi, " ")
     .replace(/[^\p{L}\p{N}]+/gu, " ")
     .trim();
 }
@@ -176,8 +170,9 @@ export function companyNamesLikelySame(left: unknown, right: unknown) {
 export function identityKey(companyName: unknown, country: unknown, websiteNormalized: string) {
   const name = normalizeCompanyName(companyName);
   const market = String(country ?? "").normalize("NFKC").toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-");
-  return websiteNormalized
-    ? `entity:${websiteNormalized}|${name}`
+  const domain = registrableDomain(websiteNormalized);
+  return domain
+    ? `entity:${domain}|${name}`
     : `entity:${name}|${market}`;
 }
 
@@ -204,12 +199,20 @@ export function safeJsonList(value: unknown, fallback: string[] = []) {
 }
 
 function productSearchTerms(productTrack: string, productTypes: string[]) {
-  if (productTypes.length) return productTypes;
-  return PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.search || ["eyewear"];
+  const scopedProducts = productTypes.filter((product) => productTrackMatchesValues(productTrack, [product]));
+  const defaults = PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.search || ["eyewear"];
+  const seen = new Set<string>();
+  return [...scopedProducts, ...defaults].filter((product) => {
+    const key = product.toLocaleLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function buildSearchKeywords(campaign: {
   productTrack: string;
+  productTracksJson?: string | null;
   targetMarkets?: string | null;
   targetCountriesJson?: string | null;
   productTypesJson?: string | null;
@@ -217,22 +220,34 @@ export function buildSearchKeywords(campaign: {
 }) {
   const countries = safeJsonList(campaign.targetCountriesJson, stringList(campaign.targetMarkets));
   const markets = countries.length ? countries : [campaign.targetMarkets || "target market"];
-  const products = productSearchTerms(campaign.productTrack, safeJsonList(campaign.productTypesJson));
+  const productTracks = safeJsonList(campaign.productTracksJson, [campaign.productTrack]).filter((track) => PRODUCT_TRACKS.has(track));
+  const configuredProducts = safeJsonList(campaign.productTypesJson);
   const customerTypes = safeJsonList(campaign.customerTypesJson, DEFAULT_CUSTOMER_TYPES);
+  const roleDefinitions = Object.values(BUSINESS_ROLE_DEFINITIONS).filter((definition) => customerTypes.some((value) =>
+    value.toLocaleLowerCase() === definition.label.toLocaleLowerCase()
+    || definition.patterns.some((pattern) => pattern.test(value))));
+  const englishRoles = (roleDefinitions.length ? roleDefinitions : Object.values(BUSINESS_ROLE_DEFINITIONS))
+    .flatMap((definition) => definition.search.slice(0, 1));
   const terms: Array<{ keyword: string; locale: string; purpose: string }> = [];
   for (const market of markets.slice(0, 5)) {
-    const profile = COUNTRY_SEARCH_PROFILES.find((item) => item.match.test(market));
+    const profile = MARKET_SEARCH_PROFILES.find((item) => item.match.test(market));
     const localMarket = profile?.market || market;
-    const localTypes = profile?.types || customerTypes;
-    const localProducts = profile?.products[campaign.productTrack as ProductTrack] || products;
+    const localTypes = profile?.roles || englishRoles;
     const locale = profile?.locale || "en";
-    for (const product of products.slice(0, 3)) {
-      for (const type of customerTypes.slice(0, 3)) {
-        terms.push({ keyword: `${product} ${type} ${market}`.trim(), locale: "en", purpose: "English discovery" });
+    for (const track of productTracks) {
+      const products = productSearchTerms(track, configuredProducts).slice(0, track === "eyewear_accessories" ? 4 : 2);
+      const localProducts = profile?.products[track as ProductTrack] || products;
+      for (const product of products) {
+        for (const type of englishRoles.slice(0, 4)) {
+          terms.push({ keyword: `${product} ${type} ${market}`.trim(), locale: "en", purpose: "English discovery" });
+        }
+      }
+      for (const product of localProducts.slice(0, 3)) {
+        for (const type of localTypes.slice(0, 4)) terms.push({ keyword: `${product} ${type} ${localMarket}`.trim(), locale, purpose: locale === "en" ? "Local-market discovery" : "Local-language discovery" });
       }
     }
-    for (const product of localProducts.slice(0, 3)) {
-      for (const type of localTypes.slice(0, 3)) terms.push({ keyword: `${product} ${type} ${localMarket}`.trim(), locale, purpose: locale === "en" ? "Local-market discovery" : "Local-language discovery" });
+    for (const phrase of ["private label eyewear buyer", "private label eyewear brand", "optical retail chain purchasing", "eyewear buying group"]) {
+      terms.push({ keyword: `${phrase} ${market}`.trim(), locale: "en", purpose: "Buyer-role discovery" });
     }
   }
   const seen = new Set<string>();
@@ -241,7 +256,7 @@ export function buildSearchKeywords(campaign: {
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  }).slice(0, 24);
+  }).slice(0, 36);
 }
 
 export function researchBrief(campaign: Parameters<typeof buildSearchKeywords>[0] & { name: string; exclusionsJson?: string | null }) {
@@ -250,25 +265,31 @@ export function researchBrief(campaign: Parameters<typeof buildSearchKeywords>[0
   return [
     `# ${campaign.name} — Codex 小批量研究任务`,
     "",
-    "目标：只研究 20–30 家可核验的 B2B 眼镜公司；保存来源，不猜测事实，不访问个人联系方式，不发送消息。",
+    "目标：只研究 20–30 家可核验的广义眼镜与普通非电子配件 B2B 买家；保存来源，不猜测事实，不访问个人联系方式，不发送消息。",
+    "候选可覆盖镜架、成镜、镜片、眼镜盒/袋、鼻托、镜腿、铰链/螺丝、眼镜绳/链、清洁用品及其他有官网证据的非电子眼镜配件。",
     "",
     "## 搜索词",
     ...keywords.map((item) => `- [${item.locale}] ${item.keyword}`),
     "",
     "## 强制排除",
     ...exclusions.map((item) => `- ${item}`),
+    "- 隐形眼镜专营；AI、智能、AR、VR、显示、摄像、计算、联网等电子眼镜专营；与眼镜无关的产品。",
+    "- 只有 manufacturer/factory/OEM/ODM 身份且没有独立采购、进口、批发、分销或品牌采购证据的工厂。",
+    "- 搜索摘要、个人资料、私密内容或未核验社媒页只能发现候选，不能作为准入证据。",
     "",
     "## 每家公司必须交付",
-    "- 公司名称、官网、国家/城市、公司类型、B2B/B2C、产品与品牌。",
+    "- 公司名称、官网、国家/城市、一个或多个 B2B 商业角色、一个或多个允许产品方向与品牌关系。",
     "- 每个重要判断对应的 Source URL、Source Type、Retrieved Time、Evidence Summary、Confidence。",
     "- observed / inferred / unknown 必须分开；没有证据的字段保持为空或 unknown。",
-    "- 按 qixin-v1.1 评分并给出每个维度的加分理由、扣分理由和证据。",
-    "- 只生成结构化 JSON/CSV；不要写 CRM，不要发送邮件。",
+    "- 优先核验 About/Company、Wholesale/Trade、Distributor/Importer、Products/Collections、Private Label/OEM 与 Contact；不要用导航、页脚、博客或第三方品牌列表的偶然词命中代替核心业务证据。",
+    "- 按 qixin-v1.2 七维评分并给出每个维度的正面或负面理由；不知道 MOQ、采购量或规模时保持 unknown，不得抬分。",
+    "- 外部 hardGateStatus、评分和覆盖率只作为审计输入；统一写入 needs_review，必须由 Lead Engine 服务器重新核验后才可能批准。",
+    "- 只生成结构化 JSON/CSV；不要写 CRM，不要发送邮件，不要把公司同时匹配多个产品或 Campaign 计算为多个唯一客户。",
   ].join("\n");
 }
 
 export function crmProductInterests(productTrack: string) {
-  return PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.crm || [];
+  return [...(PRODUCT_TRACK_DEFINITIONS[productTrack as ProductTrack]?.crm || [])];
 }
 
 export function csvCell(value: unknown) {

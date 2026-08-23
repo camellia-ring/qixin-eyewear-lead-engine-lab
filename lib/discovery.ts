@@ -1,4 +1,11 @@
 import { canonicalSourceUrl, normalizeCompanyName } from "@/lib/lead-engine";
+import {
+  B2B_LEXICAL_TERMS,
+  classifyBusinessRoles,
+  EYEWEAR_LEXICAL_TERMS,
+  INTERNAL_EVIDENCE_PAGE_TERMS,
+  PRODUCT_LEXICAL_TERMS,
+} from "@/lib/customer-scope";
 
 const BLOCKED_HOSTS = new Set(["localhost", "localhost.localdomain", "metadata.google.internal"]);
 const BLOCKED_SUFFIXES = [".local", ".internal", ".localhost", ".test", ".invalid", ".example"];
@@ -12,26 +19,6 @@ const GENERIC_EMAIL_PREFIXES = new Set([
   "info", "sales", "contact", "office", "wholesale", "trade", "orders", "hello", "support",
   "enquiries", "inquiries", "export", "commercial", "business", "marketing", "international",
 ]);
-const EYEWEAR_TERMS = [
-  "eyewear", "eyeglass", "eyeglasses", "spectacle", "spectacles", "optical frame", "optical frames",
-  "sunglass", "sunglasses", "reading glasses", "ophthalmic lens", "optical lens", "safety glasses",
-  "prescription lens", "progressive lens", "photochromic", "blue light", "polycarbonate lens",
-  "brillen", "sonnenbrillen", "lunettes", "montures", "gafas", "monturas", "occhiali", "okulary",
-];
-const PRODUCT_TERMS = [
-  "optical lens", "ophthalmic lens", "prescription lens", "single vision", "aspheric", "blue light",
-  "blue-light", "photochromic", "progressive lens", "varifocal", "polycarbonate", "safety lens",
-  "protective lens", "reading glasses", "readers", "optical frame", "sunglasses",
-];
-const B2B_TERMS = [
-  "wholesale", "wholesaler", "distributor", "distribution", "importer", "trade customer", "trade account",
-  "stockist", "retailer login", "b2b", "private label", "white label", "oem", "odm", "bulk order",
-  "grosshandel", "großhandel", "distributeur", "mayorista", "distribuidor", "hurtownia", "dystrybutor",
-];
-const INTERNAL_PAGE_TERMS = [
-  "about", "company", "products", "collections", "eyewear", "glasses", "frames", "wholesale", "trade",
-  "distributor", "stockist", "contact", "brands", "private-label", "oem",
-];
 const MAX_HTML_BYTES = 2_000_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
@@ -56,7 +43,7 @@ export type DiscoveryCandidate = {
   directoryCountry?: string;
   officialContacts?: PublicBusinessContact[];
 };
-export type PublicPage = { url: string; title: string; html: string; text: string };
+export type PublicPage = { url: string; title: string; html: string; text: string; classificationText?: string };
 export type SiteEvidence = {
   companyName: string;
   country: string;
@@ -170,6 +157,13 @@ export function extractDirectoryCandidates(html: string, sourceUrl: string, limi
     }
   }
   return candidates.slice(safeOffset, safeOffset + safeLimit);
+}
+
+function classificationText(html: string) {
+  const main = html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i)?.[1] || html;
+  return plainText(main
+    .replace(/<(nav|footer|header|aside)\b[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<(article|section|div)\b[^>]*(?:class|id)\s*=\s*["'][^"']*(?:blog|news|press|related-post)[^"']*["'][^>]*>[\s\S]*?<\/\1>/gi, " "));
 }
 
 export function extractExhibitorCardCandidates(html: string, sourceUrl: string, limit = 20, offset = 0) {
@@ -588,7 +582,13 @@ export async function fetchPublicHtml(urlValue: string, checkRobots = true): Pro
   if (!result.response.ok) throw new Error(`页面返回 HTTP ${result.response.status}`);
   const contentType = result.response.headers.get("content-type") || "";
   if (!/text\/html|application\/xhtml\+xml/i.test(contentType)) throw new Error("目标不是 HTML 页面");
-  return { url: canonicalSourceUrl(result.finalUrl), title: titleFromHtml(result.body), html: result.body, text: plainText(result.body).slice(0, 200_000) };
+  return {
+    url: canonicalSourceUrl(result.finalUrl),
+    title: titleFromHtml(result.body),
+    html: result.body,
+    text: plainText(result.body).slice(0, 200_000),
+    classificationText: classificationText(result.body).slice(0, 160_000),
+  };
 }
 
 export async function fetchPublicJson(urlValue: string, request: TextRequestOptions = {}) {
@@ -685,7 +685,7 @@ function internalPageLinks(page: PublicPage, max = 3) {
       const canonical = canonicalSourceUrl(url.toString());
       if (canonical === page.url || seen.has(canonical)) continue;
       const context = `${url.pathname} ${plainText(match[2])}`.toLocaleLowerCase();
-      const score = INTERNAL_PAGE_TERMS.reduce((sum, term) => sum + (context.includes(term) ? 1 : 0), 0);
+      const score = INTERNAL_EVIDENCE_PAGE_TERMS.reduce((sum, term) => sum + (context.includes(term) ? 1 : 0), 0);
       if (!score) continue;
       seen.add(canonical);
       links.push({ score, url: canonical });
@@ -699,15 +699,6 @@ function internalPageLinks(page: PublicPage, max = 3) {
 function structuredCountry(html: string) {
   const match = html.match(/["']addressCountry["']\s*:\s*(?:\{[^}]*["']name["']\s*:\s*)?["']([^"']{2,80})["']/i);
   return decodeHtml(match?.[1] || "").trim();
-}
-
-function inferredCompanyType(b2bTerms: string[]) {
-  const joined = b2bTerms.join(" ").toLocaleLowerCase();
-  if (/private label|white label|oem|odm/.test(joined)) return "Private Label / OEM Eyewear Company";
-  if (/wholesale|wholesaler|grosshandel|großhandel|mayorista|hurtownia/.test(joined)) return "Eyewear Wholesaler";
-  if (/distributor|distribution|distributeur|distribuidor|dystrybutor/.test(joined)) return "Eyewear Distributor";
-  if (/importer/.test(joined)) return "Eyewear Importer";
-  return "Eyewear Company — type needs review";
 }
 
 function companyNameFrom(page: PublicPage, fallback: string) {
@@ -725,17 +716,20 @@ export async function collectSiteEvidence(candidate: DiscoveryCandidate): Promis
     try { return await fetchPublicHtml(url); } catch { return null; }
   }));
   pages.push(...supportingPages.filter((page): page is PublicPage => Boolean(page)));
-  const combined = pages.map((page) => page.text).join("\n");
-  const eyewearTerms = uniqueMatches(combined, EYEWEAR_TERMS);
-  const b2bTerms = uniqueMatches(combined, B2B_TERMS);
-  const productTerms = uniqueMatches(combined, PRODUCT_TERMS);
+  const combined = pages.map((page) => page.classificationText || page.text).join("\n");
+  const eyewearTerms = uniqueMatches(combined, EYEWEAR_LEXICAL_TERMS);
+  const b2bTerms = uniqueMatches(combined, B2B_LEXICAL_TERMS);
+  const productTerms = uniqueMatches(combined, PRODUCT_LEXICAL_TERMS);
   const contacts = [...pages.flatMap((page) => pageContacts(page, normalizedDomain(homepage.url))), ...(candidate.officialContacts || [])];
   const email = contacts.find((contact) => contact.type === "email" && contact.status === "valid");
   const channel = contacts.find((contact) => ["form", "contact_page", "phone"].includes(contact.type) && contact.status === "valid");
+  const companyName = companyNameFrom(homepage, candidate.label || candidate.normalizedDomain);
+  const country = pages.map((page) => structuredCountry(page.html)).find(Boolean) || candidate.directoryCountry || "";
+  const roles = classifyBusinessRoles({ companyName, country, companyType: "", eyewearTerms, b2bTerms, productTerms, pages });
   return {
-    companyName: companyNameFrom(homepage, candidate.label || candidate.normalizedDomain),
-    country: pages.map((page) => structuredCountry(page.html)).find(Boolean) || candidate.directoryCountry || "",
-    companyType: inferredCompanyType(b2bTerms),
+    companyName,
+    country,
+    companyType: roles.map((role) => role.value).join(" / ") || "Eyewear Company — type needs review",
     businessEmail: email?.value || "",
     contactChannel: channel ? `${channel.type}: ${channel.value}` : "",
     eyewearTerms,
@@ -743,31 +737,5 @@ export async function collectSiteEvidence(candidate: DiscoveryCandidate): Promis
     productTerms,
     contacts,
     pages,
-  };
-}
-
-export function deterministicScore(evidence: SiteEvidence) {
-  const productMatchScore = Math.min(22, evidence.eyewearTerms.length >= 4 ? 22 : evidence.eyewearTerms.length >= 2 ? 18 : 14);
-  const customerTypeScore = evidence.b2bTerms.length >= 3 ? 18 : evidence.b2bTerms.length ? 16 : 6;
-  const purchasingSignalsScore = evidence.b2bTerms.length >= 3 ? 10 : evidence.b2bTerms.length ? 7 : 0;
-  const marketMoqFitScore = evidence.country ? 3 : 0;
-  const contactabilityScore = evidence.businessEmail ? 8 : evidence.contactChannel ? 6 : 0;
-  const accountPotentialScore = evidence.b2bTerms.length ? 6 : 2;
-  const dataQualityScore = evidence.pages.length >= 3 ? 5 : evidence.pages.length === 2 ? 4 : 3;
-  const evidenceCoverage = Math.min(82, 30 + evidence.pages.length * 8 + (evidence.b2bTerms.length ? 10 : 0) + (evidence.businessEmail || evidence.contactChannel ? 10 : 0));
-  return {
-    productMatchScore, customerTypeScore, purchasingSignalsScore, marketMoqFitScore, contactabilityScore, accountPotentialScore, dataQualityScore,
-    evidenceCoverage,
-    scoreConfidence: evidence.pages.length >= 2 ? "medium" : "low",
-    hardGateStatus: "needs_review",
-    reasons: {
-      productMatchScore: [`官网观察到眼镜相关词：${evidence.eyewearTerms.slice(0, 6).join("、")}`, "尚未人工确认具体采购品类"],
-      customerTypeScore: [evidence.b2bTerms.length ? `官网观察到 B2B 词：${evidence.b2bTerms.slice(0, 5).join("、")}` : "官网可确认从事眼镜业务", "客户类型仍需人工确认"],
-      purchasingSignalsScore: [evidence.b2bTerms.length ? "官网存在批发、分销或贸易信号" : "", "未观察到明确近期采购项目"],
-      marketMoqFitScore: [evidence.country ? `结构化地址国家：${evidence.country}` : "", "MOQ、采购权和供应商关系未知"],
-      contactabilityScore: [evidence.businessEmail ? "官网公开通用业务邮箱" : evidence.contactChannel ? "官网公开联系页面" : "", "未采集个人联系人"],
-      accountPotentialScore: [evidence.b2bTerms.length ? "官网存在渠道业务信号" : "眼镜业务主体", "采购规模未知"],
-      dataQualityScore: [`已采集 ${evidence.pages.length} 个官网页面`, "仅限公开网页，仍需人工复核"],
-    } as Record<string, [string, string]>,
   };
 }

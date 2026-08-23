@@ -48,16 +48,17 @@ test("keeps automated discoveries behind human approval with paid providers defa
     readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
   ]);
 
-  assert.match(runner, /qualification\.qualified \? "needs_review"/);
+  assert.match(runner, /qualification\.candidateForReview \? "needs_review"/);
   assert.match(runner, /hardGateStatus: qualification\.hardGateStatus/);
-  assert.match(runner, /modelIdentifier: "deterministic_public_rules_v2"/);
+  assert.match(runner, /modelIdentifier: "deterministic_public_rules_v3"/);
   assert.doesNotMatch(runner, /workflowStatus: "approved"/);
   assert.doesNotMatch(runner, /prospectContacts|contactName|fullName/);
   assert.doesNotMatch(`${runner}\n${discovery}`, /emailjs|sendgrid|smtp|sendMail/i);
   assert.match(provider, /enablePaidProviders === "true"/);
   assert.match(provider, /if \(!explicitlyEnabled \|\| !config\.openAiApiKey \|\| !config\.openAiDiscoveryModel\)/);
   assert.match(reviewRoute, /decision === "approved"/);
-  assert.match(reviewRoute, /hard_gate_not_passed/);
+  assert.match(reviewRoute, /approvalPolicyGaps/);
+  assert.match(reviewRoute, /isCurrentServerVerification/);
   assert.match(agents, /paid, authenticated, personal-contact, or credit-consuming providers require explicit owner approval/i);
   assert.match(agents, /Do not add personal-contact enrichment, guessed emails, email generation or sending/);
 });

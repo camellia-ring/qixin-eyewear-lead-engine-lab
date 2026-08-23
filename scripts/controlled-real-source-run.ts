@@ -1,11 +1,11 @@
 import {
   collectSiteEvidence,
-  deterministicScore,
   extractDirectoryCandidates,
   fetchPublicHtml,
   parseDirectoryCandidates,
   type DiscoveryCandidate,
 } from "../lib/discovery";
+import { deterministicScore } from "../lib/lead-scoring";
 import { calculateScore } from "../lib/lead-engine";
 import { qualifyEvidence } from "../lib/qualification";
 

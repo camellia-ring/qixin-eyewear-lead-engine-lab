@@ -11,7 +11,10 @@ import {
   robotsAllows,
 } from "../lib/discovery.ts";
 import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts, sourceRepeatsDuringDay } from "../lib/engine-policy.ts";
-import { qualifyEvidence } from "../lib/qualification.ts";
+import { approvalPolicyGaps, qualifyEvidence } from "../lib/qualification.ts";
+import { deterministicScore } from "../lib/lead-scoring.ts";
+import { importedLeadPendingVerification, isCurrentServerVerification } from "../lib/import-policy.ts";
+import { buildSearchKeywords } from "../lib/lead-engine.ts";
 import { campaignMatchesCompany, normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
 import { campaignStrategyName } from "../lib/campaign-strategy.ts";
 
@@ -45,8 +48,8 @@ test("only a verified target company with public business contact passes the aut
   });
   assert.equal(result.qualified, true);
   assert.equal(result.hardGateStatus, "pass");
-  assert.equal(result.customerType, "光学镜片批发商");
-  assert.deepEqual(result.customerTypes, ["光学镜片批发商", "眼镜分销商"]);
+  assert.equal(result.customerType, "批发商");
+  assert.deepEqual(result.customerTypes, ["批发商", "分销商"]);
   assert.equal(result.validContact.type, "email");
 });
 
@@ -56,6 +59,155 @@ test("duplicates, missing contacts, non-targets and search-only hints never qual
   assert.equal(qualifyEvidence({ evidence: evidence({ contacts: [], businessEmail: "", contactChannel: "" }), ...base }).qualified, false);
   assert.equal(qualifyEvidence({ evidence: evidence({ b2bTerms: [], companyType: "Eyewear media", pages: [{ url: "https://media.example.org", title: "News", html: "", text: "Eyewear news magazine" }] }), ...base }).qualified, false);
   assert.equal(qualifyEvidence({ evidence: evidence(), ...base, searchResultOnly: true }).qualified, false);
+});
+
+function evidenceFromText(text, overrides = {}) {
+  return evidence({
+    companyName: "Test Company",
+    companyType: "",
+    eyewearTerms: ["eyewear"],
+    b2bTerms: [],
+    productTerms: [],
+    pages: [{ url: "https://northstar-optical.com/about", title: "Company", html: "", text }],
+    ...overrides,
+  });
+}
+
+function qualifyText(text, overrides = {}) {
+  return qualifyEvidence({
+    evidence: evidenceFromText(text, overrides),
+    score: 72,
+    evidenceCoverage: 70,
+    officialWebsiteVerified: true,
+    sourceIsOfficial: true,
+  });
+}
+
+test("broad eyewear buyers qualify by independent B2B role and product evidence", () => {
+  const cases = [
+    ["We are a distributor of optical frames for independent opticians.", "分销商", "光学镜架"],
+    ["Wholesale supplier of spectacle cases and eyewear pouches to optical stores.", "批发商", "眼镜盒/袋"],
+    ["Importer of nose pads and optical frame components for trade customers.", "进口商", "鼻托"],
+    ["Eyewear accessories distributor serving optical practices nationwide.", "分销商", "其他非电子眼镜配件"],
+    ["Our eyewear brand sources our optical frames from an OEM factory through our procurement team.", "眼镜或配件品牌商", "光学镜架"],
+    ["Optical retail chain with centralized purchasing for sunglasses across 80 stores.", "连锁零售集中采购方", "太阳镜"],
+  ];
+  for (const [text, role, product] of cases) {
+    const result = qualifyText(text);
+    assert.equal(result.qualified, true, text);
+    assert.ok(result.customerTypes.includes(role), `${text} -> ${role}`);
+    assert.ok(result.productDirections.includes(product), `${text} -> ${product}`);
+  }
+});
+
+test("mixed conventional and smart eyewear keeps independently evidenced allowed business", () => {
+  const result = qualifyText("We distribute optical frames to trade accounts. A separate innovation division also develops smart glasses.");
+  assert.equal(result.qualified, true);
+  assert.ok(result.productDirections.includes("光学镜架"));
+  assert.ok(result.prohibitedProducts.includes("AI/智能眼镜"));
+  assert.match(result.reasons.join(" "), /禁止产品不计分/);
+});
+
+test("the 55 percent evidence threshold is shared by qualification semantics", () => {
+  const input = { evidence: evidenceFromText("Wholesale distributor of optical frames for trade accounts."), score: 72, officialWebsiteVerified: true, sourceIsOfficial: true };
+  assert.equal(qualifyEvidence({ ...input, evidenceCoverage: 54 }).qualified, false);
+  assert.equal(qualifyEvidence({ ...input, evidenceCoverage: 55 }).qualified, true);
+});
+
+test("external pass and scores remain audit input until current server verification", () => {
+  const imported = importedLeadPendingVerification({
+    hardGateStatus: "pass",
+    score: 99,
+    evidenceCoverage: 100,
+    hardGateReason: "forged pass",
+  });
+  assert.equal(imported.workflowStatus, "needs_review");
+  assert.equal(imported.hardGateStatus, "needs_review");
+  assert.equal(imported.currentScore, 0);
+  assert.equal(imported.evidenceCoverage, 0);
+  assert.equal(isCurrentServerVerification({ rubricVersion: "qixin-v1.2-external-input", modelIdentifier: "external_input:forged" }), false);
+  assert.equal(isCurrentServerVerification({ rubricVersion: "qixin-v1.2", modelIdentifier: "deterministic_public_rules_v3_reverification" }), true);
+
+  const base = {
+    campaignAssigned: true,
+    hardGateStatus: "pass",
+    score: 60,
+    scoreConfidence: "medium",
+    doNotContact: false,
+    sourceCount: 1,
+    contactPresent: true,
+    scoreDimensionCount: 7,
+    expectedScoreDimensionCount: 7,
+    serverVerified: true,
+  };
+  assert.ok(approvalPolicyGaps({ ...base, evidenceCoverage: 54 }).some((gap) => gap.includes("55%")));
+  assert.equal(approvalPolicyGaps({ ...base, evidenceCoverage: 55 }).length, 0);
+});
+
+test("prohibited specialists and excluded organizations never pass", () => {
+  const cases = [
+    "Wholesale contact lenses specialist for opticians.",
+    "Distributor dedicated exclusively to AI glasses and AR glasses.",
+    "Manufacturer factory of optical frames with OEM production only.",
+    "Single optical store serving individual consumers with optical frames.",
+    "Optometry clinic and hospital selling reading glasses to patients only.",
+    "Marketplace and contact database listing eyewear wholesalers.",
+  ];
+  for (const text of cases) assert.equal(qualifyText(text).qualified, false, text);
+  assert.equal(qualifyText("Manufacturer and distributor of optical frames from our factory.", { country: "China" }).qualified, false);
+});
+
+test("missing contact, search-only evidence and duplicates remain hard failures", () => {
+  const text = "Wholesale distributor of optical frames for trade accounts.";
+  const noContact = evidenceFromText(text, { contacts: [], businessEmail: "", contactChannel: "" });
+  const base = { score: 72, evidenceCoverage: 70, officialWebsiteVerified: true, sourceIsOfficial: true };
+  assert.equal(qualifyEvidence({ evidence: noContact, ...base }).qualified, false);
+  assert.equal(qualifyEvidence({ evidence: evidenceFromText(text), ...base, searchResultOnly: true }).qualified, false);
+  assert.equal(qualifyEvidence({ evidence: evidenceFromText(text), ...base, duplicate: true }).qualified, false);
+});
+
+test("multilingual role and product synonyms classify without English-only counting", () => {
+  const cases = [
+    ["Großhändler für Brillenfassungen und Fachoptiker.", "批发商", "光学镜架"],
+    ["Importador de plaquetas nasales y monturas ópticas para clientes profesionales.", "进口商", "鼻托"],
+    ["Dystrybutor futerałów na okulary dla salonów optycznych.", "分销商", "眼镜盒/袋"],
+  ];
+  for (const [text, role, product] of cases) {
+    const result = qualifyText(text);
+    assert.ok(result.customerTypes.includes(role), text);
+    assert.ok(result.productDirections.includes(product), text);
+  }
+});
+
+test("negation and navigation or blog noise do not create false classifications", () => {
+  const negated = qualifyText("We are not a manufacturer. We distribute optical frames to trade accounts.");
+  assert.equal(negated.qualified, true);
+  const noisyPage = evidenceFromText("Navigation: smart glasses. Blog: contact lenses. Main business: wholesale optical frames for trade accounts.", {
+    pages: [{
+      url: "https://northstar-optical.com/about", title: "About", html: "", text: "Navigation: smart glasses. Blog: contact lenses. Main business: wholesale optical frames for trade accounts.",
+      classificationText: "Main business: wholesale optical frames for trade accounts.",
+    }],
+  });
+  const result = qualifyEvidence({ evidence: noisyPage, score: 72, evidenceCoverage: 70, officialWebsiteVerified: true, sourceIsOfficial: true });
+  assert.equal(result.qualified, true);
+  assert.deepEqual(result.prohibitedProducts, []);
+});
+
+test("qixin-v1.2 scoring rewards evidence strength and never guesses MOQ", () => {
+  const strong = evidenceFromText("Wholesale distributor with a trade account and centralized purchasing for optical frames across locations nationwide.", {
+    country: "Germany",
+    pages: [
+      { url: "https://northstar-optical.com/about", title: "About", html: "", text: "Wholesale distributor of optical frames across locations nationwide." },
+      { url: "https://northstar-optical.com/trade", title: "Trade", html: "", text: "Trade account and centralized purchasing for optical frames." },
+      { url: "https://northstar-optical.com/contact", title: "Contact", html: "", text: "Business contact for wholesale customers." },
+    ],
+  });
+  const score = deterministicScore(strong);
+  assert.ok(score.productMatchScore >= 20);
+  assert.ok(score.customerTypeScore >= 17);
+  assert.ok(score.evidenceCoverage >= 55);
+  assert.match(score.reasons.marketMoqFitScore[1], /MOQ.*未知|未对未披露/);
+  for (const reasons of Object.values(score.reasons)) assert.ok(reasons[0] || reasons[1]);
 });
 
 test("daily counters count qualified companies independently from duplicates and failures", () => {
@@ -70,6 +222,20 @@ test("Asia/Shanghai date boundary and source fallback are deterministic", () => 
   const sources = [{ id: "a" }, { id: "b" }, { id: "c" }];
   assert.equal(chooseNextSource(sources, ["a"]).id, "b");
   assert.equal(chooseNextSource(sources, ["a", "b", "c"]), null);
+});
+
+test("accessories research terms cover component buyers and local-language discovery", () => {
+  const terms = buildSearchKeywords({
+    productTrack: "eyewear_accessories",
+    productTracksJson: '["eyewear_accessories"]',
+    targetCountriesJson: '["Germany"]',
+    productTypesJson: '["Eyewear accessories"]',
+    customerTypesJson: '["批发商","分销商","进口商"]',
+  });
+  const keywords = terms.map((item) => item.keyword).join("\n");
+  for (const phrase of ["eyewear accessories", "spectacle cases", "nose pads", "eyewear components", "private label eyewear buyer", "private label eyewear brand", "Brillenzubehör"]) {
+    assert.match(keywords, new RegExp(phrase, "i"));
+  }
 });
 
 test("global discovery routes by verified country, customer type and product evidence", () => {
@@ -107,18 +273,19 @@ test("multi-product companies appear in every matching regional Campaign and use
   const campaigns = [
     { ...base, id: "uae-sun", name: "中东太阳镜", productTrack: "sunglasses", productTracksJson: '["sunglasses"]', productTypesJson: '["Sunglasses"]', strategyPriority: 100 },
     { ...base, id: "uae-lens", name: "中东镜片", productTrack: "optical_lenses", productTracksJson: '["optical_lenses"]', productTypesJson: '["Optical lenses"]', strategyPriority: 50 },
+    { ...base, id: "uae-accessories", name: "中东配件", productTrack: "eyewear_accessories", productTracksJson: '["eyewear_accessories"]', productTypesJson: '["Eyewear accessories"]', strategyPriority: 40 },
   ];
   const uaeEvidence = evidence({
     country: "UAE", companyType: "Eyewear Distributor",
     eyewearTerms: ["sunglasses", "optical lens"], productTerms: ["sunglasses", "progressive lens"],
   });
   assert.deepEqual(
-    routeCampaigns(campaigns, uaeEvidence, "眼镜分销商", ["太阳镜", "渐进镜片"]).map((campaign) => campaign.id),
-    ["uae-sun", "uae-lens"],
+    routeCampaigns(campaigns, uaeEvidence, ["分销商", "进口商"], ["太阳镜", "渐进镜片", "眼镜盒/袋"]).map((campaign) => campaign.id),
+    ["uae-sun", "uae-lens", "uae-accessories"],
   );
   const storedCompany = {
     country: "United Arab Emirates", customerType: "眼镜分销商", customerTypesJson: '["眼镜分销商"]',
-    productDirectionsJson: '["太阳镜","渐进镜片"]', productsJson: "[]",
+    productDirectionsJson: '["太阳镜","渐进镜片","眼镜盒/袋"]', productsJson: "[]",
   };
   assert.ok(campaigns.every((campaign) => campaignMatchesCompany(campaign, storedCompany)));
 });

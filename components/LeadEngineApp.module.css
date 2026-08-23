@@ -184,10 +184,22 @@
 .contextPicker select { min-width: min(360px, 42vw); min-height: 42px; padding: 0 34px 0 12px; border: 1px solid #cfd5dc; border-radius: 7px; background: #fff; color: #344150; font-size: 14px; }
 .reviewScopeBar { margin-top: 16px; padding: 12px 14px; display: grid; grid-template-columns: auto repeat(4, minmax(130px, 1fr)) auto; align-items: end; gap: 10px; border: 1px solid #dce2e8; border-radius: 9px; background: #f8fafc; }
 .reviewScopeBar > span { align-self: center; color: #344252; font-size: 13px; font-weight: 800; }
-.reviewScopeBar label { min-width: 0; display: grid; gap: 5px; }
-.reviewScopeBar small { color: #788493; font-size: 10px; font-weight: 700; }
-.reviewScopeBar select { width: 100%; min-width: 0; min-height: 42px; padding: 0 30px 0 10px; border: 1px solid #cfd6de; border-radius: 7px; background: #fff; color: #344150; font-size: 13px; }
+.reviewScopeBar > label { min-width: 0; display: grid; gap: 5px; }
+.reviewScopeBar > label small { color: #788493; font-size: 10px; font-weight: 700; }
+.reviewScopeBar > label select { width: 100%; min-width: 0; min-height: 42px; padding: 0 30px 0 10px; border: 1px solid #cfd6de; border-radius: 7px; background: #fff; color: #344150; font-size: 13px; }
 .reviewScopeBar > b { align-self: center; color: var(--blue); font-size: 13px; white-space: nowrap; }
+.scopeMultiFilter { position: relative; min-width: 0; }
+.scopeMultiFilter > summary { min-height: 42px; padding: 6px 10px; display: grid; align-content: center; gap: 3px; border: 1px solid #cfd6de; border-radius: 7px; background: #fff; cursor: pointer; list-style: none; }
+.scopeMultiFilter > summary::-webkit-details-marker { display: none; }
+.scopeMultiFilter > summary small { color: #788493; font-size: 10px; font-weight: 700; }
+.scopeMultiFilter > summary span { overflow: hidden; color: #344150; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.scopeMultiFilter[open] > summary { border-color: #73a5eb; box-shadow: 0 0 0 2px #e5f0ff; }
+.scopeMultiPanel { position: absolute; z-index: 20; top: calc(100% + 6px); right: 0; width: min(360px, calc(100vw - 32px)); max-height: 320px; padding: 12px; overflow: auto; border: 1px solid #cfd6de; border-radius: 9px; background: #fff; box-shadow: 0 14px 32px #25364f24; }
+.scopeMultiActions { margin-bottom: 9px; display: flex; gap: 8px; }
+.scopeMultiActions button { min-height: 32px; padding: 0 11px; border: 1px solid #cbd4df; border-radius: 6px; background: #fff; color: #526171; cursor: pointer; font-size: 12px; }
+.scopeMultiOptions { display: grid; gap: 6px; }
+.scopeMultiOptions label { min-height: 36px; padding: 7px 9px; display: flex; align-items: center; gap: 8px; border: 1px solid #e1e6ec; border-radius: 7px; color: #435162; cursor: pointer; font-size: 12px; }
+.scopeMultiOptions label[data-selected="true"] { border-color: #83ace8; background: #eef5ff; color: var(--blue); }
 .reviewStatusTabs { display: none; }
 .sectionKicker { color: #8290a2; font-size: 11px; font-weight: 800; letter-spacing: .13em; }
 .reviewHeader h1, .toolHeader h1 { margin: 5px 0 0; font-size: 28px; line-height: 1.2; letter-spacing: -.03em; }
@@ -433,6 +445,11 @@
 .fileField input { width: 100%; font-size: 13px; }
 .fileField input::file-selector-button { min-height: 38px; margin-right: 10px; padding: 0 13px; border: 1px solid #b8c0c9; border-radius: 6px; background: #fff; color: #42505e; cursor: pointer; }
 .importReport { margin-top: 14px; padding: 13px; display: grid; gap: 6px; border-radius: 7px; background: #eef7f1; color: #356147; font-size: 13px; }
+.dryRunReport { margin-top: 16px; display: grid; gap: 14px; }
+.dryRunColumns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dryRunColumns article { padding: 12px; border: 1px solid #e0e5eb; border-radius: 7px; background: #fff; }
+.dryRunColumns b { color: #344252; font-size: 12px; }
+.dryRunColumns p { margin: 7px 0 0; color: #667382; font-size: 12px; line-height: 1.6; }
 .auditList article { padding: 12px 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid #e6e9ed; }
 .auditList article:last-child { border-bottom: 0; }
 .auditList article > div { min-width: 0; display: grid; gap: 4px; }
@@ -577,6 +594,7 @@
   .drawer { position: fixed; z-index: 10; top: 100px; right: 0; bottom: 0; width: min(420px, calc(100vw - 82px)); box-shadow: -18px 0 45px rgba(28, 40, 56, .12); }
   .toolWorkspace { grid-column: 2; }
   .toolGrid, .researchLayout { grid-template-columns: 1fr; }
+  .dryRunColumns { grid-template-columns: 1fr; }
   .engineControl { align-items: flex-start; flex-direction: column; }
   .engineMetrics, .engineTimeline { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .runMetrics { grid-template-columns: repeat(3, minmax(75px, 1fr)); }
@@ -605,7 +623,8 @@
   .reviewHeader h1 { margin-top: 0; font-size: 23px; }
   .reviewScopeBar { margin-top: 12px; padding: 10px; grid-template-columns: 1fr 1fr; align-items: stretch; gap: 8px; }
   .reviewScopeBar > span { grid-column: 1 / -1; }
-  .reviewScopeBar select { min-height: 46px; font-size: 12px; }
+  .reviewScopeBar > label select, .scopeMultiFilter > summary { min-height: 46px; font-size: 12px; }
+  .scopeMultiPanel { right: auto; left: 0; }
   .reviewScopeBar > b { grid-column: 1 / -1; }
   .reviewStatusTabs { margin-top: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
   .reviewStatusTabs button { min-width: 0; min-height: 46px; padding: 7px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #d7dde4; border-radius: 9px; background: #fff; color: #526171; font-size: 11px; }

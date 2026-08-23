@@ -10,6 +10,8 @@ const uiFiles = [
   "../components/lead-engine/CampaignView.tsx",
   "../components/lead-engine/ExportView.tsx",
   "../components/lead-engine/AdvancedToolsView.tsx",
+  "../components/lead-engine/ImportAndReclassificationTools.tsx",
+  "../components/lead-engine/ScopeMultiFilter.tsx",
   "../components/lead-engine/model.ts",
   "../hooks/useLeadEngineState.ts",
   "../hooks/useAutoDismiss.ts",
@@ -36,14 +38,16 @@ test("builds the complete isolated Lead Engine shell", async () => {
   assert.doesNotMatch(`${layout}\n${page}\n${ui}`, /codex-preview|react-loading-skeleton|Your site is taking shape/i);
 });
 
-test("implements the normalized, evidence-first V1 model", async () => {
-  const [schema, importRoute, workspaceRoute, reviewRoute, exportRoute, leadEngine] = await Promise.all([
+test("implements the normalized, evidence-first V1.2 model and treats imported verdicts as untrusted", async () => {
+  const [schema, importRoute, importPolicy, workspaceRoute, reviewRoute, exportRoute, leadEngine, qualification] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/import/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/import-policy.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/reviews/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/exports/crm/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/lead-engine.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/qualification.ts", import.meta.url), "utf8"),
   ]);
   for (const table of [
     "prospect_companies", "campaign_leads", "company_domains", "company_domain_links",
@@ -56,15 +60,23 @@ test("implements the normalized, evidence-first V1 model", async () => {
   assert.match(importRoute, /evidence_claim_required/);
   assert.match(importRoute, /score_reason_required/);
   assert.match(importRoute, /companyNamesLikelySame/);
+  assert.match(importRoute, /importedLeadPendingVerification/);
+  assert.match(importRoute, /claimType: "external_scope_input"/);
+  assert.match(importRoute, /customerTypesJson: "\[\]"/);
+  assert.match(importRoute, /productDirectionsJson: "\[\]"/);
+  assert.match(importPolicy, /external_structured_assessment_untrusted/);
+  assert.match(importPolicy, /hardGateStatus: "needs_review"/);
+  assert.match(importPolicy, /currentScore: 0/);
   assert.match(workspaceRoute, /buildSearchKeywords/);
   assert.match(workspaceRoute, /researchBrief/);
-  assert.match(reviewRoute, /hard_gate_not_passed/);
-  assert.match(reviewRoute, /evidenceCoverage < 40/);
+  assert.match(reviewRoute, /approvalPolicyGaps/);
+  assert.match(reviewRoute, /isCurrentServerVerification/);
   assert.match(reviewRoute, /observed_evidence_required/);
   assert.match(exportRoute, /workflowStatus, "approved"/);
   assert.match(exportRoute, /crmExportRuns/);
   assert.doesNotMatch(exportRoute, /fetch\(|CRM_API|Authorization/i);
-  assert.match(leadEngine, /RUBRIC_VERSION = "qixin-v1\.1"/);
+  assert.match(leadEngine, /RUBRIC_VERSION = "qixin-v1\.2"/);
+  assert.match(qualification, /MIN_EVIDENCE_COVERAGE = 55/);
   assert.match(leadEngine, /companyNamesLikelySame/);
   assert.match(leadEngine, /Local-language discovery/);
   assert.match(leadEngine, /observed \/ inferred \/ unknown/);
@@ -86,10 +98,11 @@ test("keeps Sites, storage, and CRM handoff isolated", async () => {
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });
 
-test("covers the complete QIXIN product catalog in campaign research and CRM handoff", async () => {
-  const [leadEngine, strategy] = await Promise.all([
+test("covers the complete broad eyewear scope in campaign research and CRM handoff", async () => {
+  const [leadEngine, strategy, scope] = await Promise.all([
     readFile(new URL("../lib/lead-engine.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/campaign-strategy.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/customer-scope.ts", import.meta.url), "utf8"),
   ]);
   for (const [track, crmLabel] of [
     ["optical_frames", "Optical frames"],
@@ -100,14 +113,15 @@ test("covers the complete QIXIN product catalog in campaign research and CRM han
     ["sports_eyewear", "Sports eyewear"],
     ["protective_eyewear", "Protective eyewear"],
     ["optical_lenses", "Optical lenses"],
+    ["eyewear_accessories", "Eyewear accessories"],
   ]) {
-    assert.match(leadEngine, new RegExp(`${track}.*${crmLabel}`));
+    assert.match(scope, new RegExp(`${track}[\\s\\S]{0,500}${crmLabel}`));
     assert.match(strategy, new RegExp(`${track}:`));
   }
-  assert.match(leadEngine, /Brillenfassungen/);
-  assert.match(leadEngine, /monturas ópticas/);
-  assert.match(leadEngine, /oprawki okularowe/);
-  assert.match(leadEngine, /إطارات نظارات طبية/);
+  for (const value of ["Brillenfassungen", "monturas ópticas", "oprawki okularowe", "إطارات نظارات طبية", "鼻托", "hinges", "cleaning"]) {
+    assert.match(scope, new RegExp(value));
+  }
+  assert.match(leadEngine, /Local-language discovery/);
 });
 
 test("opens verified company websites safely without replacing evidence review", async () => {
@@ -170,17 +184,39 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.match(css, /safe-area-inset-bottom/);
 });
 
-test("reviews the unified customer library by evidence dimensions rather than Campaign", async () => {
-  const [review, stateHook, filters] = await Promise.all([
+test("reviews the unified customer library by multi-select evidence dimensions rather than Campaign", async () => {
+  const [review, stateHook, filters, scopeFilter, leadsRoute] = await Promise.all([
     readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useLeadReviewFilters.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/ScopeMultiFilter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
   ]);
   for (const label of ["客户范围", "地区", "国家", "客户类型", "产品分类"]) assert.match(review, new RegExp(label));
   assert.match(review, /统一客户库每家公司只显示一次/);
   assert.doesNotMatch(review, /reviewCampaignId|setReviewCampaignId|切换 Campaign|这个 Campaign/);
   assert.doesNotMatch(stateHook, /parameters\.set\("campaignId", reviewCampaignId\)/);
   assert.match(filters, /regionFilter/);
+  assert.match(filters, /typeFilters/);
+  assert.match(filters, /productFilters/);
+  assert.match(scopeFilter, />全选</);
+  assert.match(scopeFilter, />清空</);
+  assert.match(stateHook, /parameters\.append\("customerType"/);
+  assert.match(stateHook, /parameters\.append\("productDirection"/);
+  assert.match(leadsRoute, /json_each/);
+});
+
+test("provides a read-only historical reclassification dry run", async () => {
+  const [route, report, tools] = await Promise.all([
+    readFile(new URL("../app/api/reclassification/dry-run/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/reclassification-dry-run.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/ImportAndReclassificationTools.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(route, /export async function GET/);
+  assert.doesNotMatch(route, /\.insert\(|\.update\(|\.delete\(/);
+  assert.match(report, /mode: "read_only"/);
+  assert.match(report, /没有访问官网、没有改写评分/);
+  assert.match(tools, /只读重分类预演/);
 });
 
 test("keeps each primary workspace in an independent component with client state hooks", async () => {

@@ -22,13 +22,14 @@ import {
   calculateScore,
   canonicalSourceUrl,
   companyNamesLikelySame,
+  domainsLikelySame,
   identityKey,
+  registrableDomain,
   RUBRIC_VERSION,
   safeJsonList,
 } from "@/lib/lead-engine";
 import {
   collectSiteEvidence,
-  deterministicScore,
   extractDirectoryCandidates,
   extractTextExhibitorHints,
   fetchPublicHtml,
@@ -40,8 +41,9 @@ import {
   type DiscoveryCandidate,
   type SiteEvidence,
 } from "@/lib/discovery";
+import { deterministicScore } from "@/lib/lead-scoring";
 import { createDiscoveryProvider } from "@/lib/discovery-provider";
-import { qualifyEvidence } from "@/lib/qualification";
+import { qualifyEvidence, type QualificationResult } from "@/lib/qualification";
 import { campaignProductTracks, isSystemCampaignId, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 import { ENGINE_BATCH_MINUTES } from "@/lib/engine-policy";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
@@ -81,30 +83,30 @@ async function sha256(value: string) {
   return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function pageSignals(pageText: string, evidence: SiteEvidence) {
-  const normalized = pageText.toLocaleLowerCase();
+function pageSignals(page: SiteEvidence["pages"][number], evidence: SiteEvidence, qualification: QualificationResult) {
+  const normalized = (page.classificationText || page.text).toLocaleLowerCase();
   return {
     eyewear: evidence.eyewearTerms.filter((term) => normalized.includes(term.toLocaleLowerCase())).slice(0, 6),
     b2b: evidence.b2bTerms.filter((term) => normalized.includes(term.toLocaleLowerCase())).slice(0, 5),
+    roles: qualification.roleEvidence.filter((match) => match.sourceUrls.includes(page.url)).map((match) => match.value),
+    products: qualification.productEvidence.filter((match) => match.sourceUrls.includes(page.url)).map((match) => match.value),
   };
 }
 
-async function findDuplicate(candidate: DiscoveryCandidate) {
-  const db = getDb();
-  if (candidate.websiteUrl) {
-    const [byDomain] = await db.select().from(prospectCompanies)
-      .where(eq(prospectCompanies.primaryDomain, normalizedDomain(candidate.websiteUrl))).limit(1);
-    if (byDomain) return byDomain;
-  }
-  const companies = await db.select({
-    id: prospectCompanies.id,
-    companyName: prospectCompanies.companyName,
-    brandsJson: prospectCompanies.brandsJson,
-    primaryDomain: prospectCompanies.primaryDomain,
-    doNotContact: prospectCompanies.doNotContact,
-  }).from(prospectCompanies).limit(1500);
+type CompanyIdentityRow = {
+  id: string;
+  companyName: string;
+  brandsJson: string;
+  primaryDomain: string | null;
+  doNotContact: boolean;
+};
+
+function findDuplicate(candidate: DiscoveryCandidate, companies: CompanyIdentityRow[]) {
+  const candidateDomain = candidate.websiteUrl ? normalizedDomain(candidate.websiteUrl) : candidate.normalizedDomain;
   return companies.find((company) => companyNamesLikelySame(company.companyName, candidate.label)
-    || safeJsonList(company.brandsJson).some((brand) => companyNamesLikelySame(brand, candidate.label)));
+    || safeJsonList(company.brandsJson).some((brand) => companyNamesLikelySame(brand, candidate.label))
+    || (registrableDomain(company.primaryDomain) === registrableDomain(candidateDomain) && Boolean(registrableDomain(company.primaryDomain)))
+    || (domainsLikelySame(company.primaryDomain, candidateDomain) && companyNamesLikelySame(company.companyName, candidate.label)));
 }
 
 async function persistVerifiedCandidate(
@@ -118,7 +120,7 @@ async function persistVerifiedCandidate(
   const companyIdentity = identityKey(evidence.companyName, evidence.country, domain);
   const duplicate = await db.select({ id: prospectCompanies.id }).from(prospectCompanies)
     .where(eq(prospectCompanies.identityKey, companyIdentity)).limit(1);
-  if (duplicate[0]) return { duplicate: true as const, companyId: duplicate[0].id, leadId: "", qualified: false, evidenceCount: 0, failures: ["公司主体重复"] };
+  if (duplicate[0]) return { duplicate: true as const, companyId: duplicate[0].id, leadId: "", qualified: false, candidateForReview: false, evidenceCount: 0, failures: ["公司主体重复"], manualReviewReasons: [] as string[] };
 
   const scoreInput = deterministicScore(evidence);
   const score = calculateScore(scoreInput);
@@ -161,7 +163,7 @@ async function persistVerifiedCandidate(
     productDirectionsJson: JSON.stringify(qualification.productDirections),
     brandsJson: "[]",
     wholesaleSignal: evidence.b2bTerms.length ? `Observed terms: ${evidence.b2bTerms.slice(0, 8).join(", ")}` : null,
-    analysisSummary: [...qualification.reasons, ...qualification.failures].join("；").slice(0, 3000),
+    analysisSummary: [...qualification.reasons, ...qualification.failures, ...qualification.manualReviewReasons].join("；").slice(0, 3000),
     analysisConfidence: evidence.pages.length >= 2 ? "medium" : "low",
     businessEmail: evidence.businessEmail || null,
     contactChannel: evidence.contactChannel || null,
@@ -175,7 +177,7 @@ async function persistVerifiedCandidate(
   });
 
   await db.insert(companyDomains).values({
-    id: crypto.randomUUID(), normalizedDomain: domain, registrableDomain: domain,
+    id: crypto.randomUUID(), normalizedDomain: domain, registrableDomain: registrableDomain(domain),
     observedUrl: evidence.pages[0]?.url || candidate.websiteUrl,
   }).onConflictDoNothing();
   const [savedDomain] = await db.select().from(companyDomains).where(eq(companyDomains.normalizedDomain, domain)).limit(1);
@@ -192,17 +194,19 @@ async function persistVerifiedCandidate(
       id: leadIds[index],
       campaignId: campaign.id,
       companyId,
-      qualificationResult: needsAssignment && qualification.qualified ? "near_match" : qualification.qualified ? "qualified" : "rejected",
-      workflowStatus: qualification.qualified ? "needs_review" : "rejected",
+      qualificationResult: needsAssignment && qualification.qualified ? "near_match" : qualification.qualified ? "qualified" : qualification.candidateForReview ? "near_match" : "rejected",
+      workflowStatus: qualification.candidateForReview ? "needs_review" : "rejected",
       productTrack: needsAssignment ? discoveryGoalCampaign.productTrack : campaignProductTracks(campaign)[0] || campaign.productTrack,
       recommendedProductsJson: JSON.stringify(qualification.productDirections),
       riskSummary: needsAssignment
-        ? "客户通过全局准入，但缺少可验证的国家、客户类型或产品 Campaign 匹配证据；需要人工分配。"
-        : qualification.failures.join("；") || "自动筛选合格；人工批准前不得导出到 CRM 或联系。",
+        ? qualification.qualified
+          ? "客户通过全局准入，但缺少可验证的国家、客户类型或产品 Campaign 匹配证据；需要人工分配。"
+          : qualification.manualReviewReasons.join("；") || "客户范围边界不清，需要人工确认并分配。"
+        : [...qualification.failures, ...qualification.manualReviewReasons].join("；") || "自动筛选合格；人工批准前不得导出到 CRM 或联系。",
       hardGateStatus: needsAssignment && qualification.qualified ? "needs_review" : baseLeadQualification.hardGateStatus,
       hardGateReason: needsAssignment
-        ? "未可靠匹配任何运行中的 Campaign"
-        : qualification.qualified ? qualification.reasons.join("；") : qualification.failures.join("；"),
+        ? ["未可靠匹配任何运行中的 Campaign", ...qualification.manualReviewReasons].join("；")
+        : qualification.qualified ? qualification.reasons.join("；") : [...qualification.failures, ...qualification.manualReviewReasons].join("；"),
       currentScore: score.total,
       grade: score.grade,
       evidenceCoverage: score.evidenceCoverage,
@@ -242,29 +246,32 @@ async function persistVerifiedCandidate(
 
   for (let index = 0; index < evidence.pages.length; index += 1) {
     const page = evidence.pages[index];
-    const signals = pageSignals(page.text, evidence);
+    const signals = pageSignals(page, evidence, qualification);
     const sourceId = pageSourceIds[index];
     await db.insert(leadSources).values({
       id: sourceId, companyId, leadId, sourceUrl: page.url, canonicalUrl: canonicalSourceUrl(page.url),
       sourceType: "company_website", pageTitle: page.title || null, retrievedAt: now,
       evidenceSummary: [
         signals.eyewear.length ? `眼镜词：${signals.eyewear.join("、")}` : "",
-        signals.b2b.length ? `B2B 词：${signals.b2b.join("、")}` : "",
+        signals.roles.length ? `商业角色：${signals.roles.join("、")}` : signals.b2b.length ? `B2B 词：${signals.b2b.join("、")}` : "",
+        signals.products.length ? `允许产品：${signals.products.join("、")}` : "",
       ].filter(Boolean).join("；") || "企业官网公开页面",
       contentHash: await sha256(page.html), confidence: signals.eyewear.length || signals.b2b.length ? "medium" : "low",
     });
-    if (signals.eyewear.length) {
+    if (signals.products.length || signals.eyewear.length) {
       const claimId = crypto.randomUUID(); claimIds.push(claimId);
       await db.insert(evidenceClaims).values({
         id: claimId, sourceId, companyId, leadId, claimType: "product_signal",
-        claimSummary: `官网观察到眼镜相关内容：${signals.eyewear.join("、")}`, evidenceKind: "observed", confidence: "medium",
+        claimSummary: signals.products.length ? `官网观察到允许产品：${signals.products.join("、")}` : `官网观察到眼镜相关内容：${signals.eyewear.join("、")}`,
+        evidenceKind: "observed", confidence: "medium",
       });
     }
-    if (signals.b2b.length) {
+    if (signals.roles.length || signals.b2b.length) {
       const claimId = crypto.randomUUID(); claimIds.push(claimId);
       await db.insert(evidenceClaims).values({
         id: claimId, sourceId, companyId, leadId, claimType: "b2b_signal",
-        claimSummary: `官网观察到 B2B 内容：${signals.b2b.join("、")}`, evidenceKind: "observed", confidence: "medium",
+        claimSummary: signals.roles.length ? `官网观察到 B2B 商业角色：${signals.roles.join("、")}` : `官网观察到 B2B 内容：${signals.b2b.join("、")}`,
+        evidenceKind: "observed", confidence: "medium",
       });
     }
   }
@@ -290,7 +297,7 @@ async function persistVerifiedCandidate(
     await db.insert(leadScoreRuns).values({
       id: scoreRunId, leadId: routedLeadId, rubricVersion: RUBRIC_VERSION, totalScore: score.total, grade: score.grade,
       evidenceCoverage: score.evidenceCoverage, overallConfidence: score.confidence,
-      modelIdentifier: "deterministic_public_rules_v2",
+      modelIdentifier: "deterministic_public_rules_v3",
     });
     for (const [dimension, value] of Object.entries(score.breakdown)) {
       const [positiveReason, negativeReason] = scoreInput.reasons[dimension] || ["", "证据不足"];
@@ -303,9 +310,9 @@ async function persistVerifiedCandidate(
     }
   }
   return {
-    duplicate: false as const, companyId, leadId, qualified: qualification.qualified,
+    duplicate: false as const, companyId, leadId, qualified: qualification.qualified, candidateForReview: qualification.candidateForReview,
     leadIds, campaignIds: targetCampaigns.map((campaign) => campaign.id), isUnassigned,
-    evidenceCount: claimIds.length, failures: qualification.failures,
+    evidenceCount: claimIds.length, failures: qualification.failures, manualReviewReasons: qualification.manualReviewReasons,
   };
 }
 
@@ -420,6 +427,13 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
       durationMs: Date.now() - startedAt.getTime(), completedAt: new Date().toISOString(),
     }).where(eq(discoveryRunAttempts.id, attemptId));
     const provider = runtimeProvider();
+    const knownCompanies: CompanyIdentityRow[] = await db.select({
+      id: prospectCompanies.id,
+      companyName: prospectCompanies.companyName,
+      brandsJson: prospectCompanies.brandsJson,
+      primaryDomain: prospectCompanies.primaryDomain,
+      doNotContact: prospectCompanies.doNotContact,
+    }).from(prospectCompanies);
 
     for (let index = 0; index < candidates.length; index += 1) {
       let candidate = candidates[index];
@@ -455,7 +469,7 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
             normalizedDomain: normalizedDomain(resolution.websiteUrl),
           };
         }
-        const existing = await findDuplicate(candidate);
+        const existing = findDuplicate(candidate, knownCompanies);
         if (existing) {
           counts.duplicate += 1;
           await recordItem(runId, candidate, "duplicate", "规范化域名、公司主体或品牌关系已存在", existing.id);
@@ -470,12 +484,18 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
           counts.duplicate += 1;
           await recordItem(runId, candidate, "duplicate", "公司主体已存在", result.companyId, evidence.companyName);
         } else if (result.qualified) {
+          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
           counts.imported += 1;
           counts.qualified += 1;
           await recordItem(runId, candidate, "imported", result.isUnassigned
             ? "自动筛选合格，但证据不足以匹配 Campaign，已进入待分配；未发送任何消息"
             : `自动筛选合格并路由至 ${result.campaignIds.length} 个 Campaign；进入待人工审核，未发送任何消息`, result.companyId, evidence.companyName, result.evidenceCount);
+        } else if (result.candidateForReview) {
+          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
+          counts.imported += 1;
+          await recordItem(runId, candidate, "imported", `高科技或业务范围边界待人工确认：${result.manualReviewReasons.join("；")}`, result.companyId, evidence.companyName, result.evidenceCount);
         } else {
+          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
           counts.imported += 1;
           counts.excluded += 1;
           counts.mandatoryFailed += 1;

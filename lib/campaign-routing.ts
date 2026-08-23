@@ -1,5 +1,6 @@
 import type { SiteEvidence } from "@/lib/discovery";
 import { REGION_PRESETS, isRegionKey, normalizeProductTracks } from "@/lib/campaign-strategy";
+import { businessRoleMatchesTarget, productTrackMatchesValues } from "@/lib/customer-scope";
 
 export const UNASSIGNED_CAMPAIGN_ID = "system:unassigned";
 export const UNASSIGNED_CAMPAIGN_NAME = "待分配客户";
@@ -79,36 +80,14 @@ export function campaignProductTracks(campaign: Pick<RoutableCampaign, "productT
   return normalizeProductTracks(jsonStringList(campaign.productTracksJson), campaign.productTrack);
 }
 
-function trackMatchesHaystack(track: string, haystack: string) {
-  if (track === "optical_lenses") return /(普通光学镜片|非球面镜片|变色镜片|渐进镜片|光学镜片|ophthalmic lens|optical lens|photochromic|progressive|varifocal|aspheric)/i.test(haystack);
-  if (track === "optical_frames") return /(光学镜架|镜架|optical frame|eyeglass frame|spectacle frame)/i.test(haystack);
-  if (track === "sunglasses") return /(太阳镜|sunglass|sun eyewear)/i.test(haystack);
-  if (track === "reading_glasses") return /(老花镜|老花|reading glasses|readers)/i.test(haystack);
-  if (track === "blue_light_glasses") return /(防蓝光眼镜|防蓝光镜片|blue light|blue-light|computer glasses)/i.test(haystack);
-  if (track === "kids_eyewear") return /(儿童眼镜|儿童|kids eyewear|children.*glasses)/i.test(haystack);
-  if (track === "sports_eyewear") return /(运动眼镜|运动|sports eyewear|cycling glasses|performance eyewear)/i.test(haystack);
-  if (track === "protective_eyewear" || track === "safety_lenses") return /(PC安全镜片|安全眼镜|防护眼镜|safety|protective|impact-resistant)/i.test(haystack);
-  return false;
-}
-
 function productMatches(campaign: RoutableCampaign, values: string[]) {
-  const haystack = values.join(" ").toLocaleLowerCase();
-  return campaignProductTracks(campaign).some((track) => trackMatchesHaystack(track, haystack));
+  return campaignProductTracks(campaign).some((track) => productTrackMatchesValues(track, values));
 }
 
 function customerTypeMatches(campaign: RoutableCampaign, customerTypes: string[]) {
   const targets = jsonStringList(campaign.customerTypesJson);
   if (!targets.length) return customerTypes.length > 0;
-  return customerTypes.some((customerType) => targets.some((target) => {
-    const normalizedType = customerType.toLocaleLowerCase();
-    const normalizedTarget = target.toLocaleLowerCase();
-    if (normalizedTarget === normalizedType) return true;
-    if (/(批发|wholesale)/i.test(normalizedTarget) && /(批发|wholesale)/i.test(normalizedType)) return true;
-    if (/(分销|distribut)/i.test(normalizedTarget) && /(分销|distribut)/i.test(normalizedType)) return true;
-    if (/(进口|import)/i.test(normalizedTarget) && /(进口|import)/i.test(normalizedType)) return true;
-    if (/(品牌|brand)/i.test(normalizedTarget) && /(品牌|brand)/i.test(normalizedType)) return true;
-    return false;
-  }));
+  return customerTypes.some((customerType) => targets.some((target) => businessRoleMatchesTarget(customerType, target)));
 }
 
 function targetCountries(campaign: RoutableCampaign) {

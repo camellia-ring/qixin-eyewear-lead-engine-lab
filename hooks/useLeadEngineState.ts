@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { SCORE_LIMITS } from "@/lib/lead-engine";
 import { GLOBAL_DISCOVERY_CAMPAIGN_ID, isSystemCampaignId } from "@/lib/campaign-routing";
+import { isCurrentServerVerification } from "@/lib/import-policy";
+import { approvalPolicyGaps } from "@/lib/qualification";
+import { businessRoleOptions, productDirectionOptions } from "@/lib/customer-scope";
 import { useAutoDismiss } from "./useAutoDismiss";
 import { useLeadReviewFilters } from "./useLeadReviewFilters";
 import {
-  api, EMPTY_LEAD_PAGE, EMPTY_WORKSPACE, formList, PRODUCT_DIRECTIONS, STATUS_LABELS,
-  type Campaign, type DiscoverySource, type LeadDetail, type LeadPage, type ViewKey, type Workspace,
+  api, EMPTY_LEAD_PAGE, EMPTY_WORKSPACE, formList, STATUS_LABELS,
+  type Campaign, type DiscoverySource, type LeadDetail, type LeadPage, type ReclassificationDryRun, type ViewKey, type Workspace,
 } from "@/components/lead-engine/model";
 
 const HEADER_MAP: Record<string, string> = {
-  company_name: "companyName", company_type: "companyType", business_model: "businessModel", product_track: "productTrack",
+  company_name: "companyName", company_type: "companyType", customer_types: "customerTypes", business_model: "businessModel", product_track: "productTrack",
+  product_directions: "productDirections",
   recommended_products: "recommendedProducts", estimated_purchase_volume: "estimatedPurchaseVolume", business_email: "businessEmail",
   contact_channel: "contactChannel", contact_name: "contactName", contact_role: "contactRole", contact_email: "contactEmail",
   contact_verification: "contactVerification", wholesale_signal: "wholesaleSignal", private_label_signal: "privateLabelSignal",
@@ -68,9 +72,9 @@ export function useLeadEngineState() {
   const [exportCampaignId, setExportCampaignId] = useState("");
   const [selectedLeadId, setSelectedLeadId] = useState("");
   const {
-    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilter, productFilter, contactFilter,
+    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter,
     sourceFilter, specialFilter, sortBy, page, search, setStatusFilter, setGradeFilter,
-    setRegionFilter, setCountryFilter, setTypeFilter, setProductFilter, setContactFilter, setSourceFilter,
+    setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter,
     setSpecialFilter, setSortBy, setPage, setSearch, clearFilters,
   } = useLeadReviewFilters();
   const [loading, setLoading] = useState(true);
@@ -87,6 +91,7 @@ export function useLeadEngineState() {
   const [leadDetail, setLeadDetail] = useState<LeadDetail | null>(null);
   const [leadRefreshKey, setLeadRefreshKey] = useState(0);
   const [importReport, setImportReport] = useState<{ imported: number; skipped: number; results?: Array<Record<string, unknown>> } | null>(null);
+  const [reclassificationDryRun, setReclassificationDryRun] = useState<ReclassificationDryRun | null>(null);
 
   const clearNotice = useCallback(() => setNotice(""), []);
   useAutoDismiss(notice, clearNotice);
@@ -111,7 +116,8 @@ export function useLeadEngineState() {
       if (statusFilter !== "all") parameters.set("status", statusFilter);
       if (gradeFilter !== "all") parameters.set("grade", gradeFilter); if (countryFilter !== "all") parameters.set("country", countryFilter);
       if (regionFilter !== "all") parameters.set("region", regionFilter);
-      if (typeFilter !== "all") parameters.set("customerType", typeFilter); if (productFilter !== "all") parameters.set("productDirection", productFilter);
+      for (const type of typeFilters) parameters.append("customerType", type);
+      for (const product of productFilters) parameters.append("productDirection", product);
       if (contactFilter !== "all") parameters.set("contactStatus", contactFilter); if (sourceFilter !== "all") parameters.set("sourceType", sourceFilter);
       if (specialFilter === "duplicate") parameters.set("duplicate", "true"); if (specialFilter === "dnc") parameters.set("doNotContact", "true");
       if (search.trim()) parameters.set("q", search.trim());
@@ -122,7 +128,7 @@ export function useLeadEngineState() {
       void api<LeadPage>(`/api/leads?${parameters.toString()}`, { signal: controller.signal }).then((data) => { setLeadPage(data); setSelectedLeadId((current) => data.rows.some((row) => row.leadId === current) ? current : data.rows[0]?.leadId || ""); if (!data.rows.length) setDrawerOpen(false); }).catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof Error ? requestError.message : "客户列表加载失败"); }).finally(() => { if (!controller.signal.aborted) setLeadLoading(false); });
     }, 220);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [contactFilter, countryFilter, gradeFilter, leadRefreshKey, page, productFilter, regionFilter, search, sortBy, sourceFilter, specialFilter, statusFilter, typeFilter]);
+  }, [contactFilter, countryFilter, gradeFilter, leadRefreshKey, page, productFilters, regionFilter, search, sortBy, sourceFilter, specialFilter, statusFilter, typeFilters]);
   useEffect(() => {
     if (!drawerOpen || !selectedLeadId) return;
     const controller = new AbortController(); const timer = window.setTimeout(() => { setDetailLoading(true); void api<LeadDetail>(`/api/leads/${selectedLeadId}`, { signal: controller.signal }).then(setLeadDetail).catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof Error ? requestError.message : "客户详情加载失败"); }).finally(() => { if (!controller.signal.aborted) setDetailLoading(false); }); }, 0);
@@ -149,7 +155,19 @@ export function useLeadEngineState() {
     };
   });
   const selectedLead = leadDetail?.lead || null; const selectedCompany = leadDetail?.company || null;
-  const approvalGaps = selectedLead && selectedCompany ? [selectedLead.campaignId === "system:unassigned" ? "必须先分配到 Campaign" : "", selectedLead.hardGateStatus !== "pass" ? "强制准入尚未通过" : "", selectedLead.currentScore < 60 ? "评分低于 60" : "", selectedLead.evidenceCoverage < 40 ? "证据覆盖率低于 40%" : "", selectedLead.scoreConfidence === "low" ? "评分可信度仍为低" : "", selectedCompany.doNotContact ? "已进入禁止联系名单" : "", !leadDetail?.sources.length ? "没有来源" : "", !selectedCompany.businessEmail && !selectedCompany.contactChannel && !leadDetail?.contactCount ? "没有商务联系渠道" : "", (leadDetail?.scoreDimensions.length || 0) !== Object.keys(SCORE_LIMITS).length ? "评分维度不完整" : ""].filter(Boolean) : [];
+  const approvalGaps = selectedLead && selectedCompany ? approvalPolicyGaps({
+    campaignAssigned: selectedLead.campaignId !== "system:unassigned",
+    hardGateStatus: selectedLead.hardGateStatus,
+    score: selectedLead.currentScore,
+    evidenceCoverage: selectedLead.evidenceCoverage,
+    scoreConfidence: selectedLead.scoreConfidence,
+    doNotContact: selectedCompany.doNotContact,
+    sourceCount: leadDetail?.sources.length || 0,
+    contactPresent: Boolean(selectedCompany.businessEmail || selectedCompany.contactChannel || leadDetail?.contactCount),
+    scoreDimensionCount: leadDetail?.scoreDimensions.length || 0,
+    expectedScoreDimensionCount: Object.keys(SCORE_LIMITS).length,
+    serverVerified: isCurrentServerVerification(leadDetail?.scoreRun),
+  }) : [];
   const campaignLeadCount = Number(workspace.leadCounts[activeCampaignId]?.all || 0);
   const campaignLabel = activeCampaign ? `${activeCampaign.name} · ${campaignLeadCount} 家` : "尚未选择 Campaign";
   const exportApprovedCount = Number(workspace.leadCounts[exportCampaignId]?.approved || 0);
@@ -173,25 +191,27 @@ export function useLeadEngineState() {
   async function reverifySelectedLead() { if (!selectedLead) return; beginAction(); try { const result = await api<{ qualified: boolean; score: number; evidenceCoverage: number; failures: string[] }>(`/api/leads/${selectedLead.id}/reverify`, { method: "POST", body: "{}" }); await load(); refreshLeads(); setNotice(result.qualified ? `重新核验通过：评分 ${result.score}，证据覆盖率 ${result.evidenceCoverage}%，仍需人工批准后才能联系。` : `重新核验完成但未通过准入：${result.failures.join("；")}`); } catch (error) { actionError(error, "重新核验失败"); } finally { setPending(false); } }
   async function assignSelectedLead() { if (!selectedLead || selectedLead.campaignId !== "system:unassigned" || !assignmentCampaignId) return; beginAction(); try { const result = await api<{ campaign: Campaign }>(`/api/leads/${selectedLead.id}/assign`, { method: "POST", body: JSON.stringify({ campaignId: assignmentCampaignId }) }); setDrawerOpen(false); setAssignmentCampaignId(""); await load(); refreshLeads(); const name = businessCampaigns.find((campaign) => campaign.id === result.campaign.id)?.name || result.campaign.name; setNotice(`客户已分配到 ${name}，仍保留为待审核状态。`); } catch (error) { actionError(error, "客户分配失败"); } finally { setPending(false); } }
   async function controlEngine(action: "start" | "pause" | "resume" | "stop" | "run_batch") { if (action === "start" && !activeBusinessCampaigns.length) { setError("请先启用至少一个 Campaign。"); return; } beginAction(); try { await api("/api/engine/control", { method: "POST", body: JSON.stringify({ action, dailyTarget: 20, timezone: "Asia/Shanghai" }) }); await load(); if (action === "start" || action === "run_batch") refreshLeads(); setNotice(action === "start" ? "自动找客户已启动；首批由后台执行，页面会自动刷新进度。" : action === "pause" ? "自动发现已暂停。" : action === "resume" ? "自动发现已恢复。" : action === "stop" ? "自动发现已停止；历史数据和日志保留。" : "已完成一轮受控补采批次。"); } catch (error) { actionError(error, "自动引擎操作失败"); } finally { setPending(false); } }
-  async function importFile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!activeCampaignId) return; const form = event.currentTarget; const file = new FormData(form).get("file"); if (!(file instanceof File) || !file.size) return; beginAction(); setImportReport(null); try { if (file.size > 2_000_000) throw new Error("导入文件不能超过 2 MB"); const content = await file.text(); const records = /\.json$/i.test(file.name) ? recordsFromJson(content) : recordsFromCsv(content); const result = await api<{ imported: number; skipped: number; results: Array<Record<string, unknown>>; replayed: boolean }>("/api/import", { method: "POST", body: JSON.stringify({ campaignId: activeCampaignId, records, originalFilename: file.name, idempotencyKey: await sha256(content) }) }); setImportReport(result); setNotice(result.replayed ? "该文件已经处理过，已返回原导入批次结果，没有重复写入。" : `结构化导入完成：写入 ${result.imported} 条，跳过 ${result.skipped} 条。`); form.reset(); await load(); refreshLeads(); } catch (error) { actionError(error, "导入失败"); } finally { setPending(false); } }
+  async function importFile(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!activeCampaignId) return; const form = event.currentTarget; const file = new FormData(form).get("file"); if (!(file instanceof File) || !file.size) return; beginAction(); setImportReport(null); try { if (file.size > 2_000_000) throw new Error("导入文件不能超过 2 MB"); const content = await file.text(); const records = /\.json$/i.test(file.name) ? recordsFromJson(content) : recordsFromCsv(content); const result = await api<{ imported: number; skipped: number; results: Array<Record<string, unknown>>; replayed: boolean }>("/api/import", { method: "POST", body: JSON.stringify({ campaignId: activeCampaignId, records, originalFilename: file.name, idempotencyKey: await sha256(content) }) }); setImportReport(result); setNotice(result.replayed ? "该文件已经处理过，已返回原导入批次结果，没有重复写入。" : `结构化导入完成：写入 ${result.imported} 条待服务器重新核验记录，跳过 ${result.skipped} 条。`); form.reset(); await load(); refreshLeads(); } catch (error) { actionError(error, "导入失败"); } finally { setPending(false); } }
+  async function loadReclassificationDryRun() { beginAction(); try { const result = await api<ReclassificationDryRun>("/api/reclassification/dry-run"); setReclassificationDryRun(result); setNotice("只读重分类报告已生成；没有访问官网或改写任何历史客户。"); } catch (error) { actionError(error, "只读重分类报告生成失败"); } finally { setPending(false); } }
 
   return {
     workspace, leadPage, leadDetail, businessCampaigns, activeBusinessCampaigns, activeCampaign, exportCampaign,
     activeCampaignId, exportCampaignId, selectedLeadId, activeView, drawerOpen,
-    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilter, productFilter, contactFilter, sourceFilter, specialFilter, sortBy, page, search,
-    loading, leadLoading, detailLoading, pending, error, notice, reviewNotes, assignmentCampaignId, importReport,
-    counts, regions: leadPage.facets.regions, countries: leadPage.facets.countries, companyTypes: leadPage.facets.companyTypes,
-    productDirections: leadPage.facets.productDirections.length ? leadPage.facets.productDirections : PRODUCT_DIRECTIONS,
+    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter, sourceFilter, specialFilter, sortBy, page, search,
+    loading, leadLoading, detailLoading, pending, error, notice, reviewNotes, assignmentCampaignId, importReport, reclassificationDryRun,
+    counts, regions: leadPage.facets.regions, countries: leadPage.facets.countries,
+    companyTypes: [...new Set([...businessRoleOptions(), ...leadPage.facets.companyTypes])],
+    productDirections: [...new Set([...productDirectionOptions(), ...leadPage.facets.productDirections])],
     sourceTypes: leadPage.facets.sourceTypes, pageCount: leadPage.pagination.pageCount,
     approvedCount: Number(counts.approved || 0), rejectedCount: Number(counts.rejected || 0), exportApprovedCount, totalApprovedCount,
     campaignDiscoverySources, globalDiscoveryRuns, discoverySourceById, campaignById, globalSourceOverview,
     engine, todayTarget, todayRemaining, openAlerts: workspace.discoveryAlerts.filter((alert) => !alert.resolvedAt), latestRun: globalDiscoveryRuns[0] || null,
     campaignLabel, approvalGaps,
     setActiveCampaignId, setExportCampaignId, setActiveView, setDrawerOpen, setStatusFilter, setGradeFilter,
-    setRegionFilter, setCountryFilter, setTypeFilter, setProductFilter, setContactFilter, setSourceFilter, setSpecialFilter, setSortBy, setPage, setSearch,
+    setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter, setSpecialFilter, setSortBy, setPage, setSearch,
     setReviewNotes, setAssignmentCampaignId, setNotice, setError,
     openLead, clearFilters, createCampaign, changeCampaignStatus, updateCampaign, review, exportApproved, addDiscoverySource,
-    toggleDiscoverySource, runDiscovery, reverifySelectedLead, assignSelectedLead, controlEngine, importFile,
+    toggleDiscoverySource, runDiscovery, reverifySelectedLead, assignSelectedLead, controlEngine, importFile, loadReclassificationDryRun,
   };
 }
 

@@ -2,14 +2,15 @@ import { IconClock, IconExternalLink, IconSearch } from "@tabler/icons-react";
 import type { LeadEngineState } from "@/hooks/useLeadEngineState";
 import { companySignal, companyWebsiteUrl, customerTypeLabel, localizedCountry, STATUS_FILTERS, STATUS_LABELS, VIEW_LABELS } from "./model";
 import { LeadReviewDrawer } from "./LeadReviewDrawer";
+import { ScopeMultiFilter } from "./ScopeMultiFilter";
 import styles from "../LeadEngineApp.module.css";
 
 export function LeadReviewView({ state }: { state: LeadEngineState }) {
   const {
     approvedCount, companyTypes, contactFilter, countries, counts, countryFilter, drawerOpen,
-    gradeFilter, leadLoading, leadPage, loading, page, pageCount, productDirections, productFilter,
+    gradeFilter, leadLoading, leadPage, loading, page, pageCount, productDirections, productFilters,
     regionFilter, regions, rejectedCount, search, selectedLeadId, sortBy, sourceFilter, sourceTypes,
-    specialFilter, statusFilter, typeFilter,
+    specialFilter, statusFilter, typeFilters,
   } = state;
   const pageReset = (setter: (value: string) => void) => (event: React.ChangeEvent<HTMLSelectElement>) => { setter(event.target.value); state.setPage(1); };
 
@@ -35,8 +36,8 @@ export function LeadReviewView({ state }: { state: LeadEngineState }) {
         <span>客户范围</span>
         <label><small>地区</small><select value={regionFilter} onChange={(event) => { state.setRegionFilter(event.target.value); state.setCountryFilter("all"); state.setPage(1); }}><option value="all">全部地区</option>{regions.map((region) => <option key={region.value} value={region.value}>{region.label}</option>)}</select></label>
         <label><small>国家</small><select value={countryFilter} onChange={pageReset(state.setCountryFilter)}><option value="all">全部国家</option>{countries.map((country) => <option key={country} value={country}>{localizedCountry(country)}</option>)}</select></label>
-        <label><small>客户类型</small><select value={typeFilter} onChange={pageReset(state.setTypeFilter)}><option value="all">全部客户类型</option>{companyTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label>
-        <label><small>产品分类</small><select value={productFilter} onChange={pageReset(state.setProductFilter)}><option value="all">全部产品分类</option>{productDirections.map((product) => <option key={product} value={product}>{product}</option>)}</select></label>
+        <ScopeMultiFilter label="客户类型/商业角色" options={companyTypes} selected={typeFilters} onChange={(values) => { state.setTypeFilters(values); state.setPage(1); }} />
+        <ScopeMultiFilter label="产品分类" options={productDirections} selected={productFilters} onChange={(values) => { state.setProductFilters(values); state.setPage(1); }} />
         <b>{leadPage.pagination.total} 家</b>
       </div>
 

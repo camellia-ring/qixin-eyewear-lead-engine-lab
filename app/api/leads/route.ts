@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNotNull, like, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaignLeads, prospectCompanies } from "@/db/schema";
 import { apiFailure } from "@/lib/api";
@@ -28,9 +28,9 @@ function oneOf(column: Parameters<typeof eq>[0], selected: string[]) {
   return or(...selected.map((value) => eq(column, value)));
 }
 
-function jsonContains(column: Parameters<typeof like>[0], selected: string[]) {
+function jsonContains(column: Parameters<typeof eq>[0], selected: string[]) {
   if (!selected.length) return undefined;
-  return or(...selected.map((value) => like(column, `%${value}%`)));
+  return or(...selected.map((value) => sql`EXISTS (SELECT 1 FROM json_each(${column}) AS selected_value WHERE selected_value.value = ${value})`));
 }
 
 export async function GET(request: Request) {
@@ -67,7 +67,11 @@ export async function GET(request: Request) {
     }
     const customerTypes = values(parameters, "customerType");
     if (customerTypes.length) {
-      const condition = or(oneOf(prospectCompanies.customerType, customerTypes), jsonContains(prospectCompanies.customerTypesJson, customerTypes));
+      const condition = or(
+        oneOf(prospectCompanies.customerType, customerTypes),
+        oneOf(prospectCompanies.companyRole, customerTypes),
+        jsonContains(prospectCompanies.customerTypesJson, customerTypes),
+      );
       if (condition) conditions.push(condition);
     }
     const productCondition = jsonContains(prospectCompanies.productDirectionsJson, values(parameters, "productDirection"));
@@ -147,7 +151,7 @@ export async function GET(request: Request) {
       db.selectDistinct({ value: prospectCompanies.country }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id))
         .where(and(scope, isNotNull(prospectCompanies.country))).orderBy(asc(prospectCompanies.country)),
-      db.selectDistinct({ customerTypesJson: prospectCompanies.customerTypesJson, customerType: prospectCompanies.customerType, companyType: prospectCompanies.companyType })
+      db.selectDistinct({ customerTypesJson: prospectCompanies.customerTypesJson, customerType: prospectCompanies.customerType, companyRole: prospectCompanies.companyRole })
         .from(campaignLeads).innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope),
       db.selectDistinct({ value: prospectCompanies.productDirectionsJson }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope),
@@ -160,7 +164,7 @@ export async function GET(request: Request) {
     statusCounts.all = Object.values(statusCounts).reduce((sum, value) => sum + value, 0);
     const gradeCounts = Object.fromEntries(gradeRows.map((row) => [row.key, Number(row.value || 0)]));
     const companyTypes = [...new Set(typeRows.flatMap((row) => [
-      ...safeJsonList(row.customerTypesJson), row.customerType, row.companyType,
+      ...safeJsonList(row.customerTypesJson), row.customerType, row.companyRole,
     ]).filter(Boolean) as string[])].sort();
     const productDirections = [...new Set(productRows.flatMap((row) => safeJsonList(row.value)))].sort();
     const presentCountries = new Set(countryRows.map((row) => normalizeCountry(row.value)));

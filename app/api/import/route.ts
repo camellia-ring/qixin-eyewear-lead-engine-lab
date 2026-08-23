@@ -18,19 +18,25 @@ import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import {
   CONFIDENCE_LEVELS,
   PRODUCT_TRACKS,
-  RUBRIC_VERSION,
   SCORE_LIMITS,
   SCORE_REASON_FIELDS,
   calculateScore,
   canonicalSourceUrl,
   companyNamesLikelySame,
+  domainsLikelySame,
   crmProductInterests,
   identityKey,
   normalizeSourceUrl,
   normalizeWebsite,
+  registrableDomain,
   safeJsonList,
   stringList,
 } from "@/lib/lead-engine";
+import {
+  EXTERNAL_IMPORT_MODEL_IDENTIFIER,
+  externalImportRubricVersion,
+  importedLeadPendingVerification,
+} from "@/lib/import-policy";
 
 type SourceRecord = {
   id: string;
@@ -190,6 +196,21 @@ export async function POST(request: Request) {
       status: "pending",
     });
 
+    const knownCompanies = await db.select({
+      id: prospectCompanies.id,
+      identityKey: prospectCompanies.identityKey,
+      companyName: prospectCompanies.companyName,
+      country: prospectCompanies.country,
+      city: prospectCompanies.city,
+      website: prospectCompanies.website,
+      primaryDomain: prospectCompanies.primaryDomain,
+      brandsJson: prospectCompanies.brandsJson,
+      businessEmail: prospectCompanies.businessEmail,
+      contactChannel: prospectCompanies.contactChannel,
+      doNotContact: prospectCompanies.doNotContact,
+      primaryCampaignId: prospectCompanies.primaryCampaignId,
+    }).from(prospectCompanies);
+    const importedIdentities: Array<{ companyId: string; companyName: string; domain: string; brands: string[] }> = [];
     const results: Array<Record<string, unknown>> = [];
     for (let index = 0; index < body.records.length; index += 1) {
       const record = body.records[index] as Record<string, unknown>;
@@ -201,18 +222,30 @@ export async function POST(request: Request) {
         const sources = sourceRecords(record);
         const claims = claimRecords(record, sources);
         if (!claims.length) throw new ApiError(400, "evidence_claim_required");
+        const recordBrands = safeJsonList(record.brands);
         const score = calculateScore(record);
         const reasons = scoreReasons(record);
         const productTrack = textValue(record.productTrack || campaign.productTrack, { field: "productTrack", required: true, max: 50 });
         if (!PRODUCT_TRACKS.has(productTrack)) throw new ApiError(400, "invalid_product_track");
         const hardGateReason = textValue(record.hardGateReason || record.disqualificationReason, { field: "hardGateReason", max: 1000 });
         if (score.hardGateStatus === "fail" && !hardGateReason) throw new ApiError(400, "hard_gate_reason_required");
-        const identityMatches = await db.select().from(prospectCompanies).where(eq(prospectCompanies.identityKey, companyIdentity)).limit(1);
-        let existingCompany: (typeof identityMatches)[number] | undefined = identityMatches[0];
-        if (!existingCompany && website.normalized) {
-          const domainCandidates = await db.select().from(prospectCompanies).where(eq(prospectCompanies.primaryDomain, website.normalized)).limit(10);
-          existingCompany = domainCandidates.find((candidate) => companyNamesLikelySame(companyName, candidate.companyName));
+        const importedDuplicate = importedIdentities.find((candidate) => companyNamesLikelySame(candidate.companyName, companyName)
+          || candidate.brands.some((brand) => companyNamesLikelySame(brand, companyName))
+          || recordBrands.some((brand) => companyNamesLikelySame(brand, candidate.companyName)
+            || candidate.brands.some((knownBrand) => companyNamesLikelySame(brand, knownBrand)))
+          || (registrableDomain(candidate.domain) === registrableDomain(website.normalized) && Boolean(registrableDomain(candidate.domain)))
+          || (domainsLikelySame(candidate.domain, website.normalized) && companyNamesLikelySame(candidate.companyName, companyName)));
+        if (importedDuplicate) {
+          results.push({ row: index + 1, status: "duplicate", companyName, companyId: importedDuplicate.companyId, reason: "同一导入批次的公司主体、品牌或域名重复" });
+          continue;
         }
+        const existingCompany = knownCompanies.find((candidate) => candidate.identityKey === companyIdentity
+          || companyNamesLikelySame(companyName, candidate.companyName)
+          || safeJsonList(candidate.brandsJson).some((brand) => companyNamesLikelySame(brand, companyName))
+          || recordBrands.some((brand) => companyNamesLikelySame(brand, candidate.companyName)
+            || safeJsonList(candidate.brandsJson).some((knownBrand) => companyNamesLikelySame(brand, knownBrand)))
+          || (registrableDomain(candidate.primaryDomain) === registrableDomain(website.normalized) && Boolean(registrableDomain(candidate.primaryDomain)))
+          || (domainsLikelySame(candidate.primaryDomain, website.normalized) && companyNamesLikelySame(companyName, candidate.companyName)));
         const companyId = existingCompany?.id || crypto.randomUUID();
         const [existingLead] = await db.select({ id: campaignLeads.id }).from(campaignLeads).where(and(
           eq(campaignLeads.campaignId, campaignId),
@@ -228,45 +261,35 @@ export async function POST(request: Request) {
         const contactName = textValue(record.contactName, { field: "contactName", max: 160 });
         const contactEmail = optionalEmail(record.contactEmail, "contactEmail");
         if (contactEmail && !contactName) throw new ApiError(400, "contact_name_required");
-        const workflowStatus = score.hardGateStatus === "fail"
-          ? "rejected"
-          : score.hardGateStatus === "pass" && score.total >= 60 && score.evidenceCoverage >= 40
-            ? "qualified"
-            : "needs_review";
-        const qualificationResult = score.hardGateStatus === "fail"
-          ? "rejected"
-          : score.total >= 60 ? "qualified" : "near_match";
+        const pendingVerification = importedLeadPendingVerification({
+          hardGateStatus: score.hardGateStatus,
+          score: score.total,
+          evidenceCoverage: score.evidenceCoverage,
+          hardGateReason,
+          riskSummary: textValue(record.riskSummary, { field: "riskSummary", max: 5000 }),
+        });
         const products = safeJsonList(record.productInterests || record.recommendedProducts, crmProductInterests(productTrack));
         const customerTypes = safeJsonList(record.customerTypes || record.customerType || record.companyType);
         const productDirections = safeJsonList(record.productDirections || record.recommendedProducts || record.products, products);
+        claims.push({
+          sourceIndex: 0,
+          claimType: "external_scope_input",
+          claimSummary: `外部文件声明的商业角色：${customerTypes.join("、") || "未提供"}；产品方向：${productDirections.join("、") || "未提供"}。未经服务器核验。`.slice(0, 5000),
+          evidenceKind: "unknown",
+          confidence: "low",
+        });
         const statements: BatchItem<"sqlite">[] = [];
 
         if (existingCompany) {
           statements.push(db.update(prospectCompanies).set({
-            country: country || existingCompany.country,
-            city: textValue(record.city, { field: "city", max: 160 }) || existingCompany.city,
-            companyType: textValue(record.customerType || record.companyType, { field: "companyType", max: 160 }) || existingCompany.companyType,
-            customerType: customerTypes[0] || existingCompany.customerType,
-            customerTypesJson: JSON.stringify(customerTypes.length ? customerTypes : safeJsonList(existingCompany.customerTypesJson)),
-            businessModel: textValue(record.businessModel, { field: "businessModel", max: 160 }) || existingCompany.businessModel,
-            website: website.original || existingCompany.website,
-            primaryDomain: website.normalized || existingCompany.primaryDomain,
-            productsJson: JSON.stringify(safeJsonList(record.products, safeJsonList(existingCompany.productsJson))),
-            productDirectionsJson: JSON.stringify(productDirections.length ? productDirections : safeJsonList(existingCompany.productDirectionsJson)),
-            brandsJson: JSON.stringify(safeJsonList(record.brands, safeJsonList(existingCompany.brandsJson))),
-            wholesaleSignal: textValue(record.wholesaleSignal, { field: "wholesaleSignal", max: 2000 }) || existingCompany.wholesaleSignal,
-            privateLabelSignal: textValue(record.privateLabelSignal, { field: "privateLabelSignal", max: 2000 }) || existingCompany.privateLabelSignal,
-            oemSignal: textValue(record.oemSignal, { field: "oemSignal", max: 2000 }) || existingCompany.oemSignal,
-            pricePosition: textValue(record.pricePosition, { field: "pricePosition", max: 300 }) || existingCompany.pricePosition,
-            companySize: textValue(record.companySize, { field: "companySize", max: 300 }) || existingCompany.companySize,
-            analysisSummary: textValue(record.analysisSummary || record.evidenceSummary, { field: "analysisSummary", max: 5000 }) || existingCompany.analysisSummary,
-            analysisConfidence: confidence(record.analysisConfidence || record.scoreConfidence, "analysisConfidence", existingCompany.analysisConfidence as "low" | "medium" | "high"),
-            businessEmail: optionalEmail(record.businessEmail, "businessEmail") || existingCompany.businessEmail,
-            contactChannel: textValue(record.contactChannel, { field: "contactChannel", max: 500 }) || existingCompany.contactChannel,
-            estimatedPurchaseVolume: textValue(record.estimatedPurchaseVolume, { field: "estimatedPurchaseVolume", max: 500 }) || existingCompany.estimatedPurchaseVolume,
+            country: existingCompany.country || country || null,
+            city: existingCompany.city || textValue(record.city, { field: "city", max: 160 }) || null,
+            website: existingCompany.website || website.original || null,
+            primaryDomain: existingCompany.primaryDomain || website.normalized || null,
+            businessEmail: existingCompany.businessEmail || optionalEmail(record.businessEmail, "businessEmail") || null,
+            contactChannel: existingCompany.contactChannel || textValue(record.contactChannel, { field: "contactChannel", max: 500 }) || null,
             doNotContact: booleanValue(record.doNotContact) || existingCompany.doNotContact,
             primaryCampaignId: existingCompany.primaryCampaignId || campaignId,
-            lastAnalyzedAt: isoTime(record.lastVerifiedAt || record.lastAnalyzedAt, "lastAnalyzedAt") || sources[0].retrievedAt,
             updatedAt: new Date().toISOString(),
           }).where(eq(prospectCompanies.id, companyId)));
         } else {
@@ -276,25 +299,25 @@ export async function POST(request: Request) {
             identityKey: companyIdentity,
             country: country || null,
             city: textValue(record.city, { field: "city", max: 160 }) || null,
-            companyType: textValue(record.customerType || record.companyType, { field: "companyType", max: 160 }) || null,
-            customerType: customerTypes[0] || null,
-            customerTypesJson: JSON.stringify(customerTypes),
-            businessModel: textValue(record.businessModel, { field: "businessModel", max: 160 }) || null,
+            companyType: null,
+            customerType: null,
+            customerTypesJson: "[]",
+            businessModel: null,
             website: website.original || null,
             primaryDomain: website.normalized || null,
-            productsJson: JSON.stringify(safeJsonList(record.products)),
-            productDirectionsJson: JSON.stringify(productDirections),
-            brandsJson: JSON.stringify(safeJsonList(record.brands)),
-            wholesaleSignal: textValue(record.wholesaleSignal, { field: "wholesaleSignal", max: 2000 }) || null,
-            privateLabelSignal: textValue(record.privateLabelSignal, { field: "privateLabelSignal", max: 2000 }) || null,
-            oemSignal: textValue(record.oemSignal, { field: "oemSignal", max: 2000 }) || null,
-            pricePosition: textValue(record.pricePosition, { field: "pricePosition", max: 300 }) || null,
-            companySize: textValue(record.companySize, { field: "companySize", max: 300 }) || null,
-            analysisSummary: textValue(record.analysisSummary || record.evidenceSummary, { field: "analysisSummary", max: 5000 }) || null,
-            analysisConfidence: confidence(record.analysisConfidence || record.scoreConfidence, "analysisConfidence", "low"),
+            productsJson: "[]",
+            productDirectionsJson: "[]",
+            brandsJson: JSON.stringify(recordBrands),
+            wholesaleSignal: null,
+            privateLabelSignal: null,
+            oemSignal: null,
+            pricePosition: null,
+            companySize: null,
+            analysisSummary: pendingVerification.riskSummary,
+            analysisConfidence: "low",
             businessEmail: optionalEmail(record.businessEmail, "businessEmail") || null,
             contactChannel: textValue(record.contactChannel, { field: "contactChannel", max: 500 }) || null,
-            estimatedPurchaseVolume: textValue(record.estimatedPurchaseVolume, { field: "estimatedPurchaseVolume", max: 500 }) || null,
+            estimatedPurchaseVolume: null,
             doNotContact: booleanValue(record.doNotContact),
             primaryCampaignId: campaignId,
             lastAnalyzedAt: isoTime(record.lastVerifiedAt || record.lastAnalyzedAt, "lastAnalyzedAt") || sources[0].retrievedAt,
@@ -307,7 +330,7 @@ export async function POST(request: Request) {
           if (!existingDomain) statements.push(db.insert(companyDomains).values({
             id: domainId,
             normalizedDomain: website.normalized,
-            registrableDomain: website.normalized,
+            registrableDomain: registrableDomain(website.normalized),
             observedUrl: website.original,
           }));
           const [existingLink] = existingCompany ? await db.select({ id: companyDomainLinks.id }).from(companyDomainLinks).where(and(
@@ -324,17 +347,17 @@ export async function POST(request: Request) {
           campaignId,
           companyId,
           importRunId,
-          qualificationResult,
-          workflowStatus,
+          qualificationResult: pendingVerification.qualificationResult,
+          workflowStatus: pendingVerification.workflowStatus,
           productTrack,
           recommendedProductsJson: JSON.stringify(products),
-          riskSummary: textValue(record.riskSummary, { field: "riskSummary", max: 5000 }) || null,
-          hardGateStatus: score.hardGateStatus,
-          hardGateReason: hardGateReason || null,
-          currentScore: score.total,
-          grade: score.grade,
-          evidenceCoverage: score.evidenceCoverage,
-          scoreConfidence: score.confidence,
+          riskSummary: pendingVerification.riskSummary,
+          hardGateStatus: pendingVerification.hardGateStatus,
+          hardGateReason: pendingVerification.hardGateReason,
+          currentScore: pendingVerification.currentScore,
+          grade: pendingVerification.grade,
+          evidenceCoverage: pendingVerification.evidenceCoverage,
+          scoreConfidence: pendingVerification.scoreConfidence,
           assignmentType: "manual",
           matchStatus: "manual",
           matchReason: "负责人审核后的结构化导入",
@@ -354,12 +377,12 @@ export async function POST(request: Request) {
         statements.push(db.insert(leadScoreRuns).values({
           id: scoreRunId,
           leadId,
-          rubricVersion: RUBRIC_VERSION,
+          rubricVersion: externalImportRubricVersion(),
           totalScore: score.total,
           grade: score.grade,
           evidenceCoverage: score.evidenceCoverage,
           overallConfidence: score.confidence,
-          modelIdentifier: textValue(record.modelIdentifier, { field: "modelIdentifier", max: 160 }) || "human_structured_import",
+          modelIdentifier: `external_input:${textValue(record.modelIdentifier, { field: "modelIdentifier", max: 120 }) || EXTERNAL_IMPORT_MODEL_IDENTIFIER}`,
         }));
         for (const reason of reasons) statements.push(db.insert(leadScoreDimensions).values({
           id: crypto.randomUUID(),
@@ -384,7 +407,8 @@ export async function POST(request: Request) {
         }));
 
         await db.batch(statements as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
-        results.push({ row: index + 1, status: "imported", companyId, leadId, companyName, score: score.total, grade: score.grade });
+        importedIdentities.push({ companyId, companyName, domain: website.normalized, brands: recordBrands });
+        results.push({ row: index + 1, status: "imported", companyId, leadId, companyName, externalScore: score.total, requiresReverification: true });
       } catch (error) {
         results.push({
           row: index + 1,

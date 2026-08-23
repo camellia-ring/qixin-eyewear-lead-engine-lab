@@ -13,6 +13,8 @@ import {
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import { REVIEW_DECISIONS, SCORE_LIMITS } from "@/lib/lead-engine";
 import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { isCurrentServerVerification } from "@/lib/import-policy";
+import { approvalPolicyGaps } from "@/lib/qualification";
 
 export async function POST(request: Request) {
   try {
@@ -41,15 +43,22 @@ export async function POST(request: Request) {
       const dimensions = scoreRun
         ? await db.select().from(leadScoreDimensions).where(eq(leadScoreDimensions.scoreRunId, scoreRun.id))
         : [];
-      if (lead.hardGateStatus !== "pass") throw new ApiError(409, "hard_gate_not_passed");
-      if (lead.currentScore < 60) throw new ApiError(409, "score_below_approval_threshold");
-      if (lead.evidenceCoverage < 40 || lead.scoreConfidence === "low") throw new ApiError(409, "evidence_not_ready");
-      if (company.doNotContact) throw new ApiError(409, "do_not_contact");
-      if (!sources.length) throw new ApiError(409, "source_required");
+      const policyGaps = approvalPolicyGaps({
+        campaignAssigned: lead.campaignId !== UNASSIGNED_CAMPAIGN_ID,
+        hardGateStatus: lead.hardGateStatus,
+        score: lead.currentScore,
+        evidenceCoverage: lead.evidenceCoverage,
+        scoreConfidence: lead.scoreConfidence,
+        doNotContact: company.doNotContact,
+        sourceCount: sources.length,
+        contactPresent: Boolean(company.businessEmail || company.contactChannel || contacts.length),
+        scoreDimensionCount: dimensions.length,
+        expectedScoreDimensionCount: Object.keys(SCORE_LIMITS).length,
+        serverVerified: isCurrentServerVerification(scoreRun),
+      });
+      if (policyGaps.length) throw new ApiError(409, "approval_policy_not_ready", policyGaps.join("；"));
       if (!claims.some((claim) => claim.evidenceKind === "observed")) throw new ApiError(409, "observed_evidence_required");
-      if (dimensions.length !== Object.keys(SCORE_LIMITS).length) throw new ApiError(409, "score_breakdown_incomplete");
       if (dimensions.some((item) => !item.positiveReason && !item.negativeReason)) throw new ApiError(409, "score_reason_incomplete");
-      if (!company.businessEmail && !company.contactChannel && !contacts.length) throw new ApiError(409, "contact_channel_required");
     }
 
     const reviewedAt = new Date().toISOString();

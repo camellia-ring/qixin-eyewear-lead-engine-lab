@@ -1,4 +1,10 @@
-import { DEFAULT_CUSTOMER_TYPES, PRODUCT_TRACK_DEFINITIONS, PRODUCT_TRACKS, type ProductTrack } from "@/lib/lead-engine";
+import {
+  PRODUCT_TRACK_DEFINITIONS,
+  PRODUCT_TRACKS,
+  businessRoleOptions,
+  normalizeBusinessRole,
+  type ProductTrack,
+} from "@/lib/customer-scope";
 
 export const CAMPAIGN_PRIORITIES = [
   { value: 100, label: "高" },
@@ -15,6 +21,7 @@ export const PRODUCT_TRACK_LABELS: Record<string, string> = {
   sports_eyewear: "运动眼镜",
   protective_eyewear: "防护眼镜",
   optical_lenses: "光学镜片",
+  eyewear_accessories: "眼镜配件",
   safety_lenses: "安全与防护镜片（旧版）",
 };
 
@@ -22,15 +29,7 @@ export const CAMPAIGN_PRODUCT_TRACKS = Object.keys(PRODUCT_TRACK_DEFINITIONS)
   .filter((track) => track !== "safety_lenses")
   .map((value) => ({ value, label: PRODUCT_TRACK_LABELS[value] || value }));
 
-export const CAMPAIGN_CUSTOMER_TYPES = [
-  "Optical lens wholesaler",
-  "Eyewear distributor",
-  "Optical supplies importer",
-  "Safety eyewear distributor",
-  "Reading / blue light glasses wholesaler",
-  "Eyewear brand",
-  "Private label brand",
-];
+export const CAMPAIGN_CUSTOMER_TYPES = businessRoleOptions();
 
 export const REGION_PRESETS = {
   global: { label: "全球", countries: [] as string[], language: "English" },
@@ -104,9 +103,9 @@ export function campaignProductInterests(productTracks: string[]) {
 }
 
 export function campaignCustomerTypes(values: string[]) {
-  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].slice(0, 20);
+  return [...new Set(values.map((value) => normalizeBusinessRole(value) || value.trim()).filter(Boolean))].slice(0, 20);
 }
 
 export const DEFAULT_CAMPAIGN_CUSTOMER_TYPES = CAMPAIGN_CUSTOMER_TYPES.length
   ? CAMPAIGN_CUSTOMER_TYPES
-  : DEFAULT_CUSTOMER_TYPES;
+  : businessRoleOptions();

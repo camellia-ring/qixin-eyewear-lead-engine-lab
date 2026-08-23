@@ -8,6 +8,7 @@ import {
   REGION_PRESETS,
   type RegionKey,
 } from "@/lib/campaign-strategy";
+import { normalizeBusinessRoles } from "@/lib/customer-scope";
 import styles from "./LeadEngineApp.module.css";
 
 type StrategyCampaign = {
@@ -31,7 +32,7 @@ function jsonList(value?: string, fallback: string[] = []) {
 export default function CampaignStrategyForm({ campaign }: { campaign?: StrategyCampaign }) {
   const initialRegion = campaign?.regionKey && campaign.regionKey in REGION_PRESETS ? campaign.regionKey as RegionKey : "";
   const initialProducts = jsonList(campaign?.productTracksJson, campaign?.productTrack ? [campaign.productTrack] : []);
-  const initialTypes = jsonList(campaign?.customerTypesJson, campaign ? [] : CAMPAIGN_CUSTOMER_TYPES);
+  const initialTypes: string[] = normalizeBusinessRoles(jsonList(campaign?.customerTypesJson, campaign ? [] : [...CAMPAIGN_CUSTOMER_TYPES]));
   const [regionKey, setRegionKey] = useState<RegionKey | "">(initialRegion);
   const [countries, setCountries] = useState(jsonList(campaign?.targetCountriesJson));
   const [productTracks, setProductTracks] = useState(initialProducts);

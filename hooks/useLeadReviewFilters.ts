@@ -5,8 +5,8 @@ export function useLeadReviewFilters() {
   const [gradeFilter, setGradeFilter] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
-  const [typeFilter, setTypeFilter] = useState("all");
-  const [productFilter, setProductFilter] = useState("all");
+  const [typeFilters, setTypeFilters] = useState<string[]>([]);
+  const [productFilters, setProductFilters] = useState<string[]>([]);
   const [contactFilter, setContactFilter] = useState("all");
   const [sourceFilter, setSourceFilter] = useState("all");
   const [specialFilter, setSpecialFilter] = useState("all");
@@ -19,8 +19,8 @@ export function useLeadReviewFilters() {
     setGradeFilter("all");
     setRegionFilter("all");
     setCountryFilter("all");
-    setTypeFilter("all");
-    setProductFilter("all");
+    setTypeFilters([]);
+    setProductFilters([]);
     setContactFilter("all");
     setSourceFilter("all");
     setSpecialFilter("all");
@@ -29,9 +29,9 @@ export function useLeadReviewFilters() {
   }
 
   return {
-    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilter, productFilter, contactFilter,
+    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter,
     sourceFilter, specialFilter, sortBy, page, search, setStatusFilter, setGradeFilter,
-    setRegionFilter, setCountryFilter, setTypeFilter, setProductFilter, setContactFilter, setSourceFilter,
+    setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter,
     setSpecialFilter, setSortBy, setPage, setSearch, clearFilters,
   };
 }

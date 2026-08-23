@@ -9,7 +9,8 @@ import {
   leadSources,
   prospectCompanies,
 } from "@/db/schema";
-import { collectSiteEvidence, deterministicScore, normalizedDomain, type DiscoveryCandidate } from "@/lib/discovery";
+import { collectSiteEvidence, normalizedDomain, type DiscoveryCandidate } from "@/lib/discovery";
+import { deterministicScore } from "@/lib/lead-scoring";
 import { calculateScore, canonicalSourceUrl, RUBRIC_VERSION } from "@/lib/lead-engine";
 import { qualifyEvidence } from "@/lib/qualification";
 import { refreshCompanyCampaignMemberships } from "@/lib/campaign-membership";
@@ -50,7 +51,7 @@ export async function reverifyLead(leadId: string) {
     productsJson: JSON.stringify(evidence.eyewearTerms.slice(0, 12)),
     productDirectionsJson: JSON.stringify(qualification.productDirections),
     wholesaleSignal: evidence.b2bTerms.length ? `Observed terms: ${evidence.b2bTerms.slice(0, 8).join(", ")}` : null,
-    analysisSummary: [...qualification.reasons, ...qualification.failures].join("；").slice(0, 3000),
+    analysisSummary: [...qualification.reasons, ...qualification.failures, ...qualification.manualReviewReasons].join("；").slice(0, 3000),
     analysisConfidence: evidence.pages.length >= 2 ? "medium" : "low",
     businessEmail: evidence.businessEmail || null,
     contactChannel: evidence.contactChannel || null,
@@ -58,12 +59,12 @@ export async function reverifyLead(leadId: string) {
     lastAnalyzedAt: now, lastVerifiedAt: now, updatedAt: now,
   }).where(eq(prospectCompanies.id, company.id));
   await db.update(campaignLeads).set({
-    qualificationResult: qualification.qualified ? "qualified" : "rejected",
-    workflowStatus: qualification.qualified && lead.workflowStatus === "approved" ? "approved" : qualification.qualified ? "needs_review" : "rejected",
+    qualificationResult: qualification.qualified ? "qualified" : qualification.candidateForReview ? "near_match" : "rejected",
+    workflowStatus: qualification.qualified && lead.workflowStatus === "approved" ? "approved" : qualification.candidateForReview ? "needs_review" : "rejected",
     recommendedProductsJson: JSON.stringify(qualification.productDirections),
-    riskSummary: qualification.failures.join("；") || "重新核验通过；人工批准前不得联系或写入生产 CRM。",
+    riskSummary: [...qualification.failures, ...qualification.manualReviewReasons].join("；") || "重新核验通过；人工批准前不得联系或写入生产 CRM。",
     hardGateStatus: qualification.hardGateStatus,
-    hardGateReason: qualification.qualified ? qualification.reasons.join("；") : qualification.failures.join("；"),
+    hardGateReason: qualification.qualified ? qualification.reasons.join("；") : [...qualification.failures, ...qualification.manualReviewReasons].join("；"),
     currentScore: score.total, grade: score.grade, evidenceCoverage: score.evidenceCoverage,
     scoreConfidence: score.confidence, autoQualifiedAt: qualification.qualified ? lead.autoQualifiedAt || now : null,
     lastVerifiedAt: now, updatedAt: now,
@@ -82,13 +83,21 @@ export async function reverifyLead(leadId: string) {
       eq(leadSources.leadId, lead.id), eq(leadSources.canonicalUrl, canonicalUrl),
     )).limit(1);
     if (source) {
-      const claimId = crypto.randomUUID();
-      evidenceIds.push(claimId);
-      await db.insert(evidenceClaims).values({
-        id: claimId, sourceId: source.id, companyId: company.id, leadId: lead.id,
-        claimType: "reverification", claimSummary: `重新核验官网页面：${page.title || canonicalUrl}`,
-        evidenceKind: "observed", confidence: "medium",
-      });
+      const pageRoles = qualification.roleEvidence.filter((match) => match.sourceUrls.includes(page.url)).map((match) => match.value);
+      const pageProducts = qualification.productEvidence.filter((match) => match.sourceUrls.includes(page.url)).map((match) => match.value);
+      const claims = [
+        { type: "reverification", summary: `重新核验官网页面：${page.title || canonicalUrl}` },
+        ...(pageRoles.length ? [{ type: "b2b_role", summary: `官网观察到 B2B 商业角色：${pageRoles.join("、")}` }] : []),
+        ...(pageProducts.length ? [{ type: "allowed_product", summary: `官网观察到允许产品：${pageProducts.join("、")}` }] : []),
+      ];
+      for (const claim of claims) {
+        const claimId = crypto.randomUUID();
+        evidenceIds.push(claimId);
+        await db.insert(evidenceClaims).values({
+          id: claimId, sourceId: source.id, companyId: company.id, leadId: lead.id,
+          claimType: claim.type, claimSummary: claim.summary, evidenceKind: "observed", confidence: "medium",
+        });
+      }
     }
   }
   for (const contact of evidence.contacts) {
@@ -104,7 +113,7 @@ export async function reverifyLead(leadId: string) {
   await db.insert(leadScoreRuns).values({
     id: scoreRunId, leadId: lead.id, rubricVersion: RUBRIC_VERSION, totalScore: score.total,
     grade: score.grade, evidenceCoverage: score.evidenceCoverage, overallConfidence: score.confidence,
-    modelIdentifier: "deterministic_public_rules_v2_reverification",
+    modelIdentifier: "deterministic_public_rules_v3_reverification",
   });
   const maximums: Record<string, number> = { productMatchScore: 25, customerTypeScore: 20, purchasingSignalsScore: 15, marketMoqFitScore: 15, contactabilityScore: 10, accountPotentialScore: 10, dataQualityScore: 5 };
   for (const [dimension, value] of Object.entries(score.breakdown)) {
