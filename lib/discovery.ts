@@ -6,8 +6,12 @@ const BLOCKED_DESTINATIONS = [
   "facebook.com", "instagram.com", "linkedin.com", "youtube.com", "youtu.be", "x.com", "twitter.com",
   "tiktok.com", "pinterest.com", "google.com", "bing.com", "yahoo.com", "amazon.com", "alibaba.com",
   "aliexpress.com", "ebay.com", "etsy.com", "whatsapp.com", "wa.me", "doubleclick.net",
+  "e-ve.event-form.jp", "closerstillmedia.com", "asp.events", "mya2zevents.com", "a2zevents.zendesk.com",
 ];
-const GENERIC_EMAIL_PREFIXES = new Set(["info", "sales", "contact", "office", "wholesale", "trade", "orders", "hello", "support", "enquiries", "inquiries"]);
+const GENERIC_EMAIL_PREFIXES = new Set([
+  "info", "sales", "contact", "office", "wholesale", "trade", "orders", "hello", "support",
+  "enquiries", "inquiries", "export", "commercial", "business", "marketing", "international",
+]);
 const EYEWEAR_TERMS = [
   "eyewear", "eyeglass", "eyeglasses", "spectacle", "spectacles", "optical frame", "optical frames",
   "sunglass", "sunglasses", "reading glasses", "ophthalmic lens", "optical lens", "safety glasses",
@@ -28,7 +32,7 @@ const INTERNAL_PAGE_TERMS = [
   "about", "company", "products", "collections", "eyewear", "glasses", "frames", "wholesale", "trade",
   "distributor", "stockist", "contact", "brands", "private-label", "oem",
 ];
-const MAX_HTML_BYTES = 1_250_000;
+const MAX_HTML_BYTES = 2_000_000;
 const FETCH_TIMEOUT_MS = 8_000;
 
 export type PublicBusinessContact = {
@@ -49,6 +53,7 @@ export type DiscoveryCandidate = {
   directoryDetailUrl?: string;
   directoryTitle?: string;
   directoryCategory?: string;
+  directoryCountry?: string;
   officialContacts?: PublicBusinessContact[];
 };
 export type PublicPage = { url: string; title: string; html: string; text: string };
@@ -252,6 +257,69 @@ export function extractVisionCouncilCandidates(html: string, sourceUrl: string, 
   return candidates.slice(safeOffset, safeOffset + safeLimit);
 }
 
+function directoryCountryName(value: string) {
+  const code = value.trim().toLocaleUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return value.trim();
+  try {
+    return new Intl.DisplayNames(["en"], { type: "region" }).of(code) || code;
+  } catch {
+    return code;
+  }
+}
+
+function trustedDirectoryEmail(value: string, sourceUrl: string, sourceTitle: string): PublicBusinessContact[] {
+  const email = value.trim().toLocaleLowerCase().replace(/[),.;:]+$/, "");
+  const [local] = email.split("@");
+  if (!/^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email) || !GENERIC_EMAIL_PREFIXES.has(local)) return [];
+  return [{
+    type: "email", value: email, sourceUrl: canonicalSourceUrl(sourceUrl), sourceTitle,
+    sameCompanyDomain: false, trustedOfficialSource: true, businessUse: true, status: "valid",
+  }];
+}
+
+export function extractMidoMapCandidates(html: string, sourceUrl: string, limit = 20, offset = 0) {
+  const sourceTitle = "MIDO Exhibitors Map 2026";
+  const candidates: Array<DiscoveryCandidate & { priority: number }> = [];
+  const seen = new Set<string>();
+  for (const match of html.matchAll(/<div\b([^>]*\bclass\s*=\s*["'][^"']*\bmap-exhibitor\b[^"']*["'][^>]*)>/gi)) {
+    const tag = match[1];
+    const label = attribute(tag, "data-name").slice(0, 180);
+    const rawWebsite = attribute(tag, "data-href") || attribute(tag, "data-website");
+    const countryCode = attribute(tag, "data-country");
+    if (!label || !rawWebsite || countryCode.toLocaleUpperCase() === "CN") continue;
+    try {
+      const website = publicHttpUrl(rawWebsite, sourceUrl);
+      const domain = normalizedDomain(website.toString());
+      if (domainBlocked(domain, normalizedDomain(sourceUrl)) || seen.has(domain)) continue;
+      seen.add(domain);
+      const country = directoryCountryName(countryCode);
+      const categories = attribute(tag, "data-categories");
+      const priority = /(distribut|import|wholesale|trade|trading)/i.test(label) ? 0
+        : /(optical|optic|eyewear|lens|vision)/i.test(label) ? 1 : 2;
+      candidates.push({
+        websiteUrl: `${website.protocol}//${website.host}/`,
+        normalizedDomain: domain,
+        label,
+        directoryUrl: canonicalSourceUrl(sourceUrl),
+        directoryTitle: sourceTitle,
+        directoryCategory: [country ? `Country: ${country}` : "", categories ? `Categories: ${categories}` : ""].filter(Boolean).join("; "),
+        directoryCountry: country,
+        officialContacts: trustedDirectoryEmail(attribute(tag, "data-email"), sourceUrl, sourceTitle),
+        priority,
+      });
+    } catch {
+      // Entries without a valid public company website cannot enter the candidate pool.
+    }
+  }
+  candidates.sort((left, right) => left.priority - right.priority || left.label.localeCompare(right.label));
+  const safeOffset = Math.max(0, Math.min(100_000, Math.trunc(offset)));
+  const safeLimit = Math.max(1, Math.min(500, limit));
+  return candidates.slice(safeOffset, safeOffset + safeLimit).map(({ priority, ...candidate }) => {
+    void priority;
+    return candidate;
+  });
+}
+
 function unresolvedCandidate(label: string, sourceUrl: string): DiscoveryCandidate {
   const key = normalizeCompanyName(label).replace(/\s+/g, "-").slice(0, 120) || crypto.randomUUID();
   return { websiteUrl: "", normalizedDomain: `unresolved:${key}`, label, directoryUrl: canonicalSourceUrl(sourceUrl) };
@@ -280,6 +348,7 @@ export function extractTextExhibitorHints(html: string, sourceUrl: string, limit
 
 export function parseDirectoryCandidates(parserKey: string, html: string, sourceUrl: string, limit = 20, offset = 0) {
   if (parserKey === "vision_council_members") return extractVisionCouncilCandidates(html, sourceUrl, limit, offset);
+  if (parserKey === "mido_exhibitor_map") return extractMidoMapCandidates(html, sourceUrl, limit, offset);
   if (parserKey === "exhibitor_cards") return extractExhibitorCardCandidates(html, sourceUrl, limit, offset);
   if (parserKey === "exhibitor_text") return extractTextExhibitorHints(html, sourceUrl, limit, offset);
   if (parserKey === "dynamic_directory") throw new Error("dynamic_directory_requires_confirmed_public_endpoint");
@@ -292,6 +361,7 @@ type DynamicDirectoryConfig = {
   nameField?: string;
   websiteField?: string;
   detailField?: string;
+  flattenObjectArrays?: boolean;
 };
 
 function pathValue(value: unknown, path = "") {
@@ -309,8 +379,12 @@ export function parseDynamicDirectoryPayload(
   limit = 20,
   offset = 0,
 ) {
-  const itemsValue = pathValue(payload, config.itemsPath || "items");
-  const items = Array.isArray(itemsValue) ? itemsValue : Array.isArray(payload) ? payload : [];
+  const itemsPath = config.itemsPath === "" ? "" : config.itemsPath || "items";
+  const itemsValue = pathValue(payload, itemsPath);
+  const flattened = config.flattenObjectArrays && itemsValue && typeof itemsValue === "object" && !Array.isArray(itemsValue)
+    ? Object.values(itemsValue as Record<string, unknown>).flatMap((value) => Array.isArray(value) ? value : [])
+    : [];
+  const items = Array.isArray(itemsValue) ? itemsValue : Array.isArray(payload) ? payload : flattened;
   const nameField = config.nameField || "name";
   const websiteField = config.websiteField || "website";
   const detailField = config.detailField || "url";
@@ -372,21 +446,40 @@ async function readBody(response: Response, maxBytes = MAX_HTML_BYTES) {
   return output + decoder.decode();
 }
 
-async function fetchWithRedirects(urlValue: string, accept: string, maxBytes: number) {
+type TextRequestOptions = {
+  method?: "GET" | "POST";
+  body?: string;
+  contentType?: "application/x-www-form-urlencoded";
+};
+
+async function fetchWithRedirects(urlValue: string, accept: string, maxBytes: number, request: TextRequestOptions = {}) {
   let current = publicHttpUrl(urlValue);
+  let method = request.method || "GET";
+  let body = method === "POST" ? request.body || "" : undefined;
+  if (body && new TextEncoder().encode(body).byteLength > 10_000) throw new Error("请求正文超过大小上限");
   for (let redirect = 0; redirect <= 3; redirect += 1) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     try {
       const response = await fetch(current, {
+        method,
+        body,
         redirect: "manual",
         signal: controller.signal,
-        headers: { Accept: accept, "User-Agent": "QIXIN-Lead-Engine/1.0 (+private evidence collector)" },
+        headers: {
+          Accept: accept,
+          "User-Agent": "QIXIN-Lead-Engine/1.0 (+private evidence collector)",
+          ...(method === "POST" && request.contentType ? { "Content-Type": request.contentType } : {}),
+        },
       });
       if (response.status >= 300 && response.status < 400) {
         const location = response.headers.get("location");
         if (!location || redirect === 3) throw new Error("重定向次数过多");
         current = publicHttpUrl(location, current.toString());
+        if (response.status === 303 || ((response.status === 301 || response.status === 302) && method === "POST")) {
+          method = "GET";
+          body = undefined;
+        }
         continue;
       }
       return { response, body: await readBody(response, maxBytes), finalUrl: current.toString() };
@@ -446,8 +539,11 @@ async function fetchBinaryWithRedirects(urlValue: string, accept: string, maxByt
   throw new Error("重定向次数过多");
 }
 
-function robotsAllows(robots: string, path: string) {
+export function robotsAllows(robots: string, path: string) {
   let applies = false;
+  let sawRule = false;
+  let bestLength = -1;
+  let bestAllow = true;
   for (const line of robots.split(/\r?\n/)) {
     const clean = line.replace(/#.*$/, "").trim();
     if (!clean) continue;
@@ -456,12 +552,22 @@ function robotsAllows(robots: string, path: string) {
     const key = clean.slice(0, separator).trim().toLocaleLowerCase();
     const value = clean.slice(separator + 1).trim();
     if (key === "user-agent") {
-      applies = value === "*" || value.toLocaleLowerCase() === "qixin-lead-engine";
-    } else if (applies && key === "disallow" && value && path.startsWith(value)) {
-      return false;
+      if (sawRule) {
+        applies = false;
+        sawRule = false;
+      }
+      applies ||= value === "*" || value.toLocaleLowerCase() === "qixin-lead-engine";
+    } else if (key === "allow" || key === "disallow") {
+      sawRule = true;
+      if (!applies || !value || !path.startsWith(value)) continue;
+      const allow = key === "allow";
+      if (value.length > bestLength || (value.length === bestLength && allow)) {
+        bestLength = value.length;
+        bestAllow = allow;
+      }
     }
   }
-  return true;
+  return bestAllow;
 }
 
 async function ensureRobotsAllowed(url: URL) {
@@ -485,10 +591,10 @@ export async function fetchPublicHtml(urlValue: string, checkRobots = true): Pro
   return { url: canonicalSourceUrl(result.finalUrl), title: titleFromHtml(result.body), html: result.body, text: plainText(result.body).slice(0, 200_000) };
 }
 
-export async function fetchPublicJson(urlValue: string) {
+export async function fetchPublicJson(urlValue: string, request: TextRequestOptions = {}) {
   const url = publicHttpUrl(urlValue);
   await ensureRobotsAllowed(url);
-  const result = await fetchWithRedirects(url.toString(), "application/json,text/json;q=0.9", MAX_HTML_BYTES);
+  const result = await fetchWithRedirects(url.toString(), "application/json,text/json;q=0.9", MAX_HTML_BYTES, request);
   if (!result.response.ok) throw new Error(`动态目录返回 HTTP ${result.response.status}`);
   const contentType = result.response.headers.get("content-type") || "";
   if (!/json/i.test(contentType)) throw new Error("动态目录接口未返回 JSON");
@@ -627,7 +733,7 @@ export async function collectSiteEvidence(candidate: DiscoveryCandidate): Promis
   const channel = contacts.find((contact) => ["form", "contact_page", "phone"].includes(contact.type) && contact.status === "valid");
   return {
     companyName: companyNameFrom(homepage, candidate.label || candidate.normalizedDomain),
-    country: pages.map((page) => structuredCountry(page.html)).find(Boolean) || "",
+    country: pages.map((page) => structuredCountry(page.html)).find(Boolean) || candidate.directoryCountry || "",
     companyType: inferredCompanyType(b2bTerms),
     businessEmail: email?.value || "",
     contactChannel: channel ? `${channel.type}: ${channel.value}` : "",

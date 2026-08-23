@@ -24,13 +24,14 @@
 ## 来源与解析器
 
 - `vision_council_members`：协会会员表。
+- `mido_exhibitor_map`：MIDO 服务端展商地图；读取企业官网、国家、类别和公开通用商务邮箱，排除中国大陆展商。
 - `exhibitor_cards`：直接官网链接或同域展商详情页，再从详情页解析企业官网。
 - `exhibitor_text`：纯文本名称。没有官网时只能交给明确批准并配置的 provider；默认不会合格。
 - `dynamic_directory`：仅用于已确认的公开 JSON endpoint；配置 `itemsPath`、`nameField`、`websiteField`、`detailField`。
 - `pdf_directory`：公开官方 PDF；最大 6 MB、100 页，抽取结果仍只是名称线索。
 - `generic_links`：公开页面上的直接外部企业链接。
 
-所有解析器都有持久化 `offset` 游标。到达末尾后游标归零，记录完整扫描时间，并把该来源延后 7 天，避免反复请求同一批候选。
+所有解析器都有持久化 `offset` 游标。大型且已确认的公开目录可在同一运行日每 15 分钟继续下一批，每批仍最多 5 家；普通来源每天最多运行一次。到达末尾后游标归零，记录完整扫描时间，并把该来源延后 7 天，避免反复请求同一批候选。
 
 ## 告警与恢复
 

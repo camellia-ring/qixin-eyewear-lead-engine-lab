@@ -21,7 +21,7 @@ test("implements bounded, auditable public-source discovery", async () => {
   }
   assert.match(schema, /maxCandidates.*default\(10\)/s);
   assert.match(schema, /BETWEEN 1 AND 20/);
-  assert.match(discovery, /MAX_HTML_BYTES = 1_250_000/);
+  assert.match(discovery, /MAX_HTML_BYTES = 2_000_000/);
   assert.match(discovery, /FETCH_TIMEOUT_MS = 8_000/);
   assert.match(discovery, /redirect === 3/);
   assert.match(discovery, /robots\.txt/);

@@ -40,3 +40,11 @@ export function chooseNextSource<T extends { id: string }>(sources: T[], usedSou
   const used = new Set(usedSourceIds);
   return sources.find((source) => !used.has(source.id)) || null;
 }
+
+export function sourceRepeatsDuringDay(source: { parserConfigJson: string }) {
+  try {
+    return (JSON.parse(source.parserConfigJson || "{}") as Record<string, unknown>).repeatDuringDay === true;
+  } catch {
+    return false;
+  }
+}

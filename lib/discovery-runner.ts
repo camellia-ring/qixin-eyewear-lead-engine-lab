@@ -43,6 +43,7 @@ import {
 import { createDiscoveryProvider } from "@/lib/discovery-provider";
 import { qualifyEvidence } from "@/lib/qualification";
 import { campaignProductTracks, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { ENGINE_BATCH_MINUTES } from "@/lib/engine-policy";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
 type Trigger = "manual" | "scheduled";
@@ -64,9 +65,13 @@ export type RunCounts = {
 type RunOptions = { targetDate?: string; maxCandidates?: number };
 type ParserState = { offset: number; lastFullScanAt?: string; [key: string]: unknown };
 
-function nextRun(cadence: string, from = new Date()) {
+function nextRun(cadence: string, from = new Date(), repeatDuringDay = false) {
   if (cadence === "manual") return null;
   const next = new Date(from);
+  if (repeatDuringDay) {
+    next.setUTCMinutes(next.getUTCMinutes() + ENGINE_BATCH_MINUTES);
+    return next.toISOString();
+  }
   next.setUTCDate(next.getUTCDate() + (cadence === "weekly" ? 7 : 1));
   return next.toISOString();
 }
@@ -387,7 +392,15 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
     if (source.parserKey === "dynamic_directory") {
       const endpoint = String(sourceConfig.endpoint || "").trim();
       if (!endpoint) throw new Error("dynamic_directory_requires_confirmed_public_endpoint");
-      const directory = await fetchPublicJson(endpoint);
+      const method = String(sourceConfig.method || "GET").toLocaleUpperCase() === "POST" ? "POST" : "GET";
+      const contentType = sourceConfig.contentType === "application/x-www-form-urlencoded"
+        ? "application/x-www-form-urlencoded" as const
+        : undefined;
+      const directory = await fetchPublicJson(endpoint, {
+        method,
+        body: method === "POST" ? String(sourceConfig.body || "") : undefined,
+        contentType,
+      });
       candidates = parseDynamicDirectoryPayload(directory.payload, source.sourceUrl, sourceConfig, maxCandidates, currentParserState.offset);
     } else if (source.parserKey === "pdf_directory") {
       const directory = await fetchPublicPdfText(source.sourceUrl);
@@ -495,7 +508,9 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
       lastDuplicateCount: counts.duplicate, failureCount: status === "failed" ? source.failureCount + 1 : source.failureCount,
       lastError: counts.errors.slice(0, 3).join("；") || null,
       parserConfigJson: JSON.stringify(nextParserState),
-      nextRunAt: exhaustedDirectory ? new Date(new Date(completedAt).getTime() + 7 * 86_400_000).toISOString() : nextRun(source.cadence, new Date(completedAt)),
+      nextRunAt: exhaustedDirectory
+        ? new Date(new Date(completedAt).getTime() + 7 * 86_400_000).toISOString()
+        : nextRun(source.cadence, new Date(completedAt), sourceConfig.repeatDuringDay === true),
       updatedAt: completedAt,
     }).where(eq(discoverySources.id, sourceId));
     await db.insert(sourceHealth).values({

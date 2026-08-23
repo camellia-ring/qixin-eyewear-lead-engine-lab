@@ -16,6 +16,7 @@ import {
   DEFAULT_TIMEZONE,
   ENGINE_BATCH_MINUTES,
   mergeDailyCounts,
+  sourceRepeatsDuringDay,
 } from "@/lib/engine-policy";
 import { seedOfficialSourceRegistry } from "@/lib/source-registry";
 import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
@@ -159,20 +160,33 @@ export async function runAutomaticDiscoveryBatch() {
     eq(discoverySources.isPaid, false),
   )).orderBy(asc(discoverySources.tier), asc(discoverySources.priority)))
     .filter((source) => activeIds.has(source.campaignId));
-  const sources = registeredSources.filter((source) => !source.nextRunAt || source.nextRunAt <= timestamp);
   const todayRuns = await db.select({ sourceId: discoveryRuns.sourceId }).from(discoveryRuns).where(and(
     eq(discoveryRuns.targetDate, targetDate),
   ));
   const used = new Set(todayRuns.map((run) => run.sourceId));
   const runsByCampaign = new Map<string, number>();
-  for (const sourceId of used) {
-    const campaignId = registeredSources.find((candidate) => candidate.id === sourceId)?.campaignId;
+  const runsBySource = new Map<string, number>();
+  for (const run of todayRuns) {
+    runsBySource.set(run.sourceId, (runsBySource.get(run.sourceId) || 0) + 1);
+    const campaignId = registeredSources.find((candidate) => candidate.id === run.sourceId)?.campaignId;
     if (campaignId) runsByCampaign.set(campaignId, (runsByCampaign.get(campaignId) || 0) + 1);
   }
-  const source = sources
-    .filter((candidate) => !used.has(candidate.id))
-    .sort((left, right) => (runsByCampaign.get(left.campaignId) || 0) - (runsByCampaign.get(right.campaignId) || 0))[0] || null;
+  const eligibleSources = registeredSources.filter((candidate) => sourceRepeatsDuringDay(candidate) || !used.has(candidate.id));
+  const sources = eligibleSources.filter((source) => !source.nextRunAt || source.nextRunAt <= timestamp);
+  const source = sources.sort((left, right) =>
+    (runsByCampaign.get(left.campaignId) || 0) - (runsByCampaign.get(right.campaignId) || 0)
+    || (runsBySource.get(left.id) || 0) - (runsBySource.get(right.id) || 0)
+    || left.priority - right.priority
+  )[0] || null;
   if (!source) {
+    const futureSources = eligibleSources.filter((candidate) => candidate.nextRunAt && candidate.nextRunAt > timestamp);
+    if (futureSources.length) {
+      const earliest = futureSources.map((candidate) => candidate.nextRunAt as string).sort()[0];
+      await db.update(engineState).set({
+        lastHeartbeatAt: timestamp, nextRunAt: earliest, lastError: null, updatedAt: timestamp,
+      }).where(eq(engineState.id, "global"));
+      return { status: "sources_waiting", ran: false, target, progress: dailyProgress(target.targetCount, target.qualifiedCount), nextRunAt: earliest };
+    }
     const remaining = Math.max(0, target.targetCount - target.qualifiedCount);
     const reason = `A级/B级可用来源已耗尽，当日仍缺 ${remaining} 家；没有使用低质量记录填充。`;
     [target] = await db.update(dailyDiscoveryTargets).set({
@@ -190,7 +204,7 @@ export async function runAutomaticDiscoveryBatch() {
 
   const result = await runDiscoverySource(source.id, "scheduled", { targetDate, maxCandidates: 5 });
   target = await addRunToDailyTarget(targetDate, state.timezone, result);
-  const remainingSources = sources.filter((candidate) => candidate.id !== source.id && !used.has(candidate.id)).length;
+  const remainingSources = sources.filter((candidate) => candidate.id !== source.id).length;
   const remaining = Math.max(0, target.targetCount - target.qualifiedCount);
   if (result.status === "failed") {
     await createAlertOnce({
@@ -202,7 +216,7 @@ export async function runAutomaticDiscoveryBatch() {
   await db.update(engineState).set({
     activeCampaignId: source.campaignId,
     lastHeartbeatAt: timestamp, lastRunAt: timestamp,
-    nextRunAt: remaining > 0 && remainingSources > 0 ? nextBatch(now) : nextBatch(now, 60),
+    nextRunAt: remaining > 0 && (remainingSources > 0 || sourceRepeatsDuringDay(source)) ? nextBatch(now) : nextBatch(now, 60),
     lastError: result.status === "failed" ? result.errors.join("；").slice(0, 1000) : null,
     updatedAt: timestamp,
   }).where(eq(engineState.id, "global"));

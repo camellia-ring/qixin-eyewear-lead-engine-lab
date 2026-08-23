@@ -4,11 +4,13 @@ import { access, readFile } from "node:fs/promises";
 import { createDiscoveryProvider } from "../lib/discovery-provider.ts";
 import {
   extractExhibitorCardCandidates,
+  extractMidoMapCandidates,
   extractTextExhibitorHints,
   extractVisionCouncilCandidates,
   parseDynamicDirectoryPayload,
+  robotsAllows,
 } from "../lib/discovery.ts";
-import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts } from "../lib/engine-policy.ts";
+import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts, sourceRepeatsDuringDay } from "../lib/engine-policy.ts";
 import { qualifyEvidence } from "../lib/qualification.ts";
 import { campaignMatchesCompany, normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
 import { campaignStrategyName } from "../lib/campaign-strategy.ts";
@@ -177,6 +179,40 @@ test("dynamic JSON adapter maps configured nested fields without treating the AP
   assert.equal(candidate.label, "Northstar Optical");
   assert.equal(candidate.normalizedDomain, "northstar-optical.com");
   assert.equal(candidate.directoryDetailUrl, "https://fair.example.org/company/northstar");
+});
+
+test("MIDO map parser keeps non-China official websites, trusted generic contacts and cursor order", () => {
+  const row = (name, country, website, email = "") => `<div class="map-exhibitor" data-name="${name}" data-country="${country}" data-href="${website}" data-email="${email}" data-categories="Frames"></div>`;
+  const html = row("Zeta Eyewear", "IT", "https://zeta-eyewear.com", "sales@zeta-eyewear.com")
+    + row("Alpha Optical Distributor", "US", "https://alpha-optical.com", "export@alpha-optical.com")
+    + row("Excluded China", "CN", "https://excluded-optical.com", "info@excluded-optical.com");
+  const [first] = extractMidoMapCandidates(html, "https://www.mido.com/en/exhibitors-map-2026", 1);
+  const all = extractMidoMapCandidates(html, "https://www.mido.com/en/exhibitors-map-2026", 10);
+  assert.equal(first.label, "Alpha Optical Distributor");
+  assert.equal(first.directoryCountry, "United States");
+  assert.equal(first.officialContacts[0].value, "export@alpha-optical.com");
+  assert.deepEqual(all.map((candidate) => candidate.normalizedDomain), ["alpha-optical.com", "zeta-eyewear.com"]);
+});
+
+test("grouped public directory payloads flatten without changing qualification rules", () => {
+  const payload = { A: [{ exhibitor_name_en: "Alpha", link: "/en/exhibitor/alpha" }], B: [{ exhibitor_name_en: "Beta", link: "/en/exhibitor/beta" }] };
+  const candidates = parseDynamicDirectoryPayload(payload, "https://neotokyoeyewearshow.com/en/exhibitor/", {
+    itemsPath: "", flattenObjectArrays: true, nameField: "exhibitor_name_en", websiteField: "brand_link_source", detailField: "link",
+  });
+  assert.deepEqual(candidates.map((candidate) => candidate.label), ["Alpha", "Beta"]);
+  assert.equal(candidates[0].directoryDetailUrl, "https://neotokyoeyewearshow.com/en/exhibitor/alpha");
+});
+
+test("robots longest-match allow rule permits the Neo Tokyo public AJAX endpoint", () => {
+  const robots = "User-agent: *\nDisallow: /neotokyo-wp/wp-admin/\nAllow: /neotokyo-wp/wp-admin/admin-ajax.php";
+  assert.equal(robotsAllows(robots, "/neotokyo-wp/wp-admin/admin-ajax.php"), true);
+  assert.equal(robotsAllows(robots, "/neotokyo-wp/wp-admin/edit.php"), false);
+});
+
+test("only explicitly marked large sources may repeat during the same day", () => {
+  assert.equal(sourceRepeatsDuringDay({ parserConfigJson: '{"repeatDuringDay":true}' }), true);
+  assert.equal(sourceRepeatsDuringDay({ parserConfigJson: '{"repeatDuringDay":false}' }), false);
+  assert.equal(sourceRepeatsDuringDay({ parserConfigJson: "not-json" }), false);
 });
 
 test("plain-text and PDF-extracted lines use the same unresolved-name cursor", () => {
