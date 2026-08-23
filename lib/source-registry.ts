@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaigns, discoverySources, parserVersions } from "@/db/schema";
 import { normalizedDomain } from "@/lib/discovery";
@@ -312,6 +312,18 @@ export async function seedOfficialSourceRegistry(campaignId: string) {
         updatedAt: now,
       }).where(eq(discoverySources.id, current.id));
     }
+    await db.update(discoverySources).set({
+      enabled: false,
+      status: "paused",
+      cadence: "manual",
+      nextRunAt: null,
+      accessNotes: `已由规范来源 ${values.id} 取代；避免同一官方目录重复运行。`,
+      updatedAt: now,
+    }).where(and(
+      eq(discoverySources.campaignId, campaignId),
+      eq(discoverySources.sourceUrl, source.url),
+      ne(discoverySources.id, values.id),
+    ));
   }
 
   for (const parser of [

@@ -3,10 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("implements bounded, auditable public-source discovery", async () => {
-  const [schema, migration, discovery, sourceRoute, workspace, ui] = await Promise.all([
+  const [schema, migration, discovery, sourceRegistry, sourceRoute, workspace, ui] = await Promise.all([
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0002_bumpy_ronan.sql", import.meta.url), "utf8"),
     readFile(new URL("../lib/discovery.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/source-registry.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/discovery/sources/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
     Promise.all([
@@ -29,6 +30,8 @@ test("implements bounded, auditable public-source discovery", async () => {
   assert.match(discovery, /GENERIC_EMAIL_PREFIXES/);
   assert.match(discovery, /BLOCKED_SUFFIXES/);
   assert.match(discovery, /a === 10 \|\| a === 127/);
+  assert.match(sourceRegistry, /避免同一官方目录重复运行/);
+  assert.match(sourceRegistry, /ne\(discoverySources\.id, values\.id\)/);
   assert.match(sourceRoute, /campaign\.status !== "active"/);
   assert.match(workspace, /discoveryItems/);
   assert.match(ui, /自动找客户/);
