@@ -66,7 +66,7 @@ export async function reverifyLead(leadId: string) {
     hardGateStatus: qualification.hardGateStatus,
     hardGateReason: qualification.qualified ? qualification.reasons.join("；") : [...qualification.failures, ...qualification.manualReviewReasons].join("；"),
     currentScore: score.total, grade: score.grade, evidenceCoverage: score.evidenceCoverage,
-    scoreConfidence: score.confidence, autoQualifiedAt: qualification.qualified ? lead.autoQualifiedAt || now : null,
+    scoreConfidence: score.confidence, autoQualifiedAt: lead.autoQualifiedAt || (qualification.qualified ? now : null),
     lastVerifiedAt: now, updatedAt: now,
   }).where(eq(campaignLeads.id, lead.id));
 

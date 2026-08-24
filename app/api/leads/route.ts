@@ -1,10 +1,12 @@
 import { and, asc, count, desc, eq, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaignLeads, prospectCompanies } from "@/db/schema";
-import { apiFailure } from "@/lib/api";
+import { ApiError, apiFailure } from "@/lib/api";
 import { normalizeCountry } from "@/lib/campaign-routing";
 import { isRegionKey, REGION_PRESETS } from "@/lib/campaign-strategy";
+import { automaticCompletionScope } from "@/lib/completion-reporting";
 import { safeJsonList } from "@/lib/lead-engine";
+import { isDateKey, reportingPeriod, type CompletionPeriodKind } from "@/lib/reporting-period";
 
 const SORTS = {
   score: campaignLeads.currentScore,
@@ -44,6 +46,17 @@ export async function GET(request: Request) {
       ? and(eq(campaignLeads.campaignId, campaignId), includeHistory ? undefined : ne(campaignLeads.matchStatus, "stale"))
       : and(eq(campaignLeads.campaignId, prospectCompanies.primaryCampaignId), ne(campaignLeads.matchStatus, "stale"));
     const conditions: SQL[] = scope ? [scope] : [];
+    const completionPeriodValue = parameters.get("completionPeriod")?.trim() || "all";
+    const completionAnchor = parameters.get("completionAnchor")?.trim();
+    const validCompletionPeriods = new Set(["all", "week", "month", "quarter", "year"]);
+    if (!validCompletionPeriods.has(completionPeriodValue)) throw new ApiError(400, "invalid_completion_period");
+    if (completionAnchor && !isDateKey(completionAnchor)) throw new ApiError(400, "invalid_completion_anchor");
+    const completionPeriod = completionPeriodValue === "all"
+      ? null
+      : reportingPeriod(completionPeriodValue as CompletionPeriodKind, completionAnchor);
+    const completionCondition = completionPeriod ? automaticCompletionScope(completionPeriod) : undefined;
+    if (completionCondition) conditions.push(completionCondition);
+    const facetScope = and(scope, completionCondition);
 
     const scalarFilters = [
       ["status", campaignLeads.workflowStatus],
@@ -145,19 +158,19 @@ export async function GET(request: Request) {
       db.select({ value: count() }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(where),
       db.select({ key: campaignLeads.workflowStatus, value: count() }).from(campaignLeads)
-        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope).groupBy(campaignLeads.workflowStatus),
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope).groupBy(campaignLeads.workflowStatus),
       db.select({ key: campaignLeads.grade, value: count() }).from(campaignLeads)
-        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope).groupBy(campaignLeads.grade),
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope).groupBy(campaignLeads.grade),
       db.selectDistinct({ value: prospectCompanies.country }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id))
-        .where(and(scope, isNotNull(prospectCompanies.country))).orderBy(asc(prospectCompanies.country)),
+        .where(and(facetScope, isNotNull(prospectCompanies.country))).orderBy(asc(prospectCompanies.country)),
       db.selectDistinct({ customerTypesJson: prospectCompanies.customerTypesJson, customerType: prospectCompanies.customerType, companyRole: prospectCompanies.companyRole })
-        .from(campaignLeads).innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope),
+        .from(campaignLeads).innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope),
       db.selectDistinct({ value: prospectCompanies.productDirectionsJson }).from(campaignLeads)
-        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(scope),
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope),
       db.selectDistinct({ value: prospectCompanies.sourceType }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id))
-        .where(and(scope, isNotNull(prospectCompanies.sourceType))).orderBy(asc(prospectCompanies.sourceType)),
+        .where(and(facetScope, isNotNull(prospectCompanies.sourceType))).orderBy(asc(prospectCompanies.sourceType)),
     ]);
     const total = totals[0]?.value || 0;
     const statusCounts = Object.fromEntries(statusRows.map((row) => [row.key, Number(row.value || 0)]));
@@ -184,6 +197,7 @@ export async function GET(request: Request) {
         productDirections,
         sourceTypes: sourceRows.map((row) => row.value).filter(Boolean),
       },
+      completion: completionPeriod,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     return apiFailure(error);

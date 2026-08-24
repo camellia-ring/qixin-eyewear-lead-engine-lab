@@ -1,5 +1,6 @@
 import { SCORE_LIMITS } from "@/lib/lead-engine";
 import { normalizeBusinessRoles } from "@/lib/customer-scope";
+import type { ReportingPeriod } from "@/lib/reporting-period";
 
 export type SearchKeyword = { keyword: string; locale: string; purpose: string };
 export type Campaign = {
@@ -47,6 +48,18 @@ export type DiscoveryRun = {
 export type DiscoveryItem = { id: string; runId: string; companyId?: string; websiteUrl: string; normalizedDomain: string; companyName?: string; outcome: string; reason?: string; evidenceCount: number; createdAt: string };
 export type EngineState = { id: string; status: string; timezone: string; activeCampaignId?: string; startedAt?: string; pausedAt?: string; stoppedAt?: string; lastHeartbeatAt?: string; lastRunAt?: string; nextRunAt?: string; lastError?: string };
 export type DailyLedger = { id: string; targetDate: string; timezone: string; rawDiscoveredCount: number; parsedCount: number; websiteVerifiedCount: number; validContactCount: number; duplicateCount: number; mandatoryGateFailedCount: number; qualifiedCount: number; failedCount: number; sourceExhausted: boolean; availabilityNote?: string; updatedAt: string };
+export type DiscoveryStats = {
+  generatedAt: string;
+  timeZone: string;
+  definition: string;
+  summary: { today: number; yesterday: number; week: number; month: number; quarter: number; year: number; total: number };
+  periods: Record<"week" | "month" | "quarter" | "year", ReportingPeriod>;
+  history: {
+    rows: Array<{ date: string; label: string; count: number }>;
+    previousBefore: string | null;
+    earliestCompletedDate: string | null;
+  };
+};
 export type ContactVerification = { id: string; companyId: string; leadId?: string; contactType: string; contactValue?: string; sourceUrl: string; sourceTitle?: string; sameCompanyDomain: boolean; businessUse: boolean; status: string; failureReason?: string; verifiedAt: string };
 export type DiscoveryAlert = { id: string; sourceId?: string; runId?: string; targetDate?: string; severity: string; alertType: string; message: string; resolvedAt?: string; createdAt: string };
 export type SourceHealth = { id: string; sourceId: string; checkedAt: string; status: string; discoveredCount: number; qualifiedCount: number; duplicateCount: number; failureCount: number; latencyMs?: number; note?: string };
@@ -70,6 +83,7 @@ export type LeadPage = {
   rows: LeadListRow[];
   pagination: { page: number; pageSize: number; total: number; pageCount: number };
   facets: { statusCounts: Record<string, number>; gradeCounts: Record<string, number>; regions: Array<{ value: string; label: string }>; countries: string[]; companyTypes: string[]; productDirections: string[]; sourceTypes: string[] };
+  completion?: ReportingPeriod | null;
 };
 export type LeadDetail = {
   lead: Lead; company: Company; sources: Source[]; claims: Claim[]; scoreRun: ScoreRun | null;
@@ -86,6 +100,19 @@ export type Workspace = {
 
 export const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyLedgers: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
 export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, regions: [], countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
+export const EMPTY_DISCOVERY_STATS: DiscoveryStats = {
+  generatedAt: "",
+  timeZone: "Asia/Shanghai",
+  definition: "自动发现后通过筛选、公司级去重并保存的唯一合格公司；导入客户不计入",
+  summary: { today: 0, yesterday: 0, week: 0, month: 0, quarter: 0, year: 0, total: 0 },
+  periods: {
+    week: { kind: "week", anchor: "", startDate: "", endDate: "", from: "", to: "", label: "本周" },
+    month: { kind: "month", anchor: "", startDate: "", endDate: "", from: "", to: "", label: "本月" },
+    quarter: { kind: "quarter", anchor: "", startDate: "", endDate: "", from: "", to: "", label: "本季度" },
+    year: { kind: "year", anchor: "", startDate: "", endDate: "", from: "", to: "", label: "本年" },
+  },
+  history: { rows: [], previousBefore: null, earliestCompletedDate: null },
+};
 export const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 export const SCORE_LABELS: Record<string, string> = { productMatchScore: "产品匹配", customerTypeScore: "客户 / 渠道类型", purchasingSignalsScore: "采购与批发信号", marketMoqFitScore: "市场、MOQ 与运营适配", contactabilityScore: "可联系性", accountPotentialScore: "客户潜力", dataQualityScore: "数据新鲜度与完整度" };
 export const STATUS_LABELS: Record<string, string> = { all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰" };

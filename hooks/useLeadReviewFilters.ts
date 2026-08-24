@@ -1,4 +1,11 @@
 import { useState } from "react";
+import {
+  dateInReportingTimeZone,
+  shiftReportingAnchor,
+  type CompletionPeriodKind,
+} from "@/lib/reporting-period";
+
+export type CompletionPeriodFilter = "all" | CompletionPeriodKind;
 
 export function useLeadReviewFilters() {
   const [statusFilter, setStatusFilter] = useState("needs_review");
@@ -13,6 +20,25 @@ export function useLeadReviewFilters() {
   const [sortBy, setSortBy] = useState("score_desc");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
+  const [completionPeriod, setCompletionPeriod] = useState<CompletionPeriodFilter>("all");
+  const [completionAnchor, setCompletionAnchor] = useState(() => dateInReportingTimeZone());
+
+  function selectCompletionPeriod(value: CompletionPeriodFilter) {
+    setCompletionPeriod(value);
+    setCompletionAnchor(dateInReportingTimeZone());
+    setPage(1);
+  }
+
+  function shiftCompletionPeriod(direction: -1 | 1) {
+    if (completionPeriod === "all") return;
+    setCompletionAnchor((current) => shiftReportingAnchor(completionPeriod, current, direction));
+    setPage(1);
+  }
+
+  function resetCompletionPeriod() {
+    setCompletionAnchor(dateInReportingTimeZone());
+    setPage(1);
+  }
 
   function clearFilters() {
     setStatusFilter("all");
@@ -25,6 +51,8 @@ export function useLeadReviewFilters() {
     setSourceFilter("all");
     setSpecialFilter("all");
     setSearch("");
+    setCompletionPeriod("all");
+    setCompletionAnchor(dateInReportingTimeZone());
     setPage(1);
   }
 
@@ -32,6 +60,7 @@ export function useLeadReviewFilters() {
     statusFilter, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter,
     sourceFilter, specialFilter, sortBy, page, search, setStatusFilter, setGradeFilter,
     setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter,
-    setSpecialFilter, setSortBy, setPage, setSearch, clearFilters,
+    setSpecialFilter, setSortBy, setPage, setSearch, completionPeriod, completionAnchor,
+    selectCompletionPeriod, shiftCompletionPeriod, resetCompletionPeriod, clearFilters,
   };
 }

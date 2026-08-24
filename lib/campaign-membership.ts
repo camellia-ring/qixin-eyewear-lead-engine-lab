@@ -34,6 +34,7 @@ function membershipValues(
     id: leadId,
     campaignId: campaign.id,
     companyId: company.id,
+    importRunId: template.importRunId,
     qualificationResult: unassigned && template.qualificationResult === "qualified" ? "near_match" : template.qualificationResult,
     workflowStatus: template.workflowStatus,
     productTrack: campaignProductTracks(campaign)[0] || template.productTrack,
