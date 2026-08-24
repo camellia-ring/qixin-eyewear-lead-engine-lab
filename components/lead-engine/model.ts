@@ -45,8 +45,8 @@ export type DiscoveryRun = {
   errorSummary?: string; startedAt: string; completedAt?: string; createdAt: string;
 };
 export type DiscoveryItem = { id: string; runId: string; companyId?: string; websiteUrl: string; normalizedDomain: string; companyName?: string; outcome: string; reason?: string; evidenceCount: number; createdAt: string };
-export type EngineState = { id: string; status: string; timezone: string; dailyTarget: number; activeCampaignId?: string; startedAt?: string; pausedAt?: string; stoppedAt?: string; lastHeartbeatAt?: string; lastRunAt?: string; nextRunAt?: string; lastError?: string };
-export type DailyTarget = { id: string; targetDate: string; timezone: string; targetCount: number; rawDiscoveredCount: number; parsedCount: number; websiteVerifiedCount: number; validContactCount: number; duplicateCount: number; mandatoryGateFailedCount: number; qualifiedCount: number; failedCount: number; sourceExhausted: boolean; deficitReason?: string; updatedAt: string };
+export type EngineState = { id: string; status: string; timezone: string; activeCampaignId?: string; startedAt?: string; pausedAt?: string; stoppedAt?: string; lastHeartbeatAt?: string; lastRunAt?: string; nextRunAt?: string; lastError?: string };
+export type DailyLedger = { id: string; targetDate: string; timezone: string; rawDiscoveredCount: number; parsedCount: number; websiteVerifiedCount: number; validContactCount: number; duplicateCount: number; mandatoryGateFailedCount: number; qualifiedCount: number; failedCount: number; sourceExhausted: boolean; availabilityNote?: string; updatedAt: string };
 export type ContactVerification = { id: string; companyId: string; leadId?: string; contactType: string; contactValue?: string; sourceUrl: string; sourceTitle?: string; sameCompanyDomain: boolean; businessUse: boolean; status: string; failureReason?: string; verifiedAt: string };
 export type DiscoveryAlert = { id: string; sourceId?: string; runId?: string; targetDate?: string; severity: string; alertType: string; message: string; resolvedAt?: string; createdAt: string };
 export type SourceHealth = { id: string; sourceId: string; checkedAt: string; status: string; discoveredCount: number; qualifiedCount: number; duplicateCount: number; failureCount: number; latencyMs?: number; note?: string };
@@ -80,11 +80,11 @@ export type LeadDetail = {
 export type Workspace = {
   campaigns: Campaign[]; leadCounts: Record<string, Record<string, number>>; imports: ImportRun[]; exports: ExportRun[];
   discoverySources: DiscoverySource[]; discoveryRuns: DiscoveryRun[]; discoveryItems: DiscoveryItem[];
-  engineState: EngineState | null; dailyTargets: DailyTarget[]; discoveryAlerts: DiscoveryAlert[];
+  engineState: EngineState | null; dailyLedgers: DailyLedger[]; discoveryAlerts: DiscoveryAlert[];
   sourceHealth: SourceHealth[]; discoveryAttempts: Array<Record<string, unknown>>; parserVersions: Array<Record<string, unknown>>;
 };
 
-export const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyTargets: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
+export const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyLedgers: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
 export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, regions: [], countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
 export const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 export const SCORE_LABELS: Record<string, string> = { productMatchScore: "产品匹配", customerTypeScore: "客户 / 渠道类型", purchasingSignalsScore: "采购与批发信号", marketMoqFitScore: "市场、MOQ 与运营适配", contactabilityScore: "可联系性", accountPotentialScore: "客户潜力", dataQualityScore: "数据新鲜度与完整度" };

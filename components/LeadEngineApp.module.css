@@ -469,7 +469,7 @@
 .engineControl b[data-status="running"] { color: var(--green); }
 .engineControl b[data-status="paused"] { color: var(--amber); }
 .engineActions, .engineExports { display: flex; flex-wrap: wrap; gap: 9px; }
-.engineMetrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.engineMetrics { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .engineMetrics article { min-height: 112px; padding: 15px; display: grid; align-content: center; gap: 5px; border: 1px solid #e0e6ed; border-radius: 8px; background: #fff; }
 .engineMetrics span, .engineMetrics small { color: #778493; font-size: 11px; line-height: 1.45; }
 .engineMetrics b { color: #253446; font-size: 28px; line-height: 1.1; }

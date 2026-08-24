@@ -708,12 +708,16 @@ function companyNameFrom(page: PublicPage, fallback: string) {
   return normalizeCompanyName(cleaned) ? cleaned : fallback;
 }
 
-export async function collectSiteEvidence(candidate: DiscoveryCandidate): Promise<SiteEvidence> {
+export async function collectSiteEvidence(
+  candidate: DiscoveryCandidate,
+  options: { fetchHtml?: typeof fetchPublicHtml; onFetchError?: (error: unknown) => void } = {},
+): Promise<SiteEvidence> {
   if (!candidate.websiteUrl) throw new Error("company_website_unresolved");
-  const homepage = await fetchPublicHtml(candidate.websiteUrl);
+  const fetchHtml = options.fetchHtml || fetchPublicHtml;
+  const homepage = await fetchHtml(candidate.websiteUrl);
   const pages = [homepage];
   const supportingPages = await Promise.all(internalPageLinks(homepage, 3).map(async (url) => {
-    try { return await fetchPublicHtml(url); } catch { return null; }
+    try { return await fetchHtml(url); } catch (error) { options.onFetchError?.(error); return null; }
   }));
   pages.push(...supportingPages.filter((page): page is PublicPage => Boolean(page)));
   const combined = pages.map((page) => page.classificationText || page.text).join("\n");

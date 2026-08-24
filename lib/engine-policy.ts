@@ -1,5 +1,4 @@
 export const DEFAULT_TIMEZONE = "Asia/Shanghai";
-export const DEFAULT_DAILY_TARGET = 20;
 export const ENGINE_BATCH_MINUTES = 15;
 
 export type DailyRunCounts = {
@@ -13,11 +12,6 @@ export function dateInTimezone(date = new Date(), timezone = DEFAULT_TIMEZONE) {
   }).formatToParts(date);
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
-}
-
-export function dailyProgress(target: number, qualified: number) {
-  const remaining = Math.max(0, target - qualified);
-  return { target, qualified, remaining, completionRate: target ? Math.min(100, Math.round((qualified / target) * 100)) : 0 };
 }
 
 export function mergeDailyCounts(current: {
@@ -47,4 +41,8 @@ export function sourceRepeatsDuringDay(source: { parserConfigJson: string }) {
   } catch {
     return false;
   }
+}
+
+export function isLegacyQuotaMessage(value: string | null | undefined) {
+  return Boolean(value && /每日目标|当日仍缺|距目标|target_reached|daily_target_deficit/i.test(value));
 }

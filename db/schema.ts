@@ -208,7 +208,7 @@ export const engineState = sqliteTable("engine_state", {
   id: text("id").primaryKey().default("global"),
   status: text("status").notNull().default("stopped"),
   timezone: text("timezone").notNull().default("Asia/Shanghai"),
-  dailyTarget: integer("daily_target").notNull().default(20),
+  legacyDailyTarget: integer("daily_target").notNull().default(20),
   activeCampaignId: text("active_campaign_id").references(() => campaigns.id, { onDelete: "set null" }),
   startedAt: text("started_at"),
   pausedAt: text("paused_at"),
@@ -221,14 +221,14 @@ export const engineState = sqliteTable("engine_state", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   check("engine_state_status_check", sql`${table.status} IN ('stopped','running','paused')`),
-  check("engine_state_daily_target_check", sql`${table.dailyTarget} BETWEEN 1 AND 200`),
+  check("engine_state_daily_target_check", sql`${table.legacyDailyTarget} BETWEEN 1 AND 200`),
 ]);
 
 export const dailyDiscoveryTargets = sqliteTable("daily_discovery_targets", {
   id: text("id").primaryKey(),
   targetDate: text("target_date").notNull(),
   timezone: text("timezone").notNull().default("Asia/Shanghai"),
-  targetCount: integer("target_count").notNull().default(20),
+  legacyTargetCount: integer("target_count").notNull().default(20),
   rawDiscoveredCount: integer("raw_discovered_count").notNull().default(0),
   parsedCount: integer("parsed_count").notNull().default(0),
   websiteVerifiedCount: integer("website_verified_count").notNull().default(0),
@@ -238,13 +238,13 @@ export const dailyDiscoveryTargets = sqliteTable("daily_discovery_targets", {
   qualifiedCount: integer("qualified_count").notNull().default(0),
   failedCount: integer("failed_count").notNull().default(0),
   sourceExhausted: integer("source_exhausted", { mode: "boolean" }).notNull().default(false),
-  deficitReason: text("deficit_reason"),
+  availabilityNote: text("deficit_reason"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("uq_daily_target_date_timezone").on(table.targetDate, table.timezone),
   index("idx_daily_target_date").on(table.targetDate),
-  check("daily_target_count_check", sql`${table.targetCount} BETWEEN 1 AND 200`),
+  check("daily_target_count_check", sql`${table.legacyTargetCount} BETWEEN 1 AND 200`),
   check("daily_target_funnel_counts_check", sql`${table.rawDiscoveredCount} >= 0 AND ${table.parsedCount} >= 0 AND ${table.websiteVerifiedCount} >= 0 AND ${table.validContactCount} >= 0 AND ${table.duplicateCount} >= 0 AND ${table.mandatoryGateFailedCount} >= 0 AND ${table.qualifiedCount} >= 0 AND ${table.failedCount} >= 0`),
 ]);
 

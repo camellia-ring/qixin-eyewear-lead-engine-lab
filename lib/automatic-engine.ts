@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaigns,
@@ -10,14 +10,12 @@ import {
 } from "@/db/schema";
 import { recoverStaleDiscoveryRuns, runDiscoverySource, type RunCounts } from "@/lib/discovery-runner";
 import {
-  dailyProgress,
   dateInTimezone,
-  DEFAULT_DAILY_TARGET,
   DEFAULT_TIMEZONE,
   ENGINE_BATCH_MINUTES,
-  mergeDailyCounts,
   sourceRepeatsDuringDay,
 } from "@/lib/engine-policy";
+import { DISCOVERY_RUNTIME_CONFIG } from "@/lib/discovery-runtime";
 import { ensureOfficialSourceRegistry, seedOfficialSourceRegistry } from "@/lib/source-registry";
 import { GLOBAL_DISCOVERY_CAMPAIGN_ID, isSystemCampaignId } from "@/lib/campaign-routing";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
@@ -30,25 +28,32 @@ function nextBatch(from = new Date(), minutes = ENGINE_BATCH_MINUTES) {
   return new Date(from.getTime() + minutes * 60_000).toISOString();
 }
 
-async function ensureDailyTarget(targetDate: string, timezone: string, targetCount: number) {
+async function ensureDailyLedger(targetDate: string, timezone: string) {
   const db = getDb();
   const id = dailyId(targetDate, timezone);
-  await db.insert(dailyDiscoveryTargets).values({ id, targetDate, timezone, targetCount }).onConflictDoNothing();
+  // Legacy storage remains forward-compatible; it has no quota or stop semantics after decision 0013.
+  await db.insert(dailyDiscoveryTargets).values({ id, targetDate, timezone, legacyTargetCount: 20 }).onConflictDoNothing();
   const [row] = await db.select().from(dailyDiscoveryTargets).where(eq(dailyDiscoveryTargets.id, id)).limit(1);
   return row;
 }
 
-export async function addRunToDailyTarget(targetDate: string, timezone: string, counts: RunCounts) {
+export async function addRunToDailyLedger(targetDate: string, timezone: string, counts: RunCounts) {
   const db = getDb();
-  const target = await ensureDailyTarget(targetDate, timezone, DEFAULT_DAILY_TARGET);
+  const ledger = await ensureDailyLedger(targetDate, timezone);
   const updatedAt = new Date().toISOString();
-  const merged = mergeDailyCounts(target, counts);
   const [updated] = await db.update(dailyDiscoveryTargets).set({
-    ...merged,
+    rawDiscoveredCount: sql`${dailyDiscoveryTargets.rawDiscoveredCount} + ${counts.rawDiscovered}`,
+    parsedCount: sql`${dailyDiscoveryTargets.parsedCount} + ${counts.parsed}`,
+    websiteVerifiedCount: sql`${dailyDiscoveryTargets.websiteVerifiedCount} + ${counts.websiteVerified}`,
+    validContactCount: sql`${dailyDiscoveryTargets.validContactCount} + ${counts.validContact}`,
+    duplicateCount: sql`${dailyDiscoveryTargets.duplicateCount} + ${counts.duplicate}`,
+    mandatoryGateFailedCount: sql`${dailyDiscoveryTargets.mandatoryGateFailedCount} + ${counts.mandatoryFailed}`,
+    qualifiedCount: sql`${dailyDiscoveryTargets.qualifiedCount} + ${counts.qualified}`,
+    failedCount: sql`${dailyDiscoveryTargets.failedCount} + ${counts.failed}`,
     sourceExhausted: false,
-    deficitReason: null,
+    availabilityNote: null,
     updatedAt,
-  }).where(eq(dailyDiscoveryTargets.id, target.id)).returning();
+  }).where(eq(dailyDiscoveryTargets.id, ledger.id)).returning();
   return updated;
 }
 
@@ -66,23 +71,22 @@ async function prepareActiveCampaigns() {
   return active;
 }
 
-export async function startAutomaticEngine(dailyTarget = DEFAULT_DAILY_TARGET, timezone = DEFAULT_TIMEZONE) {
-  if (!Number.isInteger(dailyTarget) || dailyTarget < 1 || dailyTarget > 200) throw new Error("invalid_daily_target");
+export async function startAutomaticEngine(timezone = DEFAULT_TIMEZONE) {
   await prepareActiveCampaigns();
   await recoverStaleDiscoveryRuns();
   const db = getDb();
   const now = new Date();
   const timestamp = now.toISOString();
   const targetDate = dateInTimezone(now, timezone);
-  await ensureDailyTarget(targetDate, timezone, dailyTarget);
+  await ensureDailyLedger(targetDate, timezone);
   await db.insert(engineState).values({
-    id: "global", status: "running", timezone, dailyTarget, activeCampaignId: null,
+    id: "global", status: "running", timezone, activeCampaignId: null,
     startedAt: timestamp, pausedAt: null, stoppedAt: null, lastHeartbeatAt: timestamp,
     nextRunAt: timestamp, lastError: null, updatedAt: timestamp,
   }).onConflictDoUpdate({
     target: engineState.id,
     set: {
-      status: "running", timezone, dailyTarget, activeCampaignId: null,
+      status: "running", timezone, activeCampaignId: null,
       startedAt: timestamp, pausedAt: null, stoppedAt: null, lastHeartbeatAt: timestamp,
       nextRunAt: timestamp, lastError: null, updatedAt: timestamp,
     },
@@ -148,13 +152,7 @@ export async function runAutomaticDiscoveryBatch() {
   const now = new Date();
   const timestamp = now.toISOString();
   const targetDate = dateInTimezone(now, state.timezone);
-  let target = await ensureDailyTarget(targetDate, state.timezone, state.dailyTarget);
-  if (target.qualifiedCount >= target.targetCount) {
-    await db.update(engineState).set({
-      lastHeartbeatAt: timestamp, nextRunAt: nextBatch(now, 60), updatedAt: timestamp,
-    }).where(eq(engineState.id, "global"));
-    return { status: "target_reached", ran: false, target, progress: dailyProgress(target.targetCount, target.qualifiedCount) };
-  }
+  let ledger = await ensureDailyLedger(targetDate, state.timezone);
 
   const registeredSources = (await db.select().from(discoverySources).where(and(
     eq(discoverySources.enabled, true),
@@ -188,27 +186,28 @@ export async function runAutomaticDiscoveryBatch() {
       await db.update(engineState).set({
         lastHeartbeatAt: timestamp, nextRunAt: earliest, lastError: null, updatedAt: timestamp,
       }).where(eq(engineState.id, "global"));
-      return { status: "sources_waiting", ran: false, target, progress: dailyProgress(target.targetCount, target.qualifiedCount), nextRunAt: earliest };
+      return { status: "sources_waiting", ran: false, ledger, nextRunAt: earliest };
     }
-    const remaining = Math.max(0, target.targetCount - target.qualifiedCount);
-    const reason = `A级/B级可用来源已耗尽，当日仍缺 ${remaining} 家；没有使用低质量记录填充。`;
-    [target] = await db.update(dailyDiscoveryTargets).set({
-      sourceExhausted: true, deficitReason: reason, updatedAt: timestamp,
-    }).where(eq(dailyDiscoveryTargets.id, target.id)).returning();
+    const reason = "当前没有到期且可运行的 A/B 级来源；引擎保持运行并将在来源再次可用时继续。";
+    [ledger] = await db.update(dailyDiscoveryTargets).set({
+      sourceExhausted: true, availabilityNote: reason, updatedAt: timestamp,
+    }).where(eq(dailyDiscoveryTargets.id, ledger.id)).returning();
     await createAlertOnce({
-      id: crypto.randomUUID(), targetDate, severity: "critical", alertType: "daily_target_deficit",
-      message: reason, detailsJson: JSON.stringify({ remaining, enabledSources: registeredSources.length, dueSources: sources.length }),
+      id: crypto.randomUUID(), targetDate, severity: "warning", alertType: "sources_temporarily_exhausted",
+      message: reason, detailsJson: JSON.stringify({ enabledSources: registeredSources.length, dueSources: sources.length }),
     });
     await db.update(engineState).set({
-      lastHeartbeatAt: timestamp, lastError: reason, nextRunAt: nextBatch(now, 60), updatedAt: timestamp,
+      lastHeartbeatAt: timestamp, lastError: null, nextRunAt: nextBatch(now, 60), updatedAt: timestamp,
     }).where(eq(engineState.id, "global"));
-    return { status: "sources_exhausted", ran: false, target, progress: dailyProgress(target.targetCount, target.qualifiedCount) };
+    return { status: "sources_exhausted", ran: false, ledger };
   }
 
-  const result = await runDiscoverySource(source.id, "scheduled", { targetDate, maxCandidates: 5 });
-  target = await addRunToDailyTarget(targetDate, state.timezone, result);
+  const result = await runDiscoverySource(source.id, "scheduled", {
+    targetDate,
+    maxCandidates: DISCOVERY_RUNTIME_CONFIG.batchCandidates,
+  });
+  ledger = await addRunToDailyLedger(targetDate, state.timezone, result);
   const remainingSources = sources.filter((candidate) => candidate.id !== source.id).length;
-  const remaining = Math.max(0, target.targetCount - target.qualifiedCount);
   if (result.status === "failed") {
     await createAlertOnce({
       id: crypto.randomUUID(), sourceId: source.id, runId: result.runId, targetDate,
@@ -219,13 +218,13 @@ export async function runAutomaticDiscoveryBatch() {
   await db.update(engineState).set({
     activeCampaignId: source.campaignId === GLOBAL_DISCOVERY_CAMPAIGN_ID ? null : source.campaignId,
     lastHeartbeatAt: timestamp, lastRunAt: timestamp,
-    nextRunAt: remaining > 0 && (remainingSources > 0 || sourceRepeatsDuringDay(source)) ? nextBatch(now) : nextBatch(now, 60),
+    nextRunAt: remainingSources > 0 || sourceRepeatsDuringDay(source) ? nextBatch(now) : nextBatch(now, 60),
     lastError: result.status === "failed" ? result.errors.join("；").slice(0, 1000) : null,
     updatedAt: timestamp,
   }).where(eq(engineState.id, "global"));
   return {
-    status: target.qualifiedCount >= target.targetCount ? "target_reached" : "batch_completed",
-    ran: true, source: { id: source.id, name: source.name, campaignId: source.campaignId }, result, target,
-    progress: dailyProgress(target.targetCount, target.qualifiedCount), remainingSources,
+    status: "batch_completed",
+    ran: true, source: { id: source.id, name: source.name, campaignId: source.campaignId }, result, ledger,
+    remainingSources,
   };
 }

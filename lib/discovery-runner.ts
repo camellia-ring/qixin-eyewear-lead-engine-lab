@@ -46,6 +46,15 @@ import { createDiscoveryProvider } from "@/lib/discovery-provider";
 import { qualifyEvidence, type QualificationResult } from "@/lib/qualification";
 import { campaignProductTracks, isSystemCampaignId, routeCampaigns, UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 import { ENGINE_BATCH_MINUTES } from "@/lib/engine-policy";
+import {
+  classifyConcurrencyError,
+  ContiguousProgress,
+  DISCOVERY_RUNTIME_CONFIG,
+  KeyedSerialExecutor,
+  PerDomainRateLimiter,
+  runAdaptivePool,
+  type ConcurrencyOutcome,
+} from "@/lib/discovery-runtime";
 import { ensureUnassignedCampaign } from "@/lib/system-campaign";
 
 type Trigger = "manual" | "scheduled";
@@ -326,10 +335,17 @@ async function recordItem(
   evidenceCount = 0,
 ) {
   const db = getDb();
+  const resolvedDomain = candidate.normalizedDomain
+    || (candidate.websiteUrl ? normalizedDomain(candidate.websiteUrl) : "");
+  const itemDomain = resolvedDomain || `unresolved:${(await sha256([
+    candidate.label,
+    candidate.directoryDetailUrl,
+    candidate.directoryUrl,
+  ].join("|"))).slice(0, 24)}`;
   await db.insert(discoveryRunItems).values({
     id: crypto.randomUUID(), runId, companyId: companyId || null,
     websiteUrl: candidate.websiteUrl || candidate.directoryUrl || "https://unresolved.invalid/",
-    normalizedDomain: candidate.normalizedDomain, companyName: companyName || candidate.label || null,
+    normalizedDomain: itemDomain, companyName: companyName || candidate.label || null,
     outcome, reason: reason.slice(0, 1000) || null, evidenceCount,
   }).onConflictDoNothing();
 }
@@ -347,10 +363,6 @@ function runtimeProvider() {
   });
 }
 
-function sleep(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
-
 function parserState(value: string): ParserState {
   try {
     const parsed = JSON.parse(value) as Record<string, unknown>;
@@ -359,6 +371,23 @@ function parserState(value: string): ParserState {
   } catch {
     return { offset: 0 };
   }
+}
+
+function candidateLabelKey(candidate: DiscoveryCandidate) {
+  const label = candidate.label.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  return `label:${label || candidate.directoryDetailUrl || candidate.directoryUrl || candidate.normalizedDomain}`;
+}
+
+function candidateDomainKey(candidate: DiscoveryCandidate) {
+  const domainValue = candidate.normalizedDomain || (candidate.websiteUrl ? normalizedDomain(candidate.websiteUrl) : "");
+  const domain = registrableDomain(domainValue);
+  return domain ? `domain:${domain}` : "";
+}
+
+const OUTCOME_PRIORITY: Record<ConcurrencyOutcome, number> = { success: 0, error: 1, timeout: 2, throttled: 3 };
+
+function slowerOutcome(current: ConcurrencyOutcome, next: ConcurrencyOutcome) {
+  return OUTCOME_PRIORITY[next] > OUTCOME_PRIORITY[current] ? next : current;
 }
 
 export async function runDiscoverySource(sourceId: string, trigger: Trigger = "manual", options: RunOptions = {}) {
@@ -373,11 +402,21 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
     eq(discoveryRuns.sourceId, sourceId), eq(discoveryRuns.status, "running"),
   )).orderBy(desc(discoveryRuns.createdAt)).limit(1);
   if (running) throw new Error("discovery_source_already_running");
+  const claimAt = new Date().toISOString();
+  const [claim] = await db.update(discoverySources).set({ updatedAt: claimAt }).where(and(
+    eq(discoverySources.id, sourceId),
+    eq(discoverySources.updatedAt, source.updatedAt),
+  )).returning({ id: discoverySources.id });
+  if (!claim) throw new Error("discovery_source_already_running");
 
   const runId = crypto.randomUUID();
   const attemptId = crypto.randomUUID();
   const startedAt = new Date();
-  const maxCandidates = Math.max(1, Math.min(5, options.maxCandidates ?? 5, source.maxCandidates));
+  const maxCandidates = Math.max(1, Math.min(
+    DISCOVERY_RUNTIME_CONFIG.batchCandidates,
+    options.maxCandidates ?? DISCOVERY_RUNTIME_CONFIG.batchCandidates,
+    source.maxCandidates,
+  ));
   const counts: RunCounts = {
     rawDiscovered: 0, parsed: 0, websiteVerified: 0, validContact: 0, qualified: 0,
     mandatoryFailed: 0, imported: 0, duplicate: 0, excluded: 0, failed: 0, pages: 0, errors: [],
@@ -435,80 +474,130 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
       doNotContact: prospectCompanies.doNotContact,
     }).from(prospectCompanies);
 
-    for (let index = 0; index < candidates.length; index += 1) {
-      let candidate = candidates[index];
+    const candidateSerial = new KeyedSerialExecutor();
+    const domainLimiter = new PerDomainRateLimiter(
+      source.rateLimitMs,
+      (url) => registrableDomain(normalizedDomain(url)),
+    );
+    const progress = new ContiguousProgress(currentParserState.offset);
+    let savedOffset = currentParserState.offset;
+    let checkpointWrites = Promise.resolve();
+    const checkpointCandidate = async (index: number) => {
+      const offset = progress.complete(index);
+      if (offset <= savedOffset) return checkpointWrites;
+      savedOffset = offset;
+      checkpointWrites = checkpointWrites.then(async () => {
+        await db.update(discoverySources).set({
+          parserConfigJson: JSON.stringify({ ...currentParserState, offset }),
+          updatedAt: new Date().toISOString(),
+        }).where(eq(discoverySources.id, sourceId));
+      });
+      return checkpointWrites;
+    };
+
+    const pool = await runAdaptivePool(candidates, async (originalCandidate, index) => {
+      let candidate = originalCandidate;
+      let outcome: ConcurrencyOutcome = "success";
       try {
-        counts.parsed += 1;
-        if (!candidate.websiteUrl && candidate.directoryDetailUrl) {
-          const detail = await fetchPublicHtml(candidate.directoryDetailUrl);
-          counts.pages += 1;
-          const website = extractDirectoryCandidates(detail.html, detail.url, 1)[0];
-          if (website) candidate = {
-            ...candidate,
-            websiteUrl: website.websiteUrl,
-            normalizedDomain: website.normalizedDomain,
-            directoryTitle: detail.title || candidate.directoryTitle,
-          };
-        }
-        if (!candidate.websiteUrl) {
-          const resolution = await provider.resolveOfficialWebsite({
-            companyName: candidate.label, region: source.region, officialDirectoryUrl: source.sourceUrl,
-          });
-          if (!resolution) {
-            counts.excluded += 1;
-            counts.mandatoryFailed += 1;
-            await recordItem(runId, candidate, "excluded", provider.enabled
-              ? "官网发现 provider 未能高可信解析企业官网"
-              : "纯文本候选尚无企业官网；付费/搜索 provider 默认关闭，不能计入合格数");
-            continue;
+        outcome = await candidateSerial.run(candidateLabelKey(candidate), async () => {
+          counts.parsed += 1;
+          if (!candidate.websiteUrl && candidate.directoryDetailUrl) {
+            const detailUrl = candidate.directoryDetailUrl;
+            const detail = await domainLimiter.run(detailUrl, () => fetchPublicHtml(detailUrl));
+            counts.pages += 1;
+            const website = extractDirectoryCandidates(detail.html, detail.url, 1)[0];
+            if (website) candidate = {
+              ...candidate,
+              websiteUrl: website.websiteUrl,
+              normalizedDomain: website.normalizedDomain,
+              directoryTitle: detail.title || candidate.directoryTitle,
+            };
           }
-          candidate = {
-            ...candidate,
-            label: resolution.companyName || candidate.label,
-            websiteUrl: resolution.websiteUrl,
-            normalizedDomain: normalizedDomain(resolution.websiteUrl),
+          if (!candidate.websiteUrl) {
+            const resolution = await provider.resolveOfficialWebsite({
+              companyName: candidate.label, region: source.region, officialDirectoryUrl: source.sourceUrl,
+            });
+            if (!resolution) {
+              await recordItem(runId, candidate, "excluded", provider.enabled
+                ? "官网发现 provider 未能高可信解析企业官网"
+                : "纯文本候选尚无企业官网；付费/搜索 provider 默认关闭，不能计入合格数");
+              counts.excluded += 1;
+              counts.mandatoryFailed += 1;
+              return "success";
+            }
+            candidate = {
+              ...candidate,
+              label: resolution.companyName || candidate.label,
+              websiteUrl: resolution.websiteUrl,
+              normalizedDomain: normalizedDomain(resolution.websiteUrl),
+            };
+          }
+
+          const verifyAndPersist = async (): Promise<ConcurrencyOutcome> => {
+            const existing = findDuplicate(candidate, knownCompanies);
+            if (existing) {
+              await recordItem(runId, candidate, "duplicate", "规范化域名、公司主体或品牌关系已存在", existing.id);
+              counts.duplicate += 1;
+              return "success";
+            }
+            let pageOutcome: ConcurrencyOutcome = "success";
+            const evidence = await collectSiteEvidence(candidate, {
+              fetchHtml: (url) => domainLimiter.run(url, () => fetchPublicHtml(url)),
+              onFetchError: (error) => { pageOutcome = slowerOutcome(pageOutcome, classifyConcurrencyError(error)); },
+            });
+            counts.pages += evidence.pages.length;
+            counts.websiteVerified += 1;
+            if (evidence.contacts.some((contact) => contact.status === "valid" && contact.businessUse)) counts.validContact += 1;
+            const result = await persistVerifiedCandidate(campaign, source, candidate, evidence);
+            if (result.duplicate) {
+              await recordItem(runId, candidate, "duplicate", "公司主体已存在", result.companyId, evidence.companyName);
+              counts.duplicate += 1;
+            } else if (result.qualified) {
+              await recordItem(runId, candidate, "imported", result.isUnassigned
+                ? "自动筛选合格，但证据不足以匹配 Campaign，已进入待分配；未发送任何消息"
+                : `自动筛选合格并路由至 ${result.campaignIds.length} 个 Campaign；进入待人工审核，未发送任何消息`, result.companyId, evidence.companyName, result.evidenceCount);
+              knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
+              counts.imported += 1;
+              counts.qualified += 1;
+            } else if (result.candidateForReview) {
+              await recordItem(runId, candidate, "imported", `高科技或业务范围边界待人工确认：${result.manualReviewReasons.join("；")}`, result.companyId, evidence.companyName, result.evidenceCount);
+              knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
+              counts.imported += 1;
+            } else {
+              await recordItem(runId, candidate, "excluded", result.failures.join("；"), result.companyId, evidence.companyName, result.evidenceCount);
+              knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
+              counts.imported += 1;
+              counts.excluded += 1;
+              counts.mandatoryFailed += 1;
+            }
+            return pageOutcome;
           };
-        }
-        const existing = findDuplicate(candidate, knownCompanies);
-        if (existing) {
-          counts.duplicate += 1;
-          await recordItem(runId, candidate, "duplicate", "规范化域名、公司主体或品牌关系已存在", existing.id);
-          continue;
-        }
-        const evidence = await collectSiteEvidence(candidate);
-        counts.pages += evidence.pages.length;
-        counts.websiteVerified += 1;
-        if (evidence.contacts.some((contact) => contact.status === "valid" && contact.businessUse)) counts.validContact += 1;
-        const result = await persistVerifiedCandidate(campaign, source, candidate, evidence);
-        if (result.duplicate) {
-          counts.duplicate += 1;
-          await recordItem(runId, candidate, "duplicate", "公司主体已存在", result.companyId, evidence.companyName);
-        } else if (result.qualified) {
-          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
-          counts.imported += 1;
-          counts.qualified += 1;
-          await recordItem(runId, candidate, "imported", result.isUnassigned
-            ? "自动筛选合格，但证据不足以匹配 Campaign，已进入待分配；未发送任何消息"
-            : `自动筛选合格并路由至 ${result.campaignIds.length} 个 Campaign；进入待人工审核，未发送任何消息`, result.companyId, evidence.companyName, result.evidenceCount);
-        } else if (result.candidateForReview) {
-          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
-          counts.imported += 1;
-          await recordItem(runId, candidate, "imported", `高科技或业务范围边界待人工确认：${result.manualReviewReasons.join("；")}`, result.companyId, evidence.companyName, result.evidenceCount);
-        } else {
-          knownCompanies.push({ id: result.companyId, companyName: evidence.companyName, brandsJson: "[]", primaryDomain: normalizedDomain(candidate.websiteUrl), doNotContact: false });
-          counts.imported += 1;
-          counts.excluded += 1;
-          counts.mandatoryFailed += 1;
-          await recordItem(runId, candidate, "excluded", result.failures.join("；"), result.companyId, evidence.companyName, result.evidenceCount);
-        }
+
+          const domainKey = candidateDomainKey(candidate);
+          return domainKey ? candidateSerial.run(domainKey, verifyAndPersist) : verifyAndPersist();
+        });
       } catch (error) {
-        counts.failed += 1;
         const message = error instanceof Error ? error.message : "官网采集失败";
-        counts.errors.push(`${candidate.normalizedDomain}: ${message}`);
         await recordItem(runId, candidate, "failed", message);
+        counts.failed += 1;
+        counts.errors.push(`${candidate.normalizedDomain || candidate.label}: ${message}`);
+        outcome = classifyConcurrencyError(error);
       }
-      if (index < candidates.length - 1) await sleep(source.rateLimitMs);
+      await checkpointCandidate(index);
+      return outcome;
+    }, { classifyResult: (result) => result });
+
+    for (let index = 0; index < pool.results.length; index += 1) {
+      const result = pool.results[index];
+      if (result.status === "rejected") {
+        const message = result.reason instanceof Error ? result.reason.message : "候选持久化或游标提交失败";
+        counts.failed += 1;
+        counts.errors.push(`${candidates[index]?.normalizedDomain || candidates[index]?.label || `candidate_${index}`}: ${message}`);
+      }
     }
+    await checkpointWrites;
+    const concurrencyNote = `公司级并发 ${pool.initialConcurrency}→${pool.finalConcurrency}，峰值 ${pool.maxObservedConcurrency}`;
+    if (!exhaustedDirectory) nextParserState = { ...currentParserState, offset: savedOffset };
 
     const completedAt = new Date().toISOString();
     const status = counts.failed && (counts.imported || counts.duplicate || counts.excluded) ? "partial" : counts.failed ? "failed" : "completed";
@@ -538,9 +627,17 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
       status: status === "failed" ? "failed" : counts.failed ? "degraded" : counts.rawDiscovered ? "healthy" : "exhausted",
       discoveredCount: counts.rawDiscovered, qualifiedCount: counts.qualified, duplicateCount: counts.duplicate,
       failureCount: counts.failed, latencyMs: Date.now() - startedAt.getTime(),
-      note: counts.errors.slice(0, 3).join("；") || null,
+      note: [concurrencyNote, counts.errors.slice(0, 3).join("；")].filter(Boolean).join("；"),
     });
-    return { runId, sourceId, sourceName: source.name, status, ...counts, errors: counts.errors.slice(0, 12) };
+    return {
+      runId, sourceId, sourceName: source.name, status, ...counts, errors: counts.errors.slice(0, 12),
+      concurrency: {
+        initial: pool.initialConcurrency,
+        final: pool.finalConcurrency,
+        peak: pool.maxObservedConcurrency,
+        history: pool.concurrencyHistory,
+      },
+    };
   } catch (error) {
     const completedAt = new Date().toISOString();
     const message = error instanceof Error ? error.message : "来源采集失败";
@@ -568,7 +665,7 @@ export async function runDiscoverySource(sourceId: string, trigger: Trigger = "m
   }
 }
 
-export async function recoverStaleDiscoveryRuns(maxAgeMinutes = 5) {
+export async function recoverStaleDiscoveryRuns(maxAgeMinutes = DISCOVERY_RUNTIME_CONFIG.staleRunMinutes) {
   const db = getDb();
   const cutoff = new Date(Date.now() - maxAgeMinutes * 60_000).toISOString();
   const stale = await db.select({ id: discoveryRuns.id }).from(discoveryRuns).where(and(

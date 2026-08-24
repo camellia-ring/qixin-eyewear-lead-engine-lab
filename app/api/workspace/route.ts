@@ -19,6 +19,7 @@ import { apiFailure } from "@/lib/api";
 import { isSystemCampaignId } from "@/lib/campaign-routing";
 import { campaignStrategyName, isRegionKey } from "@/lib/campaign-strategy";
 import { buildSearchKeywords, researchBrief, safeJsonList } from "@/lib/lead-engine";
+import { isLegacyQuotaMessage } from "@/lib/engine-policy";
 
 export async function GET() {
   try {
@@ -32,7 +33,7 @@ export async function GET() {
       discoveryRunRows,
       discoveryItemRows,
       engineStateRows,
-      dailyTargetRows,
+      dailyLedgerRows,
       discoveryAttemptRows,
       sourceHealthRows,
       discoveryAlertRows,
@@ -84,11 +85,17 @@ export async function GET() {
       discoverySources: discoverySourceRows,
       discoveryRuns: discoveryRunRows,
       discoveryItems: discoveryItemRows,
-      engineState: engineStateRows[0] || null,
-      dailyTargets: dailyTargetRows,
+      engineState: engineStateRows[0] ? (({ legacyDailyTarget, ...state }) => {
+        void legacyDailyTarget;
+        return { ...state, lastError: isLegacyQuotaMessage(state.lastError) ? null : state.lastError };
+      })(engineStateRows[0]) : null,
+      dailyLedgers: dailyLedgerRows.map(({ legacyTargetCount, ...ledger }) => {
+        void legacyTargetCount;
+        return { ...ledger, availabilityNote: isLegacyQuotaMessage(ledger.availabilityNote) ? null : ledger.availabilityNote };
+      }),
       discoveryAttempts: discoveryAttemptRows,
       sourceHealth: sourceHealthRows,
-      discoveryAlerts: discoveryAlertRows,
+      discoveryAlerts: discoveryAlertRows.filter((alert) => alert.alertType !== "daily_target_deficit"),
       parserVersions: parserVersionRows,
     }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {

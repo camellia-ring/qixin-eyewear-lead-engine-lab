@@ -17,7 +17,7 @@ function cadenceValue(value: unknown, fallback = "manual") {
   return cadence;
 }
 
-function candidateLimit(value: unknown, fallback = 10) {
+function candidateLimit(value: unknown, fallback = 20) {
   const limit = Number(value ?? fallback);
   if (!Number.isInteger(limit) || limit < 1 || limit > 20) throw new ApiError(400, "invalid_candidate_limit", "每批候选数必须在 1–20 之间");
   return limit;

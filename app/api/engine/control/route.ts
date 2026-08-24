@@ -15,9 +15,8 @@ export async function POST(request: Request) {
     const action = textValue(body.action, { field: "action", required: true, max: 30 });
     if (!ACTIONS.has(action)) throw new ApiError(400, "invalid_engine_action");
     if (action === "start") {
-      const dailyTarget = Number(body.dailyTarget ?? 20);
       const timezone = textValue(body.timezone || "Asia/Shanghai", { field: "timezone", required: true, max: 80 });
-      const state = await startAutomaticEngine(dailyTarget, timezone);
+      const state = await startAutomaticEngine(timezone);
       return Response.json({ state });
     }
     if (action === "pause") return Response.json({ state: await pauseAutomaticEngine() });

@@ -10,7 +10,15 @@ import {
   parseDynamicDirectoryPayload,
   robotsAllows,
 } from "../lib/discovery.ts";
-import { chooseNextSource, dailyProgress, dateInTimezone, mergeDailyCounts, sourceRepeatsDuringDay } from "../lib/engine-policy.ts";
+import { chooseNextSource, dateInTimezone, mergeDailyCounts, sourceRepeatsDuringDay } from "../lib/engine-policy.ts";
+import {
+  AdaptiveConcurrencyController,
+  classifyConcurrencyError,
+  ContiguousProgress,
+  DISCOVERY_RUNTIME_CONFIG,
+  KeyedSerialExecutor,
+  runAdaptivePool,
+} from "../lib/discovery-runtime.ts";
 import { approvalPolicyGaps, qualifyEvidence } from "../lib/qualification.ts";
 import { deterministicScore } from "../lib/lead-scoring.ts";
 import { importedLeadPendingVerification, isCurrentServerVerification } from "../lib/import-policy.ts";
@@ -214,7 +222,75 @@ test("daily counters count qualified companies independently from duplicates and
   const current = { rawDiscoveredCount: 10, parsedCount: 8, websiteVerifiedCount: 6, validContactCount: 4, duplicateCount: 1, mandatoryGateFailedCount: 2, qualifiedCount: 3, failedCount: 1 };
   const merged = mergeDailyCounts(current, { rawDiscovered: 5, parsed: 5, websiteVerified: 4, validContact: 2, duplicate: 2, mandatoryFailed: 1, qualified: 1, failed: 1 });
   assert.deepEqual(merged, { rawDiscoveredCount: 15, parsedCount: 13, websiteVerifiedCount: 10, validContactCount: 6, duplicateCount: 3, mandatoryGateFailedCount: 3, qualifiedCount: 4, failedCount: 2 });
-  assert.deepEqual(dailyProgress(20, merged.qualifiedCount), { target: 20, qualified: 4, remaining: 16, completionRate: 20 });
+});
+
+test("continuous discovery uses a 20-candidate batch and scales stable company work from 3 to 5", async () => {
+  assert.equal(DISCOVERY_RUNTIME_CONFIG.batchCandidates, 20);
+  assert.equal(DISCOVERY_RUNTIME_CONFIG.initialConcurrency, 3);
+  assert.equal(DISCOVERY_RUNTIME_CONFIG.maxConcurrency, 5);
+  const result = await runAdaptivePool(Array.from({ length: 20 }, (_, index) => index), async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    return "success";
+  }, { classifyResult: (outcome) => outcome });
+  assert.equal(result.results.length, 20);
+  assert.equal(result.results.every((item) => item.status === "fulfilled"), true);
+  assert.equal(result.initialConcurrency, 3);
+  assert.equal(result.finalConcurrency, 5);
+  assert.equal(result.maxObservedConcurrency, 5);
+  assert.deepEqual(result.concurrencyHistory, [3, 4, 5]);
+});
+
+test("adaptive concurrency immediately backs off on throttling and timeouts", () => {
+  assert.equal(classifyConcurrencyError(new Error("页面返回 HTTP 403")), "throttled");
+  assert.equal(classifyConcurrencyError(new Error("页面返回 HTTP 429")), "throttled");
+  assert.equal(classifyConcurrencyError(new Error("request timed out")), "timeout");
+  const throttled = new AdaptiveConcurrencyController();
+  for (let index = 0; index < 8; index += 1) throttled.record("success");
+  assert.equal(throttled.current, 5);
+  throttled.record("throttled");
+  assert.equal(throttled.current, 1);
+
+  const timedOut = new AdaptiveConcurrencyController();
+  for (let index = 0; index < 8; index += 1) timedOut.record("success");
+  timedOut.record("timeout");
+  assert.equal(timedOut.current, 2);
+
+  const elevatedErrors = new AdaptiveConcurrencyController();
+  for (let index = 0; index < 8; index += 1) elevatedErrors.record("success");
+  elevatedErrors.record("error");
+  assert.equal(elevatedErrors.current, 5);
+  elevatedErrors.record("error");
+  assert.equal(elevatedErrors.current, 2);
+  elevatedErrors.record("error");
+  assert.equal(elevatedErrors.current, 1);
+});
+
+test("candidate failures are isolated and do not cancel the rest of the adaptive pool", async () => {
+  const result = await runAdaptivePool(Array.from({ length: 20 }, (_, index) => index), async (index) => {
+    if (index === 4) throw new Error("页面返回 HTTP 429");
+    if (index === 11) throw new Error("request timeout");
+    return index;
+  });
+  assert.equal(result.results.filter((item) => item.status === "rejected").length, 2);
+  assert.equal(result.results.filter((item) => item.status === "fulfilled").length, 18);
+});
+
+test("same-company work is serialized and cursor checkpoints only advance contiguously", async () => {
+  const serial = new KeyedSerialExecutor();
+  let active = 0;
+  let peak = 0;
+  await Promise.all(Array.from({ length: 4 }, () => serial.run("domain:example.com", async () => {
+    active += 1;
+    peak = Math.max(peak, active);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    active -= 1;
+  })));
+  assert.equal(peak, 1);
+
+  const progress = new ContiguousProgress(10);
+  assert.equal(progress.complete(2), 10);
+  assert.equal(progress.complete(0), 11);
+  assert.equal(progress.complete(1), 13);
 });
 
 test("Asia/Shanghai date boundary and source fallback are deterministic", () => {
@@ -311,10 +387,35 @@ test("engine start is global and no longer requires a selected campaign", async 
     readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(route, /required: true[^\n]+campaignId/);
-  assert.match(route, /startAutomaticEngine\(dailyTarget, timezone\)/);
+  assert.match(route, /startAutomaticEngine\(timezone\)/);
+  assert.doesNotMatch(route, /body\.dailyTarget/);
   assert.doesNotMatch(route, /body\.runNow === true/);
   assert.doesNotMatch(stateHook, /runNow:\s*true/);
   assert.match(stateHook, /首批由后台执行/);
+});
+
+test("automatic engine runs without a daily quota or target-reached stop branch", async () => {
+  const [engine, runner, runtime, workspace, ui] = await Promise.all([
+    readFile(new URL("../lib/automatic-engine.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/discovery-runner.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/discovery-runtime.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/workspace/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/AutomaticDiscoveryView.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(engine, /target_reached|dailyProgress|qualifiedCount\s*>=\s*[^\n]*targetCount/);
+  assert.match(engine, /status: "batch_completed"/);
+  assert.match(engine, /DISCOVERY_RUNTIME_CONFIG\.batchCandidates/);
+  assert.match(engine, /qualifiedCount: sql`\$\{dailyDiscoveryTargets\.qualifiedCount\} \+ \$\{counts\.qualified\}`/);
+  assert.match(runner, /runAdaptivePool/);
+  assert.match(runner, /checkpointCandidate/);
+  assert.match(runtime, /batchCandidates: 20/);
+  assert.match(runtime, /initialConcurrency: 3/);
+  assert.match(runtime, /maxConcurrency: 5/);
+  assert.match(workspace, /dailyLedgers/);
+  assert.match(workspace, /alertType !== "daily_target_deficit"/);
+  assert.match(workspace, /isLegacyQuotaMessage/);
+  assert.match(ui, /今日已完成/);
+  assert.doesNotMatch(ui, /今日目标|今日仍缺|每日目标|目标缺口/);
 });
 
 test("official discovery sources use a stable global pool instead of a display Campaign", async () => {
