@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SCORE_LIMITS } from "@/lib/lead-engine";
 import { GLOBAL_DISCOVERY_CAMPAIGN_ID, isSystemCampaignId } from "@/lib/campaign-routing";
 import { isCurrentServerVerification } from "@/lib/import-policy";
@@ -91,6 +91,7 @@ export function useLeadEngineState() {
   const [leadPage, setLeadPage] = useState<LeadPage>(EMPTY_LEAD_PAGE);
   const [discoveryStats, setDiscoveryStats] = useState<DiscoveryStats>(EMPTY_DISCOVERY_STATS);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const historyLimitRef = useRef<30 | 90>(30);
   const [leadDetail, setLeadDetail] = useState<LeadDetail | null>(null);
   const [leadRefreshKey, setLeadRefreshKey] = useState(0);
   const [importReport, setImportReport] = useState<{ imported: number; skipped: number; results?: Array<Record<string, unknown>> } | null>(null);
@@ -104,7 +105,7 @@ export function useLeadEngineState() {
     try {
       const [data, stats] = await Promise.all([
         api<Workspace>("/api/workspace"),
-        api<DiscoveryStats>("/api/discovery/stats?historyLimit=30"),
+        api<DiscoveryStats>(`/api/discovery/stats?historyLimit=${historyLimitRef.current}`),
       ]);
       setWorkspace(data);
       setDiscoveryStats(stats);
@@ -190,6 +191,22 @@ export function useLeadEngineState() {
   function actionError(requestError: unknown, fallback: string) { setError(requestError instanceof Error ? requestError.message : fallback); }
   function refreshLeads() { setLeadRefreshKey((value) => value + 1); }
   function openLead(leadId: string) { setSelectedLeadId(leadId); setLeadDetail(null); setDetailLoading(true); setDrawerOpen(true); }
+  async function loadDiscoveryHistory(days: 30 | 90) {
+    const previousLimit = historyLimitRef.current;
+    historyLimitRef.current = days;
+    if (discoveryStats.history.rows.length >= days) return true;
+    setHistoryLoading(true);
+    try {
+      setDiscoveryStats(await api<DiscoveryStats>(`/api/discovery/stats?historyLimit=${days}`));
+      return true;
+    } catch (requestError) {
+      historyLimitRef.current = previousLimit;
+      actionError(requestError, `${days} 天完成趋势加载失败`);
+      return false;
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
   async function loadOlderDiscoveryHistory() {
     const before = discoveryStats.history.previousBefore;
     if (!before || historyLoading) return;
@@ -243,7 +260,7 @@ export function useLeadEngineState() {
     setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter, setSpecialFilter, setSortBy, setPage, setSearch,
     setReviewNotes, setAssignmentCampaignId, setNotice, setError, selectCompletionPeriod, shiftCompletionPeriod, resetCompletionPeriod,
     openLead, clearFilters, createCampaign, changeCampaignStatus, updateCampaign, review, exportApproved, addDiscoverySource,
-    toggleDiscoverySource, runDiscovery, reverifySelectedLead, assignSelectedLead, controlEngine, importFile, loadReclassificationDryRun, loadOlderDiscoveryHistory,
+    toggleDiscoverySource, runDiscovery, reverifySelectedLead, assignSelectedLead, controlEngine, importFile, loadReclassificationDryRun, loadDiscoveryHistory, loadOlderDiscoveryHistory,
   };
 }
 

@@ -107,19 +107,26 @@ test("first automatic completion stays immutable and import provenance follows C
 });
 
 test("statistics and review filters share the completion scope and place time above customer range", async () => {
-  const [statsApi, leadsApi, review, automatic, state] = await Promise.all([
+  const [statsApi, leadsApi, review, automatic, activity, state] = await Promise.all([
     readFile(new URL("../app/api/discovery/stats/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
     readFile(new URL("../components/lead-engine/AutomaticDiscoveryView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/CompletionActivityChart.tsx", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
   ]);
   assert.match(statsApi, /automaticCompletionScope\(\)/);
   assert.match(leadsApi, /automaticCompletionScope\(completionPeriod\)/);
   assert.ok(review.indexOf("completionFilterBar") < review.indexOf("reviewScopeBar"));
-  for (const label of ["今日已完成", "昨日已完成", "累计已完成", "本周", "本月", "本季度", "本年", "往日完成记录"]) {
+  for (const label of ["今日已完成", "昨日已完成", "累计已完成", "本周", "本月", "本季度", "本年"]) {
     assert.match(automatic, new RegExp(label));
   }
+  for (const label of ["完成趋势", "30天", "90天", "查看每日明细", "最高单日"]) assert.match(activity, new RegExp(label));
+  assert.match(activity, /aria-pressed/);
+  assert.match(activity, /aria-label={`\$\{day\.date\}，完成 \$\{day\.count\} 家`}/);
+  assert.match(automatic, /CompletionActivityChart/);
+  assert.match(state, /historyLimit=\$\{historyLimitRef\.current\}/);
+  assert.match(state, /loadDiscoveryHistory/);
   assert.match(state, /parameters\.set\("completionPeriod", completionPeriod\)/);
   assert.match(state, /parameters\.set\("completionAnchor", completionAnchor\)/);
 });

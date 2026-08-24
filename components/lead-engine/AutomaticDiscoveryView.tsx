@@ -1,12 +1,18 @@
-import { IconAlertTriangle, IconCalendarStats, IconChevronDown, IconFileExport, IconPlayerPause, IconPlayerPlay, IconRadar, IconSettings, IconX } from "@tabler/icons-react";
+import { useState } from "react";
+import { IconAlertTriangle, IconFileExport, IconPlayerPause, IconPlayerPlay, IconRadar, IconSettings, IconX } from "@tabler/icons-react";
 import type { LeadEngineState } from "@/hooks/useLeadEngineState";
+import { CompletionActivityChart } from "./CompletionActivityChart";
 import { formatDate, VIEW_LABELS } from "./model";
 import styles from "../LeadEngineApp.module.css";
 
 export function AutomaticDiscoveryView({ state }: { state: LeadEngineState }) {
   const { activeBusinessCampaigns, discoverySourceById, discoveryStats, engine, globalDiscoveryRuns, globalSourceOverview, historyLoading, latestRun, openAlerts, pending, todayLedger, totalApprovedCount, workspace } = state;
+  const [historyDays, setHistoryDays] = useState<30 | 90>(30);
   const latestSource = latestRun ? discoverySourceById.get(latestRun.sourceId) : null;
   const summary = discoveryStats.summary;
+  async function changeHistoryDays(days: 30 | 90) {
+    if (await state.loadDiscoveryHistory(days)) setHistoryDays(days);
+  }
   return <section className={styles.toolWorkspace} aria-label={VIEW_LABELS.discovery}>
     <div className={styles.toolHeader}><div><span className={styles.sectionKicker}>CONTINUOUS DISCOVERY</span><h1>全局自动找客户</h1><p>无需先选择 Campaign。引擎运行且来源可用时持续发现，不设置每日数量目标；系统按全部运行中 Campaign 的国家、客户类型与产品证据自动归类。</p></div><IconRadar size={34} /></div>
     <section className={styles.engineDashboard}>
@@ -27,10 +33,8 @@ export function AutomaticDiscoveryView({ state }: { state: LeadEngineState }) {
       {openAlerts.length ? <div className={styles.alertList}>{openAlerts.slice(0, 5).map((alert) => <article key={alert.id} data-severity={alert.severity}><b>{alert.severity === "critical" ? "重要告警" : "来源提醒"}</b><span>{alert.message}</span><small>{formatDate(alert.createdAt)}</small></article>)}</div> : null}
       <div className={styles.engineExports}><span>自动合格客户可在审核台按地区、国家、客户类型和产品分类查看；人工批准后才能导出。</span><button className={styles.secondaryButton} type="button" disabled={!totalApprovedCount} onClick={() => state.setActiveView("export")}><IconFileExport size={17} />前往 CRM 导出</button></div>
     </section>
-    <section className={[styles.toolSection, styles.completionHistory].join(" ")}>
-      <div className={styles.sectionTitleRow}><div><h2><IconCalendarStats size={20} />往日完成记录</h2><p className={styles.muted}>按上海时区自然日统计；同一公司只在首次自动合格时计数，导入客户不计入。</p></div><span className={styles.muted}>只读数据</span></div>
-      <div className={styles.completionHistoryList}>{discoveryStats.history.rows.map((day) => <article key={day.date}><div><b>{day.label}</b><small>{day.date}</small></div><strong>{day.count}</strong><span>家</span></article>)}</div>
-      {discoveryStats.history.previousBefore ? <button className={styles.historyMoreButton} type="button" disabled={historyLoading} onClick={() => void state.loadOlderDiscoveryHistory()}><IconChevronDown size={17} />{historyLoading ? "正在读取…" : "查看更早 30 天"}</button> : <p className={styles.historyEnd}>已显示全部可追溯完成记录</p>}
+    <section className={[styles.toolSection, styles.completionActivity].join(" ")}>
+      <CompletionActivityChart days={historyDays} historyLoading={historyLoading} onDaysChange={changeHistoryDays} onLoadOlder={state.loadOlderDiscoveryHistory} previousBefore={discoveryStats.history.previousBefore} rows={discoveryStats.history.rows} />
     </section>
     <div className={styles.discoveryPrinciples}><article><b>预置官方来源免费运行</b><span>付费搜索和 GPT provider 有接口但默认关闭、无密钥也可运行</span></article><article><b>每批领取 20 个候选</b><span>公司级并发从 3 自动升至 5；限流、超时或错误升高时降至 2 或 1</span></article><article><b>人工批准仍是联系闸门</b><span>自动合格客户进入待审核，不发送邮件、不写生产 CRM</span></article></div>
     <section className={[styles.toolSection, styles.sourceOverview].join(" ")}><div className={styles.sectionTitleRow}><h2>来源运行概览</h2><button className={styles.secondaryButton} type="button" onClick={() => state.setActiveView("advanced")}><IconSettings size={17} />管理来源</button></div><div className={styles.sourceOverviewGrid}>{globalSourceOverview.map((source) => <article key={source.id}><div><b>{source.name}</b><span className={source.enabled && source.status === "active" ? styles.sourceActive : styles.sourcePaused}>{source.enabled && source.status === "active" ? `${source.tier}级 · 已启用` : "已暂停"}</span></div><p>{source.scopeLabel}</p><small>{source.region} · {source.cadence === "manual" ? "仅手动" : `下次：${formatDate(source.nextRunAt)}`}</small></article>)}{!globalSourceOverview.length ? <div className={styles.emptyCompact}><IconRadar size={28} /><b>尚未准备来源</b><span>启用 Campaign 后，引擎会按市场准备官方来源。</span></div> : null}</div></section>
