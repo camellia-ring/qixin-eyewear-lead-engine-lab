@@ -2,6 +2,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
+  campaigns,
   crmHandoffAttempts,
   evidenceClaims,
   leadReviewDecisions,
@@ -38,12 +39,15 @@ export async function POST(request: Request) {
     let handoffPayload: CrmHandoffPayload | null = null;
     if (decision === "approved") {
       if (lead.campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "assign_campaign_before_approval");
-      const [contacts, sources, claims, scoreRuns] = await Promise.all([
+      const [contacts, sources, claims, scoreRuns, campaignRows] = await Promise.all([
         db.select().from(prospectContacts).where(eq(prospectContacts.companyId, company.id)).orderBy(desc(prospectContacts.isPrimary)).limit(1),
         db.select().from(leadSources).where(eq(leadSources.companyId, company.id)).limit(1),
         db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, company.id)),
         db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, leadId)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
+        db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).limit(1),
       ]);
+      const campaign = campaignRows[0];
+      if (!campaign) throw new ApiError(409, "campaign_not_found");
       const scoreRun = scoreRuns[0];
       const dimensions = scoreRun
         ? await db.select().from(leadScoreDimensions).where(eq(leadScoreDimensions.scoreRunId, scoreRun.id))
@@ -78,6 +82,12 @@ export async function POST(request: Request) {
           approvedAt: new Date().toISOString(),
           company,
           lead,
+          campaign,
+          evidence: {
+            sourceCount: sources.length,
+            observedClaimCount: claims.filter((claim) => claim.evidenceKind === "observed").length,
+            lastVerifiedAt: lead.lastVerifiedAt || scoreRun?.createdAt || new Date().toISOString(),
+          },
           contact: contacts[0] || null,
           reviewNotes: notes,
         });

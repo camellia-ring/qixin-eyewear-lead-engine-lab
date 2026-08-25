@@ -16,6 +16,7 @@ type Company = {
 };
 
 type Lead = { id: string; productTrack: string };
+type Campaign = { id: string; name: string; productTrack: string };
 type Contact = { fullName: string; jobTitle: string | null; email: string | null };
 
 export type CrmHandoffPayload = {
@@ -23,6 +24,7 @@ export type CrmHandoffPayload = {
   handoffId: string;
   sourceSystem: "qixin-lead-engine";
   sourceLeadId: string;
+  campaign: { sourceCampaignId: string; name: string; productTrack: string };
   company: {
     sourceCompanyId: string;
     name: string;
@@ -34,7 +36,9 @@ export type CrmHandoffPayload = {
   };
   contact: { fullName: string; jobTitle: string | null; email: string } | null;
   approval: { status: "approved"; approver: "private_owner"; approvedAt: string };
-  suppression: { doNotContact: false };
+  evidence: { sourceCount: number; observedClaimCount: number; lastVerifiedAt: string };
+  suppression: { doNotContact: false; unsubscribed: false; permanentBounce: false };
+  dataFreshness: { status: "current"; verifiedAt: string };
   notes: string;
 };
 
@@ -50,6 +54,8 @@ export function buildCrmHandoffPayload(input: {
   approvedAt: string;
   company: Company;
   lead: Lead;
+  campaign: Campaign;
+  evidence: { sourceCount: number; observedClaimCount: number; lastVerifiedAt: string };
   contact?: Contact | null;
   reviewNotes?: string | null;
 }): CrmHandoffPayload {
@@ -61,6 +67,11 @@ export function buildCrmHandoffPayload(input: {
     handoffId: input.handoffId,
     sourceSystem: "qixin-lead-engine",
     sourceLeadId: input.lead.id,
+    campaign: {
+      sourceCampaignId: input.campaign.id,
+      name: input.campaign.name,
+      productTrack: input.campaign.productTrack,
+    },
     company: {
       sourceCompanyId: input.company.id,
       name: input.company.companyName,
@@ -76,7 +87,9 @@ export function buildCrmHandoffPayload(input: {
       email: contactEmail,
     } : null,
     approval: { status: "approved", approver: "private_owner", approvedAt: input.approvedAt },
-    suppression: { doNotContact: false },
+    evidence: input.evidence,
+    suppression: { doNotContact: false, unsubscribed: false, permanentBounce: false },
+    dataFreshness: { status: "current", verifiedAt: input.evidence.lastVerifiedAt },
     notes: [
       "Human-approved in QIXIN Lead Engine.",
       input.reviewNotes?.trim() || "",
