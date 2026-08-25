@@ -52,7 +52,7 @@ test("implements the normalized, evidence-first V1.2 model and treats imported v
   for (const table of [
     "prospect_companies", "campaign_leads", "company_domains", "company_domain_links",
     "lead_sources", "evidence_claims", "lead_score_runs", "lead_score_dimensions",
-    "lead_import_runs", "lead_review_decisions", "crm_export_runs", "crm_export_items",
+    "lead_import_runs", "lead_review_decisions", "crm_export_runs", "crm_export_items", "crm_handoff_attempts",
   ]) assert.match(schema, new RegExp(table));
   assert.match(schema, /uq_campaign_lead_company/);
   assert.match(schema, /uq_lead_import_campaign_key/);
@@ -82,19 +82,27 @@ test("implements the normalized, evidence-first V1.2 model and treats imported v
   assert.match(leadEngine, /observed \/ inferred \/ unknown/);
 });
 
-test("keeps Sites, storage, and CRM handoff isolated", async () => {
-  const [hosting, agents, packageJson] = await Promise.all([
+test("keeps Sites and storage isolated while CRM handoff uses the approved narrow contract", async () => {
+  const [hosting, agents, packageJson, handoff, reviewRoute] = await Promise.all([
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../AGENTS.md", import.meta.url), "utf8"),
     readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../lib/crm-handoff.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/reviews/route.ts", import.meta.url), "utf8"),
   ]);
   const hostingConfig = JSON.parse(hosting);
   assert.equal(hostingConfig.project_id, "appgprj_6a7cee692ee48191bf4ce6ce38403734");
   assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, null);
-  assert.match(agents, /Never access the production QIXIN CRM, website D1\/R2/);
-  assert.match(agents, /add production write credentials/);
+  assert.match(agents, /Never access the website D1\/R2 directly/);
+  assert.match(agents, /versioned, authenticated, idempotent approved-customer handoff/);
+  assert.match(handoff, /qixin\.approved-customer-handoff\.v1/);
+  assert.match(handoff, /CRM_HANDOFF_SECRET/);
+  assert.match(handoff, /CUSTOMER_HTTP_WEBSITE_CRM/);
+  assert.match(reviewRoute, /approvalPolicyGaps/);
+  assert.match(reviewRoute, /sendCrmHandoff/);
+  assert.match(reviewRoute, /crmHandoffAttempts/);
   assert.match(packageJson, /qixin-eyewear-lead-engine-lab/);
 });
 
@@ -182,6 +190,8 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.doesNotMatch(ui, /\/api\/discovery\/run-due|\/api\/exports\/leads/);
   assert.match(css, /grid-template-columns: repeat\(5/);
   assert.match(css, /safe-area-inset-bottom/);
+  assert.match(ui, /审核通过并进入 CRM/);
+  assert.match(css, /\.reviewDock \.approveButton \{ position: sticky/);
 });
 
 test("keeps desktop and mobile customer review on one continuous vertical scroll surface", async () => {

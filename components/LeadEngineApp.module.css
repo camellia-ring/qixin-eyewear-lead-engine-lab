@@ -740,7 +740,8 @@
   .drawerHeader h2 { font-size: 21px; }
   .drawerHeader button { width: 48px; height: 48px; }
   .drawerBody { padding: 18px 16px 28px; overscroll-behavior: contain; }
-  .reviewDock { max-height: 48dvh; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; }
+  .reviewDock { max-height: 58dvh; padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto; overscroll-behavior: contain; }
+  .reviewDock .approveButton { position: sticky; top: 0; z-index: 1; box-shadow: 0 5px 14px rgba(31, 45, 61, .12); }
   .reviewDock input, .approveButton, .rejectButton, .keepButton { min-height: 48px; }
   .assignmentBox { grid-template-columns: 1fr; }
   .assignmentBox .primaryButton { width: 100%; }

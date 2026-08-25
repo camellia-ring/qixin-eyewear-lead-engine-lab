@@ -23,11 +23,11 @@ export function LeadReviewDrawer({ state }: { state: LeadEngineState }) {
     </div>
     <div className={styles.reviewDock}>
       {lead.campaignId === "system:unassigned" ? <div className={styles.assignmentBox}><label>先分配到 Campaign<select value={assignmentCampaignId} onChange={(event) => state.setAssignmentCampaignId(event.target.value)}><option value="">请选择目标 Campaign</option>{businessCampaigns.map((campaign) => <option key={campaign.id} value={campaign.id}>{campaign.name}</option>)}</select></label><button type="button" className={styles.primaryButton} disabled={pending || !assignmentCampaignId} onClick={() => void state.assignSelectedLead()}>确认分配</button></div> : null}
-      <label>审核备注<input value={reviewNotes} onChange={(event) => state.setReviewNotes(event.target.value)} placeholder="淘汰时必须填写原因" /></label>
       {approvalGaps.length ? <div className={styles.gapSummary}><IconAlertTriangle size={17} /><span>{approvalGaps.slice(0, 3).join(" · ")}</span></div> : <div className={styles.readySummary}><IconCheck size={17} /><span>已满足批准闸门，仍需你做最终判断。</span></div>}
-      <button type="button" className={styles.approveButton} onClick={() => void state.review("approved")} disabled={pending || approvalGaps.length > 0}>{approvalGaps.length ? "证据不足，暂不能批准" : "批准进入导出池"}</button>
+      <button type="button" className={styles.approveButton} onClick={() => void state.review("approved")} disabled={pending || approvalGaps.length > 0}>{pending ? "正在审核并移交 CRM…" : approvalGaps.length ? `暂不能通过（还差 ${approvalGaps.length} 项）` : "审核通过并进入 CRM"}</button>
       <button type="button" className={styles.rejectButton} onClick={() => void state.review("rejected")} disabled={pending}><IconTrash size={18} />淘汰</button>
       <button type="button" className={styles.keepButton} onClick={() => void state.review("needs_review")} disabled={pending}><IconClock size={17} />保留待审核</button>
+      <label>审核备注<input value={reviewNotes} onChange={(event) => state.setReviewNotes(event.target.value)} placeholder="可填写审核依据；淘汰时必须填写原因" /></label>
       <details className={styles.reviewMaintenance}><summary>高级维护</summary><button type="button" className={styles.keepButton} onClick={() => void state.reverifySelectedLead()} disabled={pending || !company.website}><IconRadar size={17} />重新核验官网与联系方式</button></details>
     </div>
   </aside>;

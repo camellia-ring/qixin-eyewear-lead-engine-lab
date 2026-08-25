@@ -231,7 +231,33 @@ export function useLeadEngineState() {
   async function createCampaign(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); beginAction(); try { const result = await api<{ campaign: Campaign }>("/api/campaigns", { method: "POST", body: JSON.stringify({ regionKey: data.get("regionKey"), productTracks: formList(data, "productTracks"), targetCountries: formList(data, "targetCountries"), customerTypes: formList(data, "customerTypes"), strategyPriority: Number(data.get("strategyPriority") || 50), status: "draft" }) }); form.reset(); await load(); setActiveCampaignId(result.campaign.id); setNotice("区域 Campaign 草稿已创建；启用后 AI 会按地区分配来源，并把匹配客户自动归入该策略。"); } catch (error) { actionError(error, "创建失败"); } finally { setPending(false); } }
   async function changeCampaignStatus(status: string) { if (!activeCampaign) return; beginAction(); try { await api("/api/campaigns", { method: "PATCH", body: JSON.stringify({ id: activeCampaign.id, status }) }); await load(); setNotice(`Campaign 状态已更新为：${status}。`); } catch (error) { actionError(error, "状态更新失败"); } finally { setPending(false); } }
   async function updateCampaign(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!activeCampaign) return; const data = new FormData(event.currentTarget); beginAction(); try { const result = await api<{ campaign: Campaign; matchRefresh: { companies: number; added: number; stale: number } | null }>("/api/campaigns", { method: "PATCH", body: JSON.stringify({ id: activeCampaign.id, regionKey: data.get("regionKey"), productTracks: formList(data, "productTracks"), targetCountries: formList(data, "targetCountries"), customerTypes: formList(data, "customerTypes"), strategyPriority: Number(data.get("strategyPriority") || 50) }) }); void load(true); if (result.matchRefresh) refreshLeads(); setNotice(result.matchRefresh ? "Campaign 策略已更新；现有客户已按证据重新匹配，历史归属仍保留。" : "Campaign 已保存；策略条件未变化，无需重新匹配客户。"); } catch (error) { actionError(error, "Campaign 更新失败"); } finally { setPending(false); } }
-  async function review(decision: string) { if (!selectedLead) return; if (decision === "rejected" && !reviewNotes.trim()) { setError("淘汰 Lead 前必须填写原因。"); return; } beginAction(); try { await api("/api/reviews", { method: "POST", body: JSON.stringify({ leadId: selectedLead.id, decision, notes: reviewNotes }) }); setReviewNotes(""); setDrawerOpen(false); await load(); refreshLeads(); setNotice(`审核决定已保存：${STATUS_LABELS[decision]}。没有写入生产 CRM。`); } catch (error) { actionError(error, "审核未完成"); } finally { setPending(false); } }
+  async function review(decision: string) {
+    if (!selectedLead) return;
+    if (decision === "rejected" && !reviewNotes.trim()) {
+      setError("淘汰 Lead 前必须填写原因。");
+      return;
+    }
+    beginAction();
+    try {
+      const result = await api<{ crmHandoff?: { status: "accepted" | "duplicate"; customerId?: string | null } | null }>("/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({ leadId: selectedLead.id, decision, notes: reviewNotes }),
+      });
+      setReviewNotes("");
+      setDrawerOpen(false);
+      await load();
+      refreshLeads();
+      setNotice(decision === "approved"
+        ? result.crmHandoff?.status === "duplicate"
+          ? "审核通过；网站 CRM 已有该客户，本次没有重复创建。"
+          : "审核通过；客户已进入网站后台 CRM。"
+        : `审核决定已保存：${STATUS_LABELS[decision]}。`);
+    } catch (error) {
+      actionError(error, "审核未完成");
+    } finally {
+      setPending(false);
+    }
+  }
   async function exportApproved() { if (!exportCampaign || !exportApprovedCount) return; beginAction(); try { const response = await fetch("/api/exports/crm", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ campaignId: exportCampaign.id }) }); if (!response.ok) { const payload = await response.json().catch(() => ({})) as { message?: string; error?: string }; throw new Error(payload.message || payload.error || "导出未完成"); } const url = URL.createObjectURL(await response.blob()); const link = document.createElement("a"); link.href = url; link.download = "qixin-approved-leads.csv"; link.click(); URL.revokeObjectURL(url); await load(); setNotice("已生成 CRM 兼容文件并记录导出批次；仍需在生产 CRM 中再次人工确认导入。"); } catch (error) { actionError(error, "导出未完成"); } finally { setPending(false); } }
   async function addDiscoverySource(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!activeCampaignId) return; const form = event.currentTarget; const data = new FormData(form); beginAction(); try { await api("/api/discovery/sources", { method: "POST", body: JSON.stringify({ campaignId: activeCampaignId, name: data.get("name"), sourceUrl: data.get("sourceUrl"), cadence: data.get("cadence"), maxCandidates: Number(data.get("maxCandidates") || 10) }) }); form.reset(); await load(); setNotice("已保存你批准的公开来源。系统只会读取该来源及其中链接出的公开官网，不会扩展为全网搜索。"); } catch (error) { actionError(error, "来源添加失败"); } finally { setPending(false); } }
   async function toggleDiscoverySource(source: DiscoverySource) { beginAction(); try { await api("/api/discovery/sources", { method: "PATCH", body: JSON.stringify({ id: source.id, status: source.status === "active" ? "paused" : "active" }) }); await load(); setNotice(source.status === "active" ? "来源已暂停。" : "来源已恢复；下次到期后可由定时任务运行。"); } catch (error) { actionError(error, "来源状态更新失败"); } finally { setPending(false); } }

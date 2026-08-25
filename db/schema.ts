@@ -418,6 +418,27 @@ export const prospectContacts = sqliteTable("prospect_contacts", {
   index("idx_prospect_contacts_email").on(table.email),
 ]);
 
+export const crmHandoffAttempts = sqliteTable("crm_handoff_attempts", {
+  id: text("id").primaryKey(),
+  handoffId: text("handoff_id").notNull(),
+  leadId: text("lead_id").notNull().references(() => campaignLeads.id, { onDelete: "cascade" }),
+  companyId: text("company_id").notNull().references(() => prospectCompanies.id, { onDelete: "cascade" }),
+  contractVersion: text("contract_version").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  status: text("status").notNull().default("pending"),
+  httpStatus: integer("http_status"),
+  responseCode: text("response_code"),
+  customerId: text("customer_id"),
+  errorMessage: text("error_message"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("uq_crm_handoff_attempt_handoff").on(table.handoffId),
+  index("idx_crm_handoff_attempt_company_status").on(table.companyId, table.status, table.createdAt),
+  check("crm_handoff_attempt_payload_check", sql`json_valid(${table.payloadJson})`),
+  check("crm_handoff_attempt_status_check", sql`${table.status} IN ('pending','succeeded','failed')`),
+]);
+
 export const leadSources = sqliteTable("lead_sources", {
   id: text("id").primaryKey(),
   companyId: text("company_id").notNull().references(() => prospectCompanies.id, { onDelete: "cascade" }),

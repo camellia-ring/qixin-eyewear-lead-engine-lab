@@ -2,6 +2,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
+  crmHandoffAttempts,
   evidenceClaims,
   leadReviewDecisions,
   leadScoreDimensions,
@@ -15,6 +16,7 @@ import { REVIEW_DECISIONS, SCORE_LIMITS } from "@/lib/lead-engine";
 import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
 import { isCurrentServerVerification } from "@/lib/import-policy";
 import { approvalPolicyGaps } from "@/lib/qualification";
+import { buildCrmHandoffPayload, CRM_HANDOFF_CONTRACT_VERSION, sendCrmHandoff, type CrmHandoffPayload } from "@/lib/crm-handoff";
 
 export async function POST(request: Request) {
   try {
@@ -31,10 +33,13 @@ export async function POST(request: Request) {
     const [company] = await db.select().from(prospectCompanies).where(eq(prospectCompanies.id, lead.companyId)).limit(1);
     if (!company) throw new ApiError(404, "company_not_found");
 
+    let approvedHandoff: { status: "accepted" | "duplicate"; customerId: string | null; duplicateReason: string | null; httpStatus: number } | null = null;
+    let handoffAttemptId: string | null = null;
+    let handoffPayload: CrmHandoffPayload | null = null;
     if (decision === "approved") {
       if (lead.campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "assign_campaign_before_approval");
       const [contacts, sources, claims, scoreRuns] = await Promise.all([
-        db.select().from(prospectContacts).where(eq(prospectContacts.companyId, company.id)).limit(1),
+        db.select().from(prospectContacts).where(eq(prospectContacts.companyId, company.id)).orderBy(desc(prospectContacts.isPrimary)).limit(1),
         db.select().from(leadSources).where(eq(leadSources.companyId, company.id)).limit(1),
         db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, company.id)),
         db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, leadId)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
@@ -59,11 +64,49 @@ export async function POST(request: Request) {
       if (policyGaps.length) throw new ApiError(409, "approval_policy_not_ready", policyGaps.join("；"));
       if (!claims.some((claim) => claim.evidenceKind === "observed")) throw new ApiError(409, "observed_evidence_required");
       if (dimensions.some((item) => !item.positiveReason && !item.negativeReason)) throw new ApiError(409, "score_reason_incomplete");
+
+      const [existingAttempt] = await db.select().from(crmHandoffAttempts)
+        .where(and(eq(crmHandoffAttempts.companyId, company.id), ne(crmHandoffAttempts.status, "succeeded")))
+        .orderBy(desc(crmHandoffAttempts.createdAt)).limit(1);
+      if (existingAttempt) {
+        handoffAttemptId = existingAttempt.id;
+        handoffPayload = JSON.parse(existingAttempt.payloadJson) as CrmHandoffPayload;
+      } else {
+        handoffAttemptId = crypto.randomUUID();
+        handoffPayload = buildCrmHandoffPayload({
+          handoffId: crypto.randomUUID(),
+          approvedAt: new Date().toISOString(),
+          company,
+          lead,
+          contact: contacts[0] || null,
+          reviewNotes: notes,
+        });
+        await db.insert(crmHandoffAttempts).values({
+          id: handoffAttemptId,
+          handoffId: handoffPayload.handoffId,
+          leadId,
+          companyId: company.id,
+          contractVersion: CRM_HANDOFF_CONTRACT_VERSION,
+          payloadJson: JSON.stringify(handoffPayload),
+        });
+      }
+      try {
+        approvedHandoff = await sendCrmHandoff(handoffPayload);
+      } catch (handoffError) {
+        const failure = handoffError as Error & { httpStatus?: number; responseCode?: string | null };
+        await db.update(crmHandoffAttempts).set({
+          status: "failed",
+          httpStatus: failure.httpStatus || null,
+          responseCode: failure.responseCode || null,
+          errorMessage: failure.message.slice(0, 1000),
+          updatedAt: new Date().toISOString(),
+        }).where(eq(crmHandoffAttempts.id, handoffAttemptId));
+        throw new ApiError(502, "crm_handoff_failed", "客户尚未批准；CRM 移交失败，可直接重试审核通过。 ");
+      }
     }
 
-    const reviewedAt = new Date().toISOString();
-    await db.batch([
-      db.update(campaignLeads).set({
+    const reviewedAt = handoffPayload?.approval.approvedAt || new Date().toISOString();
+    const leadUpdate = db.update(campaignLeads).set({
         workflowStatus: decision,
         reviewedBy: decision === "approved" || decision === "rejected" ? "private_owner" : null,
         reviewedAt: decision === "approved" || decision === "rejected" ? reviewedAt : null,
@@ -71,16 +114,38 @@ export async function POST(request: Request) {
       }).where(and(
         eq(campaignLeads.companyId, lead.companyId),
         ne(campaignLeads.matchStatus, "stale"),
-      )),
-      db.insert(leadReviewDecisions).values({
+      ));
+    const reviewInsert = db.insert(leadReviewDecisions).values({
         id: crypto.randomUUID(),
         leadId,
         decision,
         notes: notes || null,
         decidedBy: "private_owner",
-      }),
-    ]);
-    return Response.json({ leadId, companyId: lead.companyId, decision, synchronizedCurrentCampaigns: true });
+      });
+    if (decision === "approved" && handoffAttemptId && approvedHandoff) {
+      const handoffUpdate = db.update(crmHandoffAttempts).set({
+        status: "succeeded",
+        httpStatus: approvedHandoff.httpStatus,
+        responseCode: approvedHandoff.status,
+        customerId: approvedHandoff.customerId,
+        errorMessage: null,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(crmHandoffAttempts.id, handoffAttemptId));
+      await db.batch([leadUpdate, reviewInsert, handoffUpdate]);
+    } else {
+      await db.batch([leadUpdate, reviewInsert]);
+    }
+    return Response.json({
+      leadId,
+      companyId: lead.companyId,
+      decision,
+      synchronizedCurrentCampaigns: true,
+      crmHandoff: approvedHandoff ? {
+        status: approvedHandoff.status,
+        customerId: approvedHandoff.customerId,
+        duplicateReason: approvedHandoff.duplicateReason,
+      } : null,
+    });
   } catch (error) {
     return apiFailure(error);
   }
