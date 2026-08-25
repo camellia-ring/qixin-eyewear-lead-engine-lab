@@ -184,6 +184,14 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.match(css, /safe-area-inset-bottom/);
 });
 
+test("keeps desktop and mobile customer review on one continuous vertical scroll surface", async () => {
+  const css = await readFile(new URL("../components/LeadEngineApp.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.reviewWorkspace\s*\{[^}]*overflow-y:\s*auto/s);
+  assert.match(css, /\.tableFrame\s*\{[^}]*height:\s*auto[^}]*flex:\s*0 0 auto/s);
+  assert.doesNotMatch(css, /\.tableFrame\s*\{[^}]*height:\s*min\(542px/s);
+  assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.mobileLeadList\s*\{[^}]*overflow:\s*visible/s);
+});
+
 test("reviews the unified customer library by multi-select evidence dimensions rather than Campaign", async () => {
   const [review, stateHook, filters, scopeFilter, leadsRoute] = await Promise.all([
     readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
