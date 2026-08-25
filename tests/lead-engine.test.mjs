@@ -99,6 +99,8 @@ test("keeps Sites and storage isolated while CRM handoff uses the approved narro
   assert.match(agents, /versioned, authenticated, idempotent approved-customer handoff/);
   assert.match(handoff, /qixin\.approved-customer-handoff\.v1/);
   assert.match(handoff, /CRM_HANDOFF_SECRET/);
+  assert.match(handoff, /CRM_SITE_AUTH_TOKEN/);
+  assert.match(handoff, /OAI-Sites-Authorization/);
   assert.match(handoff, /CUSTOMER_HTTP_WEBSITE_CRM/);
   assert.match(reviewRoute, /approvalPolicyGaps/);
   assert.match(reviewRoute, /sendCrmHandoff/);

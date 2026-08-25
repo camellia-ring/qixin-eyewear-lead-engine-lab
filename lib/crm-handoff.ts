@@ -41,6 +41,7 @@ export type CrmHandoffPayload = {
 type RuntimeEnv = typeof env & {
   CRM_HANDOFF_SECRET?: string;
   CRM_HANDOFF_URL?: string;
+  CRM_SITE_AUTH_TOKEN?: string;
   CUSTOMER_HTTP_WEBSITE_CRM?: { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 };
 
@@ -90,13 +91,18 @@ export async function sendCrmHandoff(payload: CrmHandoffPayload) {
   const baseUrl = runtime.CRM_HANDOFF_URL?.replace(/\/$/, "");
   if (!binding && !baseUrl) throw new Error("crm_handoff_destination_missing");
   const target = binding ? `https://website-crm.internal${CRM_HANDOFF_PATH}` : `${baseUrl}${CRM_HANDOFF_PATH}`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${runtime.CRM_HANDOFF_SECRET}`,
+    "Content-Type": "application/json",
+    "X-Qixin-Contract-Version": CRM_HANDOFF_CONTRACT_VERSION,
+  };
+  if (!binding) {
+    if (!runtime.CRM_SITE_AUTH_TOKEN) throw new Error("crm_site_auth_token_missing");
+    headers["OAI-Sites-Authorization"] = `Bearer ${runtime.CRM_SITE_AUTH_TOKEN}`;
+  }
   const response = await (binding?.fetch.bind(binding) || fetch)(target, {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${runtime.CRM_HANDOFF_SECRET}`,
-      "Content-Type": "application/json",
-      "X-Qixin-Contract-Version": CRM_HANDOFF_CONTRACT_VERSION,
-    },
+    headers,
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(15_000),
   });
