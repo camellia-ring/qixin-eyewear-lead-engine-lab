@@ -34,5 +34,5 @@ export function externalImportRubricVersion() {
 
 export function isCurrentServerVerification(scoreRun: { rubricVersion?: string | null; modelIdentifier?: string | null } | null | undefined) {
   return scoreRun?.rubricVersion === RUBRIC_VERSION
-    && /^deterministic_public_rules_v3(?:_|$)/.test(scoreRun.modelIdentifier || "");
+    && /^deterministic_public_rules_v3(?:[_:]|$)/.test(scoreRun.modelIdentifier || "");
 }

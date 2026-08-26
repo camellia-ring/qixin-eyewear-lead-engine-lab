@@ -154,7 +154,6 @@ export function qualifyEvidence(input: QualificationInput): QualificationResult 
 }
 
 export type ApprovalPolicyInput = {
-  campaignAssigned: boolean;
   hardGateStatus: string;
   score: number;
   evidenceCoverage: number;
@@ -169,7 +168,6 @@ export type ApprovalPolicyInput = {
 
 export function approvalPolicyGaps(input: ApprovalPolicyInput) {
   return [
-    input.campaignAssigned ? "" : "必须先分配到 Campaign",
     input.hardGateStatus === "pass" ? "" : "强制准入尚未通过",
     input.score >= MIN_QUALIFICATION_SCORE ? "" : `评分低于 ${MIN_QUALIFICATION_SCORE}`,
     input.evidenceCoverage >= MIN_EVIDENCE_COVERAGE ? "" : `证据覆盖率低于 ${MIN_EVIDENCE_COVERAGE}%`,

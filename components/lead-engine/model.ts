@@ -78,11 +78,12 @@ export type LeadListRow = {
   productDirectionsJson?: string; website?: string; primaryDomain?: string; businessEmail?: string; contactChannel?: string;
   contactStatus?: string; sourceType?: string; sourceName?: string; primaryCampaignId?: string; firstDiscoveredAt?: string;
   lastVerifiedAt?: string; isDuplicate: boolean; doNotContact: boolean;
+  reviewedAt?: string;
 };
 export type LeadPage = {
   rows: LeadListRow[];
   pagination: { page: number; pageSize: number; total: number; pageCount: number };
-  facets: { statusCounts: Record<string, number>; gradeCounts: Record<string, number>; regions: Array<{ value: string; label: string }>; countries: string[]; companyTypes: string[]; productDirections: string[]; sourceTypes: string[] };
+  facets: { statusCounts: Record<string, number>; reviewStateCounts: Record<string, number>; gradeCounts: Record<string, number>; regions: Array<{ value: string; label: string }>; countries: string[]; companyTypes: string[]; productDirections: string[]; sourceTypes: string[] };
   completion?: ReportingPeriod | null;
 };
 export type LeadDetail = {
@@ -99,7 +100,7 @@ export type Workspace = {
 };
 
 export const EMPTY_WORKSPACE: Workspace = { campaigns: [], leadCounts: {}, imports: [], exports: [], discoverySources: [], discoveryRuns: [], discoveryItems: [], engineState: null, dailyLedgers: [], discoveryAlerts: [], sourceHealth: [], discoveryAttempts: [], parserVersions: [] };
-export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, gradeCounts: {}, regions: [], countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
+export const EMPTY_LEAD_PAGE: LeadPage = { rows: [], pagination: { page: 1, pageSize: 25, total: 0, pageCount: 1 }, facets: { statusCounts: { all: 0 }, reviewStateCounts: { unreviewed: 0, reviewed: 0 }, gradeCounts: {}, regions: [], countries: [], companyTypes: [], productDirections: [], sourceTypes: [] } };
 export const EMPTY_DISCOVERY_STATS: DiscoveryStats = {
   generatedAt: "",
   timeZone: "Asia/Shanghai",
@@ -113,7 +114,6 @@ export const EMPTY_DISCOVERY_STATS: DiscoveryStats = {
   },
   history: { rows: [], previousBefore: null, earliestCompletedDate: null },
 };
-export const STATUS_FILTERS = ["all", "discovered", "analyzed", "qualified", "needs_review", "approved", "rejected"];
 export const SCORE_LABELS: Record<string, string> = { productMatchScore: "产品匹配", customerTypeScore: "客户 / 渠道类型", purchasingSignalsScore: "采购与批发信号", marketMoqFitScore: "市场、MOQ 与运营适配", contactabilityScore: "可联系性", accountPotentialScore: "客户潜力", dataQualityScore: "数据新鲜度与完整度" };
 export const STATUS_LABELS: Record<string, string> = { all: "全部机会", discovered: "新发现", analyzed: "已分析", qualified: "AI 合格", needs_review: "待审核", approved: "已批准", rejected: "已淘汰" };
 export const CONFIDENCE_LABELS: Record<string, string> = { high: "高", medium: "中等", low: "低" };

@@ -1,4 +1,4 @@
-import { count, desc, eq } from "drizzle-orm";
+import { count, desc, eq, inArray } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
@@ -23,12 +23,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const [lead] = await db.select().from(campaignLeads).where(eq(campaignLeads.id, id)).limit(1);
     if (!lead) throw new ApiError(404, "lead_not_found");
 
-    const [companyRows, sourceRows, claimRows, scoreRunRows, reviewRows, domainRows, contactCountRows, verificationRows, membershipRows] = await Promise.all([
+    const [companyRows, sourceRows, claimRows, scoreRunRows, domainRows, contactCountRows, verificationRows, membershipRows] = await Promise.all([
       db.select().from(prospectCompanies).where(eq(prospectCompanies.id, lead.companyId)).limit(1),
       db.select().from(leadSources).where(eq(leadSources.companyId, lead.companyId)).orderBy(desc(leadSources.retrievedAt)),
       db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, lead.companyId)).orderBy(desc(evidenceClaims.createdAt)),
       db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, id)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
-      db.select().from(leadReviewDecisions).where(eq(leadReviewDecisions.leadId, id)).orderBy(desc(leadReviewDecisions.createdAt)),
       db.select({
         id: companyDomains.id,
         normalizedDomain: companyDomains.normalizedDomain,
@@ -55,6 +54,11 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     const scoreRun = scoreRunRows[0] || null;
     const scoreDimensions = scoreRun
       ? await db.select().from(leadScoreDimensions).where(eq(leadScoreDimensions.scoreRunId, scoreRun.id))
+      : [];
+    const reviewRows = membershipRows.length
+      ? await db.select().from(leadReviewDecisions)
+        .where(inArray(leadReviewDecisions.leadId, membershipRows.map((membership) => membership.leadId)))
+        .orderBy(desc(leadReviewDecisions.createdAt))
       : [];
 
     return Response.json({

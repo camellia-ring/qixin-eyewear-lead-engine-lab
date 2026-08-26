@@ -30,11 +30,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       }).where(eq(campaignLeads.id, existing.id)).returning()
       : await db.update(campaignLeads).set({
         campaignId,
-        productTrack: campaign.productTrack,
-        qualificationResult: lead.qualificationResult === "near_match" ? "qualified" : lead.qualificationResult,
-        hardGateStatus: lead.hardGateStatus === "needs_review" ? "pass" : lead.hardGateStatus,
-        hardGateReason: lead.hardGateStatus === "needs_review" ? `人工依据证据分配到 Campaign：${campaign.name}` : lead.hardGateReason,
-        riskSummary: lead.riskSummary?.replace(/客户通过全局准入[^。]*。?/, "") || lead.riskSummary,
         assignmentType: "manual", matchStatus: "manual", matchReason: `人工分配到 Campaign：${campaign.name}`,
         matchedAt: now, updatedAt: now,
       }).where(eq(campaignLeads.id, id)).returning();

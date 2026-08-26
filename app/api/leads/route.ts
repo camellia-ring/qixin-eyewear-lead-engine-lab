@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNotNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, isNull, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb } from "@/db";
 import { campaignLeads, prospectCompanies } from "@/db/schema";
 import { ApiError, apiFailure } from "@/lib/api";
@@ -61,6 +61,16 @@ export async function GET(request: Request) {
     const completionCondition = completionPeriod ? automaticCompletionScope(completionPeriod) : undefined;
     if (completionCondition) conditions.push(completionCondition);
     const facetScope = and(scope, completionCondition);
+    const reviewState = parameters.get("reviewState")?.trim() || "unreviewed";
+    if (!new Set(["unreviewed", "reviewed"]).has(reviewState)) throw new ApiError(400, "invalid_review_state");
+    if (reviewState === "unreviewed") {
+      conditions.push(and(isNull(campaignLeads.reviewedAt), eq(campaignLeads.workflowStatus, "needs_review"))!);
+    } else {
+      conditions.push(and(
+        isNotNull(campaignLeads.reviewedAt),
+        or(eq(campaignLeads.workflowStatus, "approved"), eq(campaignLeads.workflowStatus, "rejected")),
+      )!);
+    }
 
     const scalarFilters = [
       ["status", campaignLeads.workflowStatus],
@@ -114,7 +124,11 @@ export async function GET(request: Request) {
     const sortColumn = SORTS[sortKey || "score"] || campaignLeads.currentScore;
     const order = parameters.get("order") === "asc" ? asc(sortColumn) : desc(sortColumn);
     const db = getDb();
-    const [rows, totals, statusRows, gradeRows, countryRows, typeRows, productRows, sourceRows] = await Promise.all([
+    const reviewStateKey = sql<string>`CASE
+      WHEN ${campaignLeads.reviewedAt} IS NULL AND ${campaignLeads.workflowStatus} = 'needs_review' THEN 'unreviewed'
+      WHEN ${campaignLeads.reviewedAt} IS NOT NULL AND ${campaignLeads.workflowStatus} IN ('approved','rejected') THEN 'reviewed'
+      ELSE 'other' END`;
+    const [rows, totals, statusRows, reviewStateRows, gradeRows, countryRows, typeRows, productRows, sourceRows] = await Promise.all([
       db.select({
         leadId: campaignLeads.id,
         campaignId: campaignLeads.campaignId,
@@ -130,6 +144,7 @@ export async function GET(request: Request) {
         grade: campaignLeads.grade,
         evidenceCoverage: campaignLeads.evidenceCoverage,
         confidence: campaignLeads.scoreConfidence,
+        reviewedAt: campaignLeads.reviewedAt,
         autoQualifiedAt: campaignLeads.autoQualifiedAt,
         companyId: prospectCompanies.id,
         companyName: prospectCompanies.companyName,
@@ -163,6 +178,8 @@ export async function GET(request: Request) {
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(where),
       db.select({ key: campaignLeads.workflowStatus, value: count() }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope).groupBy(campaignLeads.workflowStatus),
+      db.select({ key: reviewStateKey, value: count() }).from(campaignLeads)
+        .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope).groupBy(reviewStateKey),
       db.select({ key: campaignLeads.grade, value: count() }).from(campaignLeads)
         .innerJoin(prospectCompanies, eq(campaignLeads.companyId, prospectCompanies.id)).where(facetScope).groupBy(campaignLeads.grade),
       db.selectDistinct({ value: prospectCompanies.country }).from(campaignLeads)
@@ -179,6 +196,7 @@ export async function GET(request: Request) {
     const total = totals[0]?.value || 0;
     const statusCounts = Object.fromEntries(statusRows.map((row) => [row.key, Number(row.value || 0)]));
     statusCounts.all = Object.values(statusCounts).reduce((sum, value) => sum + value, 0);
+    const reviewStateCounts = Object.fromEntries(reviewStateRows.map((row) => [row.key, Number(row.value || 0)]));
     const gradeCounts = Object.fromEntries(gradeRows.map((row) => [row.key, Number(row.value || 0)]));
     const companyTypes = [...new Set(typeRows.flatMap((row) => [
       ...safeJsonList(row.customerTypesJson), row.customerType, row.companyRole,
@@ -194,6 +212,7 @@ export async function GET(request: Request) {
       pagination: { page, pageSize, total, pageCount: Math.max(1, Math.ceil(total / pageSize)) },
       facets: {
         statusCounts,
+        reviewStateCounts,
         gradeCounts,
         regions,
         countries: countryRows.map((row) => row.value).filter(Boolean),

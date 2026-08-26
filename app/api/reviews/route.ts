@@ -2,22 +2,16 @@ import { and, desc, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
-  campaigns,
   crmHandoffAttempts,
-  evidenceClaims,
   leadReviewDecisions,
-  leadScoreDimensions,
-  leadScoreRuns,
-  leadSources,
   prospectCompanies,
-  prospectContacts,
 } from "@/db/schema";
 import { ApiError, apiFailure, jsonBody, textValue } from "@/lib/api";
 import { REVIEW_DECISIONS, SCORE_LIMITS } from "@/lib/lead-engine";
-import { UNASSIGNED_CAMPAIGN_ID } from "@/lib/campaign-routing";
+import { buildApprovedCrmHandoff, loadCrmHandoffContext } from "@/lib/crm-handoff-context";
 import { isCurrentServerVerification } from "@/lib/import-policy";
 import { approvalPolicyGaps } from "@/lib/qualification";
-import { buildCrmHandoffPayload, CRM_HANDOFF_CONTRACT_VERSION, sendCrmHandoff, type CrmHandoffPayload } from "@/lib/crm-handoff";
+import { CRM_HANDOFF_CONTRACT_VERSION, sendCrmHandoff, type CrmHandoffPayload } from "@/lib/crm-handoff";
 
 export async function POST(request: Request) {
   try {
@@ -38,29 +32,16 @@ export async function POST(request: Request) {
     let handoffAttemptId: string | null = null;
     let handoffPayload: CrmHandoffPayload | null = null;
     if (decision === "approved") {
-      if (lead.campaignId === UNASSIGNED_CAMPAIGN_ID) throw new ApiError(409, "assign_campaign_before_approval");
-      const [contacts, sources, claims, scoreRuns, campaignRows] = await Promise.all([
-        db.select().from(prospectContacts).where(eq(prospectContacts.companyId, company.id)).orderBy(desc(prospectContacts.isPrimary)).limit(1),
-        db.select().from(leadSources).where(eq(leadSources.companyId, company.id)).limit(1),
-        db.select().from(evidenceClaims).where(eq(evidenceClaims.companyId, company.id)),
-        db.select().from(leadScoreRuns).where(eq(leadScoreRuns.leadId, leadId)).orderBy(desc(leadScoreRuns.createdAt)).limit(1),
-        db.select().from(campaigns).where(eq(campaigns.id, lead.campaignId)).limit(1),
-      ]);
-      const campaign = campaignRows[0];
-      if (!campaign) throw new ApiError(409, "campaign_not_found");
-      const scoreRun = scoreRuns[0];
-      const dimensions = scoreRun
-        ? await db.select().from(leadScoreDimensions).where(eq(leadScoreDimensions.scoreRunId, scoreRun.id))
-        : [];
+      const handoffContext = await loadCrmHandoffContext(company, lead);
+      const { sources, claims, scoreRun, dimensions } = handoffContext;
       const policyGaps = approvalPolicyGaps({
-        campaignAssigned: lead.campaignId !== UNASSIGNED_CAMPAIGN_ID,
         hardGateStatus: lead.hardGateStatus,
         score: lead.currentScore,
         evidenceCoverage: lead.evidenceCoverage,
         scoreConfidence: lead.scoreConfidence,
         doNotContact: company.doNotContact,
         sourceCount: sources.length,
-        contactPresent: Boolean(company.businessEmail || company.contactChannel || contacts.length),
+        contactPresent: Boolean(company.businessEmail || company.contactChannel || handoffContext.contacts.length),
         scoreDimensionCount: dimensions.length,
         expectedScoreDimensionCount: Object.keys(SCORE_LIMITS).length,
         serverVerified: isCurrentServerVerification(scoreRun),
@@ -77,18 +58,12 @@ export async function POST(request: Request) {
         handoffPayload = JSON.parse(existingAttempt.payloadJson) as CrmHandoffPayload;
       } else {
         handoffAttemptId = crypto.randomUUID();
-        handoffPayload = buildCrmHandoffPayload({
+        handoffPayload = buildApprovedCrmHandoff({
           handoffId: crypto.randomUUID(),
           approvedAt: new Date().toISOString(),
           company,
           lead,
-          campaign,
-          evidence: {
-            sourceCount: sources.length,
-            observedClaimCount: claims.filter((claim) => claim.evidenceKind === "observed").length,
-            lastVerifiedAt: lead.lastVerifiedAt || scoreRun?.createdAt || new Date().toISOString(),
-          },
-          contact: contacts[0] || null,
+          context: handoffContext,
           reviewNotes: notes,
         });
         await db.insert(crmHandoffAttempts).values({

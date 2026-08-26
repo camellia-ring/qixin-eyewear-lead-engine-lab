@@ -97,7 +97,9 @@ test("keeps Sites and storage isolated while CRM handoff uses the approved narro
   assert.equal(hostingConfig.r2, null);
   assert.match(agents, /Never access the website D1\/R2 directly/);
   assert.match(agents, /versioned, authenticated, idempotent approved-customer handoff/);
-  assert.match(handoff, /qixin\.approved-customer-handoff\.v1/);
+  assert.match(handoff, /qixin\.approved-customer-handoff\.v2/);
+  assert.match(handoff, /campaigns: Array/);
+  assert.match(handoff, /discovery:/);
   assert.match(handoff, /CRM_HANDOFF_SECRET/);
   assert.match(handoff, /CRM_SITE_AUTH_TOKEN/);
   assert.match(handoff, /OAI-Sites-Authorization/);
@@ -187,6 +189,7 @@ test("loads review data page-by-page and keeps maintenance out of the primary mo
   assert.match(leads, /selectedRegions/);
   assert.match(leads, /regions/);
   assert.match(detail, /scoreDimensions/);
+  assert.match(detail, /inArray\(leadReviewDecisions\.leadId/);
   assert.match(ui, /高级工具/);
   assert.match(ui, /mobileLeadList/);
   assert.doesNotMatch(ui, /\/api\/discovery\/run-due|\/api\/exports\/leads/);
@@ -247,6 +250,8 @@ test("reviews the unified customer library by multi-select evidence dimensions r
   assert.doesNotMatch(review, /reviewCampaignId|setReviewCampaignId|切换 Campaign|这个 Campaign/);
   assert.doesNotMatch(stateHook, /parameters\.set\("campaignId", reviewCampaignId\)/);
   assert.match(filters, /regionFilter/);
+  assert.match(filters, /reviewState/);
+  assert.doesNotMatch(filters, /statusFilter/);
   assert.match(filters, /typeFilters/);
   assert.match(filters, /productFilters/);
   assert.match(scopeFilter, />全选</);
@@ -254,6 +259,54 @@ test("reviews the unified customer library by multi-select evidence dimensions r
   assert.match(stateHook, /parameters\.append\("customerType"/);
   assert.match(stateHook, /parameters\.append\("productDirection"/);
   assert.match(leadsRoute, /json_each/);
+  assert.match(leadsRoute, /reviewState === "unreviewed"/);
+  assert.match(leadsRoute, /isNull\(campaignLeads\.reviewedAt\)/);
+  assert.match(leadsRoute, /isNotNull\(campaignLeads\.reviewedAt\)/);
+  assert.match(review, /reviewState === "unreviewed" \? "未审核" : "已审核"/);
+  assert.doesNotMatch(review, /STATUS_FILTERS/);
+});
+
+test("keeps Campaign classification separate from qualification and human review", async () => {
+  const [qualification, reviewRoute, assignRoute, membership, reverify, stateHook, drawer] = await Promise.all([
+    readFile(new URL("../lib/qualification.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/reviews/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/leads/[id]/assign/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/campaign-membership.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/reverification.ts", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/LeadReviewDrawer.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.doesNotMatch(`${qualification}\n${reviewRoute}`, /campaignAssigned|assign_campaign_before_approval/);
+  assert.doesNotMatch(assignRoute, /productTrack:|qualificationResult:|hardGateStatus:|hardGateReason:|riskSummary:/);
+  assert.doesNotMatch(membership, /qualificationResult: unassigned|hardGateStatus: unassigned|riskSummary: unassigned/);
+  assert.match(membership, /reviewedBy: template\.reviewedBy/);
+  assert.match(membership, /reviewedAt: template\.reviewedAt/);
+  assert.match(reverify, /lead\.reviewedAt \? lead\.workflowStatus : "needs_review"/);
+  assert.match(reverify, /ne\(campaignLeads\.matchStatus, "stale"\)/);
+  assert.match(stateHook, /autoReverifyAttemptedRef\.current\.has/);
+  assert.match(stateHook, /\[drawerOpen, selectedLeadId\]/);
+  assert.match(drawer, /资料核验完成，可以进行最终审核；当前仍为未审核。/);
+  assert.match(drawer, /并非由 Campaign 发起发现/);
+});
+
+test("provides a dry-run exact-whitelist correction without deleting audit history", async () => {
+  const [correction, route] = await Promise.all([
+    readFile(new URL("../lib/assignment-correction.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/maintenance/assignment-correction/route.ts", import.meta.url), "utf8"),
+  ]);
+  for (const id of [
+    "b1e76e7d-03e0-4dbe-8da5-73cd374de293",
+    "70af4f2c-d7f2-4873-8921-33738f5e3205",
+    "506a8af3-8689-444c-b57b-dedfa8aec1ae",
+    "6dffce24-4688-495a-ab20-49b2f615657e",
+  ]) assert.match(correction, new RegExp(id));
+  assert.match(correction, /exactWhitelistSize/);
+  assert.match(correction, /refreshCompanyCampaignMemberships/);
+  assert.match(correction, /错误人工归属已转为历史/);
+  assert.match(correction, /VISIONLAND_HANDOFF_ID/);
+  assert.doesNotMatch(correction, /\.delete\(/);
+  assert.match(route, /export async function GET/);
+  assert.match(route, /body\.apply !== true/);
 });
 
 test("provides a read-only historical reclassification dry run", async () => {

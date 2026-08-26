@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import { getDb } from "@/db";
 import {
   campaignLeads,
@@ -58,9 +58,10 @@ export async function reverifyLead(leadId: string) {
     contactStatus: qualification.validContact ? "valid" : "missing",
     lastAnalyzedAt: now, lastVerifiedAt: now, updatedAt: now,
   }).where(eq(prospectCompanies.id, company.id));
+  const workflowStatus = lead.reviewedAt ? lead.workflowStatus : "needs_review";
   await db.update(campaignLeads).set({
     qualificationResult: qualification.qualified ? "qualified" : qualification.candidateForReview ? "near_match" : "rejected",
-    workflowStatus: qualification.qualified && lead.workflowStatus === "approved" ? "approved" : qualification.candidateForReview ? "needs_review" : "rejected",
+    workflowStatus,
     recommendedProductsJson: JSON.stringify(qualification.productDirections),
     riskSummary: [...qualification.failures, ...qualification.manualReviewReasons].join("；") || "重新核验通过；人工批准前不得联系或写入生产 CRM。",
     hardGateStatus: qualification.hardGateStatus,
@@ -68,7 +69,7 @@ export async function reverifyLead(leadId: string) {
     currentScore: score.total, grade: score.grade, evidenceCoverage: score.evidenceCoverage,
     scoreConfidence: score.confidence, autoQualifiedAt: lead.autoQualifiedAt || (qualification.qualified ? now : null),
     lastVerifiedAt: now, updatedAt: now,
-  }).where(eq(campaignLeads.id, lead.id));
+  }).where(and(eq(campaignLeads.companyId, lead.companyId), ne(campaignLeads.matchStatus, "stale")));
 
   const evidenceIds: string[] = [];
   for (const page of evidence.pages) {

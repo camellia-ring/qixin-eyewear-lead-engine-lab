@@ -1,7 +1,11 @@
 import { env } from "cloudflare:workers";
-import { crmProductInterests } from "@/lib/lead-engine";
+import {
+  normalizeBusinessRoles,
+  PRODUCT_DIRECTION_DEFINITIONS,
+} from "@/lib/customer-scope";
+import { crmProductInterests, safeJsonList } from "@/lib/lead-engine";
 
-export const CRM_HANDOFF_CONTRACT_VERSION = "qixin.approved-customer-handoff.v1";
+export const CRM_HANDOFF_CONTRACT_VERSION = "qixin.approved-customer-handoff.v2";
 export const CRM_HANDOFF_PATH = "/api/integrations/lead-engine/handoffs";
 
 type Company = {
@@ -13,10 +17,23 @@ type Company = {
   businessEmail: string | null;
   estimatedPurchaseVolume: string | null;
   doNotContact: boolean;
+  customerType: string | null;
+  customerTypesJson: string;
+  companyRole: string | null;
+  productDirectionsJson: string;
+  sourceType: string | null;
+  sourceName: string | null;
 };
 
 type Lead = { id: string; productTrack: string };
-type Campaign = { id: string; name: string; productTrack: string };
+type Campaign = {
+  id: string;
+  name: string;
+  productTrack: string;
+  assignmentType: string;
+  matchStatus: string;
+};
+type Discovery = { sourceType: string; sourceName: string | null; sourceUrl: string | null };
 type Contact = { fullName: string; jobTitle: string | null; email: string | null };
 
 export type CrmHandoffPayload = {
@@ -24,13 +41,15 @@ export type CrmHandoffPayload = {
   handoffId: string;
   sourceSystem: "qixin-lead-engine";
   sourceLeadId: string;
-  campaign: { sourceCampaignId: string; name: string; productTrack: string };
+  discovery: { method: string; sourceType: string; sourceName: string | null; sourceUrl: string | null };
+  campaigns: Array<{ sourceCampaignId: string; name: string; productTrack: string; relationship: string }>;
   company: {
     sourceCompanyId: string;
     name: string;
     country: string | null;
     website: string | null;
     businessEmail: string | null;
+    customerTypes: string[];
     productInterests: string[];
     estimatedPurchaseVolume: string | null;
   };
@@ -54,7 +73,8 @@ export function buildCrmHandoffPayload(input: {
   approvedAt: string;
   company: Company;
   lead: Lead;
-  campaign: Campaign;
+  campaigns: Campaign[];
+  discovery: Discovery;
   evidence: { sourceCount: number; observedClaimCount: number; lastVerifiedAt: string };
   contact?: Contact | null;
   reviewNotes?: string | null;
@@ -62,23 +82,44 @@ export function buildCrmHandoffPayload(input: {
   if (input.company.doNotContact) throw new Error("suppressed_customer_rejected");
   const website = input.company.website || (input.company.primaryDomain ? `https://${input.company.primaryDomain}` : null);
   const contactEmail = input.contact?.email || input.company.businessEmail;
+  const customerTypes = normalizeBusinessRoles([
+    ...safeJsonList(input.company.customerTypesJson),
+    input.company.customerType || "",
+    input.company.companyRole || "",
+  ]);
+  const productTracks = new Set([input.lead.productTrack, ...input.campaigns.map((campaign) => campaign.productTrack)]);
+  const directions = new Set(safeJsonList(input.company.productDirectionsJson));
+  for (const definition of Object.values(PRODUCT_DIRECTION_DEFINITIONS)) {
+    if (directions.has(definition.label)) productTracks.add(definition.track);
+  }
+  const productInterests = [...new Set([...productTracks].flatMap(crmProductInterests))];
   return {
     contractVersion: CRM_HANDOFF_CONTRACT_VERSION,
     handoffId: input.handoffId,
     sourceSystem: "qixin-lead-engine",
     sourceLeadId: input.lead.id,
-    campaign: {
-      sourceCampaignId: input.campaign.id,
-      name: input.campaign.name,
-      productTrack: input.campaign.productTrack,
+    discovery: {
+      method: input.discovery.sourceType === "company_website" ? "server_reverification" : "global_pool",
+      sourceType: input.discovery.sourceType,
+      sourceName: input.discovery.sourceName || input.company.sourceName,
+      sourceUrl: input.discovery.sourceUrl,
     },
+    campaigns: input.campaigns.map((campaign) => ({
+      sourceCampaignId: campaign.id,
+      name: campaign.name,
+      productTrack: campaign.productTrack,
+      relationship: campaign.matchStatus === "stale"
+        ? "historical"
+        : campaign.assignmentType === "manual" ? "manual" : "automatic",
+    })),
     company: {
       sourceCompanyId: input.company.id,
       name: input.company.companyName,
       country: input.company.country,
       website,
       businessEmail: input.company.businessEmail,
-      productInterests: crmProductInterests(input.lead.productTrack),
+      customerTypes,
+      productInterests,
       estimatedPurchaseVolume: input.company.estimatedPurchaseVolume,
     },
     contact: contactEmail ? {

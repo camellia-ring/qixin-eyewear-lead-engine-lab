@@ -145,9 +145,9 @@ test("external pass and scores remain audit input until current server verificat
   assert.equal(imported.evidenceCoverage, 0);
   assert.equal(isCurrentServerVerification({ rubricVersion: "qixin-v1.2-external-input", modelIdentifier: "external_input:forged" }), false);
   assert.equal(isCurrentServerVerification({ rubricVersion: "qixin-v1.2", modelIdentifier: "deterministic_public_rules_v3_reverification" }), true);
+  assert.equal(isCurrentServerVerification({ rubricVersion: "qixin-v1.2", modelIdentifier: "deterministic_public_rules_v3_reverification:campaign_rematch" }), true);
 
   const base = {
-    campaignAssigned: true,
     hardGateStatus: "pass",
     score: 60,
     scoreConfidence: "medium",

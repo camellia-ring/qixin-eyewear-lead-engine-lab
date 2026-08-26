@@ -8,7 +8,7 @@ import {
 export type CompletionPeriodFilter = "all" | CompletionPeriodKind;
 
 export function useLeadReviewFilters() {
-  const [statusFilter, setStatusFilter] = useState("needs_review");
+  const [reviewState, setReviewState] = useState<"unreviewed" | "reviewed">("unreviewed");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [regionFilter, setRegionFilter] = useState("all");
   const [countryFilter, setCountryFilter] = useState("all");
@@ -41,7 +41,7 @@ export function useLeadReviewFilters() {
   }
 
   function clearFilters() {
-    setStatusFilter("all");
+    setReviewState("unreviewed");
     setGradeFilter("all");
     setRegionFilter("all");
     setCountryFilter("all");
@@ -57,8 +57,8 @@ export function useLeadReviewFilters() {
   }
 
   return {
-    statusFilter, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter,
-    sourceFilter, specialFilter, sortBy, page, search, setStatusFilter, setGradeFilter,
+    reviewState, gradeFilter, regionFilter, countryFilter, typeFilters, productFilters, contactFilter,
+    sourceFilter, specialFilter, sortBy, page, search, setReviewState, setGradeFilter,
     setRegionFilter, setCountryFilter, setTypeFilters, setProductFilters, setContactFilter, setSourceFilter,
     setSpecialFilter, setSortBy, setPage, setSearch, completionPeriod, completionAnchor,
     selectCompletionPeriod, shiftCompletionPeriod, resetCompletionPeriod, clearFilters,
