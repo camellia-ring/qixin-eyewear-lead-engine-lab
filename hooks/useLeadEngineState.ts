@@ -92,6 +92,8 @@ export function useLeadEngineState() {
   const [discoveryStats, setDiscoveryStats] = useState<DiscoveryStats>(EMPTY_DISCOVERY_STATS);
   const [historyLoading, setHistoryLoading] = useState(false);
   const historyLimitRef = useRef<30 | 90>(30);
+  const drawerOpenRef = useRef(false);
+  const selectedCompanyIdRef = useRef("");
   const autoReverifyAttemptedRef = useRef(new Set<string>());
   const [leadDetail, setLeadDetail] = useState<LeadDetail | null>(null);
   const [autoReverify, setAutoReverify] = useState<{ leadId: string; status: "idle" | "running" | "completed" | "failed"; error: string }>({ leadId: "", status: "idle", error: "" });
@@ -101,6 +103,7 @@ export function useLeadEngineState() {
 
   const clearNotice = useCallback(() => setNotice(""), []);
   useAutoDismiss(notice, clearNotice);
+  useEffect(() => { drawerOpenRef.current = drawerOpen; }, [drawerOpen]);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) {
@@ -150,7 +153,16 @@ export function useLeadEngineState() {
       else if (sortBy === "company_asc") { parameters.set("sort", "company"); parameters.set("order", "asc"); }
       else if (sortBy === "newest") { parameters.set("sort", "firstDiscovered"); parameters.set("order", "desc"); }
       else { parameters.set("sort", "score"); parameters.set("order", "desc"); }
-      void api<LeadPage>(`/api/leads?${parameters.toString()}`, { signal: controller.signal }).then((data) => { setLeadPage(data); setSelectedLeadId((current) => data.rows.some((row) => row.leadId === current) ? current : data.rows[0]?.leadId || ""); if (!data.rows.length) setDrawerOpen(false); }).catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof Error ? requestError.message : "客户列表加载失败"); }).finally(() => { if (!controller.signal.aborted) setLeadLoading(false); });
+      void api<LeadPage>(`/api/leads?${parameters.toString()}`, { signal: controller.signal }).then((data) => {
+        setLeadPage(data);
+        setSelectedLeadId((current) => {
+          if (data.rows.some((row) => row.leadId === current)) return current;
+          const sameCompany = data.rows.find((row) => row.companyId === selectedCompanyIdRef.current);
+          if (sameCompany) return sameCompany.leadId;
+          return drawerOpenRef.current && current ? current : data.rows[0]?.leadId || "";
+        });
+        if (!data.rows.length) setDrawerOpen(false);
+      }).catch((requestError) => { if (!(requestError instanceof DOMException && requestError.name === "AbortError")) setError(requestError instanceof Error ? requestError.message : "客户列表加载失败"); }).finally(() => { if (!controller.signal.aborted) setLeadLoading(false); });
     }, 220);
     return () => { window.clearTimeout(timer); controller.abort(); };
   }, [completionAnchor, completionPeriod, contactFilter, countryFilter, gradeFilter, leadRefreshKey, page, productFilters, regionFilter, reviewState, search, sortBy, sourceFilter, specialFilter, typeFilters]);
@@ -163,6 +175,7 @@ export function useLeadEngineState() {
         try {
           const detail = await api<LeadDetail>(`/api/leads/${selectedLeadId}`, { signal: controller.signal });
           if (controller.signal.aborted) return;
+          selectedCompanyIdRef.current = detail.company.id;
           setLeadDetail(detail);
           setDetailLoading(false);
           if (isCurrentServerVerification(detail.scoreRun)) {
@@ -173,8 +186,8 @@ export function useLeadEngineState() {
             setAutoReverify({ leadId: selectedLeadId, status: "failed", error: "未记录可访问官网，无法自动重新核验。" });
             return;
           }
-          if (autoReverifyAttemptedRef.current.has(selectedLeadId)) return;
-          autoReverifyAttemptedRef.current.add(selectedLeadId);
+          if (autoReverifyAttemptedRef.current.has(detail.company.id)) return;
+          autoReverifyAttemptedRef.current.add(detail.company.id);
           setAutoReverify({ leadId: selectedLeadId, status: "running", error: "" });
           await api(`/api/leads/${selectedLeadId}/reverify`, { method: "POST", body: "{}", signal: controller.signal });
           const refreshed = await api<LeadDetail>(`/api/leads/${selectedLeadId}`, { signal: controller.signal });
@@ -236,7 +249,7 @@ export function useLeadEngineState() {
   function beginAction() { setPending(true); setError(""); setNotice(""); }
   function actionError(requestError: unknown, fallback: string) { setError(requestError instanceof Error ? requestError.message : fallback); }
   function refreshLeads() { setLeadRefreshKey((value) => value + 1); }
-  function openLead(leadId: string) { setSelectedLeadId(leadId); setLeadDetail(null); setDetailLoading(true); setDrawerOpen(true); }
+  function openLead(leadId: string) { selectedCompanyIdRef.current = leadPage.rows.find((row) => row.leadId === leadId)?.companyId || ""; setSelectedLeadId(leadId); setLeadDetail(null); setDetailLoading(true); setDrawerOpen(true); }
   async function loadDiscoveryHistory(days: 30 | 90) {
     const previousLimit = historyLimitRef.current;
     historyLimitRef.current = days;

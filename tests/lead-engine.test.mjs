@@ -284,6 +284,9 @@ test("keeps Campaign classification separate from qualification and human review
   assert.match(reverify, /lead\.reviewedAt \? lead\.workflowStatus : "needs_review"/);
   assert.match(reverify, /ne\(campaignLeads\.matchStatus, "stale"\)/);
   assert.match(stateHook, /autoReverifyAttemptedRef\.current\.has/);
+  assert.match(stateHook, /autoReverifyAttemptedRef\.current\.has\(detail\.company\.id\)/);
+  assert.match(stateHook, /data\.rows\.find\(\(row\) => row\.companyId === selectedCompanyIdRef\.current\)/);
+  assert.match(stateHook, /drawerOpenRef\.current && current \? current/);
   assert.match(stateHook, /\[drawerOpen, selectedLeadId\]/);
   assert.match(drawer, /资料核验完成，可以进行最终审核；当前仍为未审核。/);
   assert.match(drawer, /并非由 Campaign 发起发现/);
