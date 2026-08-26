@@ -101,7 +101,10 @@ export function useLeadEngineState() {
   useAutoDismiss(notice, clearNotice);
 
   const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true); setError("");
+    if (!silent) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const [data, stats] = await Promise.all([
         api<Workspace>("/api/workspace"),
@@ -117,7 +120,14 @@ export function useLeadEngineState() {
   }, []);
 
   useEffect(() => { const timer = window.setTimeout(() => { void load(); }, 0); return () => window.clearTimeout(timer); }, [load]);
-  useEffect(() => { if (workspace.engineState?.status !== "running") return; const timer = window.setInterval(() => { void load(true); setLeadRefreshKey((value) => value + 1); }, 30_000); return () => window.clearInterval(timer); }, [load, workspace.engineState?.status]);
+  useEffect(() => {
+    if (workspace.engineState?.status !== "running" || drawerOpen) return;
+    const timer = window.setInterval(() => {
+      void load(true);
+      setLeadRefreshKey((value) => value + 1);
+    }, 30_000);
+    return () => window.clearInterval(timer);
+  }, [drawerOpen, load, workspace.engineState?.status]);
   useEffect(() => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => {

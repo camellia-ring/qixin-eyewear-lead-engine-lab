@@ -1,15 +1,24 @@
 import { IconAlertTriangle, IconCheck, IconClock, IconExternalLink, IconRadar, IconTrash, IconX } from "@tabler/icons-react";
+import type { ReactNode } from "react";
 import type { LeadEngineState } from "@/hooks/useLeadEngineState";
 import { compactRisk, companySignal, CONFIDENCE_LABELS, customerTypeLabel, formatDate, jsonList, localizedCompanyType, localizedCountry, SCORE_LABELS, STATUS_LABELS } from "./model";
 import styles from "../LeadEngineApp.module.css";
 
+function ReviewDialog({ children }: { children: ReactNode }) {
+  return <div className={styles.drawerBackdrop}>
+    <aside className={styles.drawer} role="dialog" aria-modal="true" aria-label="客户证据与审核工作台">
+      {children}
+    </aside>
+  </div>;
+}
+
 export function LeadReviewDrawer({ state }: { state: LeadEngineState }) {
   const { approvalGaps, assignmentCampaignId, businessCampaigns, campaignById, detailLoading, leadDetail, pending, reviewNotes } = state;
-  if (detailLoading) return <aside className={styles.drawer} aria-label="当前客户证据与审核"><div className={styles.emptyState}><IconClock size={26} /><b>正在加载客户证据…</b></div></aside>;
-  if (!leadDetail) return <aside className={styles.drawer} aria-label="当前客户证据与审核"><div className={styles.emptyState}><b>选择一家公司查看证据</b></div></aside>;
+  if (detailLoading) return <ReviewDialog><div className={styles.emptyState}><IconClock size={26} /><b>正在加载客户证据…</b></div></ReviewDialog>;
+  if (!leadDetail) return <ReviewDialog><div className={styles.emptyState}><b>选择一家公司查看证据</b></div></ReviewDialog>;
   const { claims, company, contactVerifications, domains, lead, memberships, reviews, scoreDimensions, scoreRun, sources } = leadDetail;
-  return <aside className={styles.drawer} aria-label="当前客户证据与审核">
-    <div className={styles.drawerHeader}><div><span>当前客户</span><h2>{company.companyName}</h2></div><button type="button" aria-label="关闭客户详情" onClick={() => state.setDrawerOpen(false)}><IconX size={22} /></button></div>
+  return <ReviewDialog>
+    <div className={styles.drawerHeader}><div><span>客户证据与审核工作台</span><h2 id="review-dialog-title">{company.companyName}</h2></div><button type="button" aria-label="关闭客户详情" disabled={pending} onClick={() => state.setDrawerOpen(false)}><IconX size={22} /></button></div>
     <div className={styles.drawerBody}>
       <dl className={styles.drawerFacts}><div><dt>类型</dt><dd>{customerTypeLabel(company)}</dd></div><div><dt>国家</dt><dd>{localizedCountry(company.country)}</dd></div><div><dt>评分</dt><dd className={styles.drawerScore}>{lead.currentScore}</dd></div></dl>
       <section className={styles.coverageBlock}><div><span>证据覆盖</span><b>{lead.evidenceCoverage}%</b></div><progress max="100" value={lead.evidenceCoverage}>{lead.evidenceCoverage}%</progress><div className={styles.confidenceRow}><span>可信度</span><b>{CONFIDENCE_LABELS[lead.scoreConfidence] || lead.scoreConfidence}</b></div></section>
@@ -30,5 +39,5 @@ export function LeadReviewDrawer({ state }: { state: LeadEngineState }) {
       <label>审核备注<input value={reviewNotes} onChange={(event) => state.setReviewNotes(event.target.value)} placeholder="可填写审核依据；淘汰时必须填写原因" /></label>
       <details className={styles.reviewMaintenance}><summary>高级维护</summary><button type="button" className={styles.keepButton} onClick={() => void state.reverifySelectedLead()} disabled={pending || !company.website}><IconRadar size={17} />重新核验官网与联系方式</button></details>
     </div>
-  </aside>;
+  </ReviewDialog>;
 }

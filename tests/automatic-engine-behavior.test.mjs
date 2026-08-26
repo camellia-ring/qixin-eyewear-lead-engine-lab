@@ -25,6 +25,16 @@ import { importedLeadPendingVerification, isCurrentServerVerification } from "..
 import { buildSearchKeywords } from "../lib/lead-engine.ts";
 import { campaignMatchesCompany, normalizeCountry, routeCampaigns } from "../lib/campaign-routing.ts";
 import { campaignStrategyName } from "../lib/campaign-strategy.ts";
+import { apiFailure } from "../lib/api.ts";
+
+test("database readiness errors require an explicit missing-table failure", async () => {
+  const missing = await apiFailure(new Error("D1_ERROR: no such table: campaign_leads: SQLITE_ERROR")).json();
+  assert.equal(missing.error, "database_not_ready");
+
+  const complexQuery = await apiFailure(new Error("D1_ERROR: too many SQL variables in query from campaign_leads")).json();
+  assert.equal(complexQuery.error, "internal_error");
+  assert.equal(complexQuery.message, "请求未完成。");
+});
 
 function evidence(overrides = {}) {
   return {

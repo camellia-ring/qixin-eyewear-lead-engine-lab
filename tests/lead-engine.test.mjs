@@ -31,7 +31,7 @@ test("builds the complete isolated Lead Engine shell", async () => {
   assert.match(layout, /QIXIN Lead Engine Lab/);
   assert.match(page, /LeadEngineApp/);
   assert.match(ui, /全局自动找客户/);
-  assert.match(ui, /私有环境 · 人工批准后才能导出/);
+  assert.match(ui, /私有环境 · 人工批准后进入 CRM/);
   assert.match(ui, /Campaign 管理/);
   assert.match(ui, /只有人工批准并通过准入门槛/);
   assert.match(ui, /开始自动找客户/);
@@ -202,6 +202,36 @@ test("keeps desktop and mobile customer review on one continuous vertical scroll
   assert.match(css, /\.tableFrame\s*\{[^}]*height:\s*auto[^}]*flex:\s*0 0 auto/s);
   assert.doesNotMatch(css, /\.tableFrame\s*\{[^}]*height:\s*min\(542px/s);
   assert.match(css, /@media \(max-width: 700px\)[\s\S]*\.mobileLeadList\s*\{[^}]*overflow:\s*visible/s);
+});
+
+test("puts review in a dedicated row action and opens a large stable review workspace", async () => {
+  const [review, drawer, stateHook, css] = await Promise.all([
+    readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/lead-engine/LeadReviewDrawer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.module.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(review, /<th className=\{styles\.actionColumn\}>操作<\/th>/);
+  assert.match(review, /<td className=\{styles\.actionCell\}><button[^>]*className=\{styles\.evidenceButton\}/);
+  assert.doesNotMatch(review, /className=\{styles\.companyCell\}[\s\S]{0,500}className=\{styles\.evidenceButton\}/);
+  assert.match(drawer, /role="dialog" aria-modal="true"/);
+  assert.match(css, /\.drawerBackdrop\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/s);
+  assert.match(css, /\.drawer\s*\{[^}]*width:\s*min\(1180px[^}]*height:\s*min\(880px/s);
+  assert.match(css, /\.evidenceButton\s*\{[^}]*min-height:\s*42px/s);
+  assert.match(stateHook, /workspace\.engineState\?\.status !== "running" \|\| drawerOpen/);
+  assert.doesNotMatch(stateHook, /void load\(true\);\s*if \(!drawerOpen\)/);
+  assert.match(stateHook, /\[drawerOpen, load, workspace\.engineState\?\.status\]/);
+});
+
+test("keeps large multi-select filters within the D1 bind limit and reports missing schemas precisely", async () => {
+  const [leadsRoute, api] = await Promise.all([
+    readFile(new URL("../app/api/leads/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/api.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(leadsRoute, /IN \(SELECT value FROM json_each\(\$\{JSON\.stringify\(selected\)\}\)\)/);
+  assert.doesNotMatch(leadsRoute, /selected\.map\(\(value\) => eq\(column, value\)\)/);
+  assert.ok(api.includes("no such table:\\s*"));
+  assert.doesNotMatch(api, /no such table\|prospect_companies/);
 });
 
 test("reviews the unified customer library by multi-select evidence dimensions rather than Campaign", async () => {

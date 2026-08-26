@@ -27,12 +27,16 @@ function values(parameters: URLSearchParams, key: string) {
 
 function oneOf(column: Parameters<typeof eq>[0], selected: string[]) {
   if (!selected.length) return undefined;
-  return or(...selected.map((value) => eq(column, value)));
+  return sql`${column} IN (SELECT value FROM json_each(${JSON.stringify(selected)}))`;
 }
 
 function jsonContains(column: Parameters<typeof eq>[0], selected: string[]) {
   if (!selected.length) return undefined;
-  return or(...selected.map((value) => sql`EXISTS (SELECT 1 FROM json_each(${column}) AS selected_value WHERE selected_value.value = ${value})`));
+  return sql`EXISTS (
+    SELECT 1
+    FROM json_each(${column}) AS stored_value
+    WHERE stored_value.value IN (SELECT value FROM json_each(${JSON.stringify(selected)}))
+  )`;
 }
 
 export async function GET(request: Request) {
