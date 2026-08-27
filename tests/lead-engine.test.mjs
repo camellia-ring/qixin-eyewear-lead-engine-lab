@@ -238,8 +238,9 @@ test("keeps large multi-select filters within the D1 bind limit and reports miss
 });
 
 test("reviews the unified customer library by multi-select evidence dimensions rather than Campaign", async () => {
-  const [review, stateHook, filters, scopeFilter, leadsRoute] = await Promise.all([
+  const [review, stylesheet, stateHook, filters, scopeFilter, leadsRoute] = await Promise.all([
     readFile(new URL("../components/lead-engine/LeadReviewView.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/LeadEngineApp.module.css", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useLeadEngineState.ts", import.meta.url), "utf8"),
     readFile(new URL("../hooks/useLeadReviewFilters.ts", import.meta.url), "utf8"),
     readFile(new URL("../components/lead-engine/ScopeMultiFilter.tsx", import.meta.url), "utf8"),
@@ -247,6 +248,14 @@ test("reviews the unified customer library by multi-select evidence dimensions r
   ]);
   for (const label of ["客户范围", "地区", "国家", "客户类型", "产品分类"]) assert.match(review, new RegExp(label));
   assert.match(review, /统一客户库每家公司只显示一次/);
+  assert.doesNotMatch(review, /<h1>[^<]*(?:未审核|已审核)客户<\/h1>/);
+  assert.match(review, /data-status=\{lead\.workflowStatus\}/);
+  assert.match(stylesheet, /\.reviewStateToggle\s*\{[^}]*background:\s*#fff;/s);
+  assert.match(stylesheet, /\.reviewStateToggle\[aria-pressed="true"\]\s*\{[^}]*background:\s*var\(--blue-soft\);/s);
+  assert.match(stylesheet, /\.statusBadge\[data-status="approved"\][^{]*\{[^}]*background:\s*#e7f6ec;[^}]*color:\s*#1f7a43;/s);
+  assert.match(stylesheet, /\.statusBadge\[data-status="rejected"\][^{]*\{[^}]*background:\s*#fee9e7;[^}]*color:\s*#b93a31;/s);
+  assert.match(stylesheet, /\.statusBadge\s*\{[^}]*background:\s*#eaf2ff;[^}]*color:\s*var\(--blue\);/s);
+  assert.doesNotMatch(stylesheet, /data-status="needs_review"/);
   assert.doesNotMatch(review, /reviewCampaignId|setReviewCampaignId|切换 Campaign|这个 Campaign/);
   assert.doesNotMatch(stateHook, /parameters\.set\("campaignId", reviewCampaignId\)/);
   assert.match(filters, /regionFilter/);
