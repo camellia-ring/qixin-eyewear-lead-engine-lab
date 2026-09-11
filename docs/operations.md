@@ -21,7 +21,7 @@
 - Cron 目标 URL 是当前 owner-only Lead Engine Sites 项目；机器令牌以 `secret_text` 保存，没有出现在源码或日志中。
 - Sites slug 或生产 URL 变化后，必须同步更新 `wrangler.cron.jsonc` 的 `LEAD_ENGINE_URL`、重新部署 Cron Worker，并在下一个 15 分钟触发点核对 Sites 控制请求和 D1 心跳。旧 URL 返回 404 时，界面即使显示 running 也不会继续产生批次。
 - 正式 Trigger 为 `*/15 * * * *`；Worker 的 `workers.dev` 和 Preview URL 均关闭。
-- `ENABLE_PAID_PROVIDERS=false`，没有生产 CRM、官网 D1/R2 或发信凭据。
+- 付费provider默认关闭，禁止官网D1/R2直连与外联发送；2026-08-26起已批准的最小CRM交接是专用接口例外。凭据是否已配置仅在相关任务中安全回读，不依赖旧运维记录。
 - 2026-08-15 首个真实 Cron 获得 HTTP 200；停止态下 `last_run_at` 不推进。负责人启动引擎后，应继续核验 `last_heartbeat_at` 推进和完整运行日漏斗。
 
 ## 来源与解析器

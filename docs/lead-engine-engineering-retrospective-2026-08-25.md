@@ -98,17 +98,9 @@ evidenceCoverage=0
 
 ## 测试与发布纪律
 
-运行 `npm run check` 作为最小代码验证：类型检查、ESLint、生产构建、产品/架构测试、单元与前向迁移测试。提交 `7b98fd3` 时记录为 51 项通过；未来的测试数量和生产状态均须当前次重新核验。
+代码交付按 [当前AGENTS](../AGENTS.md)选择验证；开发中使用相关检查，同版本已通过结果可复用，文档不运行构建。下列7b98fd3计数及发布步骤为历史经验，不要求每次编辑重新执行。
 
-每次变更后：
-
-1. 阅读受影响路径的 `AGENTS.md`、项目档案、相关决策与未决问题。
-2. 检查工作树，只提交任务范围内 diff；不覆盖用户已有改动。
-3. 运行与风险相称的测试；规则或运行器变更必须加回归测试。
-4. 检查密钥、客户隐私、生产数据和构建包内容；Sites 包必须包含 `dist/server/index.js`。
-5. 先推送 GitHub `origin`；GitHub 同步不等于 Sites 部署。
-6. 部署前重新确认 branch 同步、Sites 仍 owner-only、迁移前向且已有备份。不得顺带改访问、变量、绑定、Secret、来源启停、引擎状态、外联或 provider。
-7. 记录部署结果及必要的真实浏览器交互验收；没有执行就明确写“未执行”，不以截图或 HTTP 200 替代。
+当前验证、提交与发布流程只维护在 [AGENTS](../AGENTS.md) 和 [运维手册](operations.md)，此处不再复制完成清单。
 
 日常 Git 检查只访问必要远程。Lead Engine 的 `sites` 是私有 Sites 远程，避免 `fetch --all` 触发 Windows Git Credential Manager；本地 `remote.sites.skipFetchAll=true` 只是 checkout 级设置，重新克隆后需要重设。
 
@@ -120,19 +112,9 @@ evidenceCoverage=0
 4. 付费或登录 provider、OpenAI API、平台 API、生产 CRM 写入、自动邮件与自动批准都未因本项目当前实现而获得授权。
 5. 业务身份、产品资料、价格、认证、公开联系方式等跨系统业务事实仍以原始证据或负责人确认为准，不能由代码字段或旧文案推断。
 
-## 后续开发的 Agent 工作合同
+## 后续开发入口
 
-在改动 Lead Engine 前，Agent 应先：
-
-```text
-1. 读取 AQiXin 知识工作流、根目录和本仓库 AGENTS.md。
-2. 检索 knowledge/INDEX、项目档案、相关决策、OPEN-QUESTIONS 和源码入口。
-3. 标注：已确认决策、当前实现、历史基线、冲突/待确认项。
-4. 给出最小变更方案，列出发现、导入、重核验、审批、UI、测试与运维受影响路径。
-5. 实现时复用 customer-scope、qualification、lead-scoring、import-policy 等共享模块。
-6. 验证、提交、推送；若任务要求部署，再按私有 Sites 发布纪律执行。
-7. 将跨任务有效的结论回写 knowledge/，不复制隐私、Secret、生产数据或过程日志。
-```
+按 [项目AGENTS](../AGENTS.md)与当前任务执行。上文技术经验按问题检索，不要求新任务先完成全仓地图、四栏分类或七步合同。
 
 ## 相关入口
 
