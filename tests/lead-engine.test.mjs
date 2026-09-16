@@ -95,8 +95,8 @@ test("keeps Sites and storage isolated while CRM handoff uses the approved narro
   assert.notEqual(hostingConfig.project_id, "appgprj_6a5a9a08d8048191994a626812231e80");
   assert.equal(hostingConfig.d1, "DB");
   assert.equal(hostingConfig.r2, null);
-  assert.match(agents, /Never access the website D1\/R2 directly/);
-  assert.match(agents, /versioned, authenticated, idempotent approved-customer handoff/);
+  assert.match(agents, /Do not directly access website D1\/R2/);
+  assert.match(agents, /human-approved minimum customer handoff is the versioned, authenticated and idempotent production exception/);
   assert.match(handoff, /qixin\.approved-customer-handoff\.v2/);
   assert.match(handoff, /campaigns: Array/);
   assert.match(handoff, /discovery:/);

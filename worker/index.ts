@@ -8,6 +8,12 @@ interface Env {
   ENABLE_PAID_PROVIDERS?: string;
   OPENAI_API_KEY?: string;
   OPENAI_DISCOVERY_MODEL?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_RESEARCH_MODEL?: string;
+  GEMINI_RESEARCH_FREE_TIER_CONFIRMED?: string;
+  GEMINI_RESEARCH_VERIFIED_MODEL?: string;
+  GEMINI_RESEARCH_PROJECT_ID?: string;
+  GEMINI_RESEARCH_KEY_SHA256?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {

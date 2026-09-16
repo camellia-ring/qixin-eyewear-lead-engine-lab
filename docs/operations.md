@@ -12,6 +12,8 @@
 
 ## 后台 Cron
 
+“高级工具”中的 [Google 联网研究](gemini-research.md) 是独立人工单次入口；免费资格门禁默认关闭，结果只在当前页面展示，不接入以下 Cron、客户采集或 CRM 流程。
+
 后台每次只运行一个来源批次，计划频率仍为每 15 分钟。Sites 应用部署和 Cron 启用是两件事。当前唯一正式调度为 `worker/cron-proxy.ts` 与 `wrangler.cron.jsonc`：独立 Worker经 Sites 的受保护 API 触发批次，继续由 Sites 应用读写原有私有 D1；`SITES_BYPASS_TOKEN` 只作为 Cloudflare Worker secret 保存，不写入源码。Sites 应用不再保留直接绑定 D1 的第二套 Cron 备选入口。
 
 每批最多领取 20 个候选，初始公司级并发为 3。连续 4 个健康结果且滚动错误率低于 25% 时逐级升并发，最高为 5；403/429 立即降为 1，超时降为 2，最近 6 个结果的错误率达到 25% 时降为 2、达到 50% 时降为 1。逐域名请求仍按来源的 `rate_limit_ms` 串行限速，同公司名或同注册域名不会重复并发。

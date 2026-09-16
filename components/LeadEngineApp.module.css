@@ -820,3 +820,15 @@
   .advancedSection > summary small { max-width: 120px; text-align: right; }
   .advancedSection > .toolGrid, .advancedSection > .researchLayout, .advancedSection > .emptyState { padding: 10px; }
 }
+.geminiForm { display: grid; gap: 12px; margin: 16px 0; }
+.geminiForm textarea { width: 100%; min-height: 96px; resize: vertical; }
+.geminiActions { display: flex; flex-wrap: wrap; gap: 10px; }
+.geminiResult { display: grid; gap: 16px; margin-top: 20px; min-width: 0; }
+.geminiAnswer { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.8; }
+.geminiAnswer sup { margin-left: 3px; }
+.geminiSources { display: grid; gap: 8px; padding-left: 24px; overflow-wrap: anywhere; }
+.geminiSuggestions { contain: content; display: block; max-width: 100%; overflow: auto; }
+.geminiMeta { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 12px; }
+.geminiMeta div { min-width: 0; }
+.geminiMeta dt { color: #64748b; font-size: 12px; }
+.geminiMeta dd { margin: 4px 0 0; overflow-wrap: anywhere; font-size: 13px; }

@@ -71,6 +71,6 @@ test("keeps automated discoveries behind human approval with paid providers defa
   assert.match(reviewRoute, /decision === "approved"/);
   assert.match(reviewRoute, /approvalPolicyGaps/);
   assert.match(reviewRoute, /isCurrentServerVerification/);
-  assert.match(agents, /paid, authenticated, personal-contact, or credit-consuming providers require explicit owner approval/i);
-  assert.match(agents, /Do not add personal-contact enrichment, guessed emails, email generation or sending/);
+  assert.match(agents, /Paid, authenticated, personal-contact or credit-consuming providers need explicit authorization/);
+  assert.match(agents, /No guessed contacts, automatic human approval, email generation\/sending or login\/paywall bypass/);
 });
