@@ -7,6 +7,13 @@ const MAX_GROUNDING_CHUNKS = 100;
 const MAX_GROUNDING_SUPPORTS = 200;
 const MAX_SEARCH_QUERIES = 50;
 const DEFAULT_TIMEOUT_MS = 45_000;
+const MAX_REQUESTS_PER_MINUTE = 5;
+const MAX_TOKENS_PER_MINUTE = 250_000;
+const MAX_REQUESTS_PER_PACIFIC_DAY = 20;
+const DEFAULT_TRIAL_MAX_REQUESTS = 2;
+const MAX_TRIAL_MAX_REQUESTS = 20;
+const MAX_OUTPUT_TOKENS = 4_096;
+const RATE_WINDOW_MS = 60_000;
 
 export type GeminiResearchCitation = { title: string; url: string };
 export type GeminiResearchSupport = {
@@ -45,6 +52,7 @@ export type GeminiResearchEnvironment = {
   GEMINI_RESEARCH_VERIFIED_MODEL?: string;
   GEMINI_RESEARCH_PROJECT_ID?: string;
   GEMINI_RESEARCH_KEY_SHA256?: string;
+  GEMINI_RESEARCH_MAX_REQUESTS?: string;
 };
 export type GeminiResearchLog = {
   status: "success" | "error";
@@ -60,10 +68,17 @@ type ReadyConfiguration = {
   apiKey: string;
   model: string;
   projectId: string;
+  maxRequests: number;
 };
 type ConfigurationResolution = {
   status: GeminiResearchConfigurationStatus;
   configuration: ReadyConfiguration | null;
+};
+type BudgetReservation = { timestamp: number; chargedTokens: number };
+type ScopedBudget = {
+  minuteReservations: BudgetReservation[];
+  pacificDay: string;
+  dailyAttempts: number;
 };
 
 export class GeminiResearchError extends Error {
@@ -103,6 +118,17 @@ const safeEqual = (left: string, right: string): boolean => {
 const configuredModel = (environment: GeminiResearchEnvironment): string =>
   environment.GEMINI_RESEARCH_MODEL?.trim() || DEFAULT_MODEL;
 
+const configuredMaxRequests = (
+  environment: GeminiResearchEnvironment,
+): number | null => {
+  const raw = environment.GEMINI_RESEARCH_MAX_REQUESTS?.trim();
+  if (raw === undefined || raw === "") return DEFAULT_TRIAL_MAX_REQUESTS;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 1 && value <= MAX_TRIAL_MAX_REQUESTS
+    ? value
+    : null;
+};
+
 const resolveConfiguration = async (
   environment: GeminiResearchEnvironment,
 ): Promise<ConfigurationResolution> => {
@@ -115,6 +141,8 @@ const resolveConfiguration = async (
   if (!/^[a-z0-9][a-z0-9._-]{0,99}$/u.test(model)) {
     return unavailable("invalid_model");
   }
+  const maxRequests = configuredMaxRequests(environment);
+  if (maxRequests === null) return unavailable("invalid_max_requests");
   if (environment.GEMINI_RESEARCH_FREE_TIER_CONFIRMED !== "true") {
     return unavailable("free_tier_not_confirmed");
   }
@@ -139,7 +167,7 @@ const resolveConfiguration = async (
 
   return {
     status: { ready: true, model, reason: null },
-    configuration: { apiKey, model, projectId },
+    configuration: { apiKey, model, projectId, maxRequests },
   };
 };
 
@@ -395,7 +423,10 @@ const parseGeminiResponse = (
         : -1;
     const part = textParts.get(partIndex);
     const startIndex = part
-      ? byteOffsetToStringIndex(part.text, segment.startIndex)
+      ? byteOffsetToStringIndex(
+        part.text,
+        segment.startIndex === undefined ? 0 : segment.startIndex,
+      )
       : null;
     const endIndex = part
       ? byteOffsetToStringIndex(part.text, segment.endIndex)
@@ -480,6 +511,32 @@ type GenerateDependencies = {
   timeoutMs?: number;
 };
 
+const geminiRequestPayload = (query: string) => ({
+  contents: [{ role: "user", parts: [{ text: query }] }],
+  tools: [{ google_search: {} }],
+  generationConfig: {
+    candidateCount: 1,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
+    temperature: 0.2,
+  },
+});
+
+const conservativeTokenReservation = (query: string): number =>
+  new TextEncoder().encode(JSON.stringify(geminiRequestPayload(query))).byteLength +
+  MAX_OUTPUT_TOKENS;
+
+const pacificDayKey = (timestamp: number): string => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+};
+
 const generateGroundedResearch = async (
   query: string,
   configuration: ReadyConfiguration,
@@ -500,16 +557,8 @@ const generateGroundedResearch = async (
           "Content-Type": "application/json",
           "x-goog-api-key": configuration.apiKey,
         },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: query }] }],
-          tools: [{ google_search: {} }],
-          generationConfig: {
-            candidateCount: 1,
-            maxOutputTokens: 4_096,
-            temperature: 0.2,
-          },
-        }),
-        redirect: "error",
+        body: JSON.stringify(geminiRequestPayload(query)),
+        redirect: "manual",
         signal: timeoutSignal,
       },
     );
@@ -528,6 +577,15 @@ const generateGroundedResearch = async (
       "gemini_network_failed",
       502,
       "无法连接 Gemini 研究服务。",
+    );
+  }
+  if (response.status >= 300 && response.status < 400) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new GeminiResearchError(
+      "gemini_redirect_rejected",
+      502,
+      "Gemini 返回了不允许跟随的跳转。",
+      response.status,
     );
   }
   if (!response.ok) {
@@ -597,6 +655,7 @@ const generateGroundedResearch = async (
 
 const configurationMessages: Record<string, string> = {
   invalid_model: "Gemini 研究模型配置无效。",
+  invalid_max_requests: "Gemini 本地试验次数配置无效。",
   free_tier_not_confirmed: "尚未确认当前 Gemini 项目符合免费研究门禁。",
   verified_model_mismatch: "已核验模型与当前研究模型不一致。",
   project_id_missing: "尚未记录已核验的 Gemini 项目。",
@@ -713,6 +772,82 @@ export const createGeminiResearchHttpHandlers = ({
   // This only suppresses duplicate work inside one warm isolate. It is not a
   // distributed quota or a substitute for the verified free-tier gate.
   let requestInFlight = false;
+  let trialAttempts = 0;
+  const scopedBudgets = new Map<string, ScopedBudget>();
+  const clock = now ?? Date.now;
+
+  const reserveBudget = (
+    configuration: ReadyConfiguration,
+    query: string,
+    timestamp: number,
+  ): BudgetReservation => {
+    const scope = `${configuration.projectId}\u0000${configuration.model}`;
+    const day = pacificDayKey(timestamp);
+    const budget = scopedBudgets.get(scope) ?? {
+      minuteReservations: [],
+      pacificDay: day,
+      dailyAttempts: 0,
+    };
+    budget.minuteReservations = budget.minuteReservations.filter(
+      (reservation) => reservation.timestamp > timestamp - RATE_WINDOW_MS,
+    );
+    if (budget.pacificDay !== day) {
+      budget.pacificDay = day;
+      budget.dailyAttempts = 0;
+    }
+    if (budget.minuteReservations.length >= MAX_REQUESTS_PER_MINUTE) {
+      throw new GeminiResearchError(
+        "gemini_local_rpm_limit",
+        429,
+        "本地一分钟 Gemini 研究次数已达到上限。",
+      );
+    }
+    const reservedTokens = conservativeTokenReservation(query);
+    const tokensInWindow = budget.minuteReservations.reduce(
+      (total, reservation) => total + reservation.chargedTokens,
+      0,
+    );
+    if (tokensInWindow + reservedTokens > MAX_TOKENS_PER_MINUTE) {
+      throw new GeminiResearchError(
+        "gemini_local_tpm_limit",
+        429,
+        "本地一分钟 Gemini Token 预留已达到上限。",
+      );
+    }
+    if (budget.dailyAttempts >= MAX_REQUESTS_PER_PACIFIC_DAY) {
+      throw new GeminiResearchError(
+        "gemini_local_daily_limit",
+        429,
+        "本地 Pacific 自然日 Gemini 研究次数已达到上限。",
+      );
+    }
+    if (trialAttempts >= configuration.maxRequests) {
+      throw new GeminiResearchError(
+        "gemini_local_trial_limit",
+        429,
+        "本地 Gemini 研究试验次数已达到上限。",
+      );
+    }
+
+    const reservation = { timestamp, chargedTokens: reservedTokens };
+    budget.minuteReservations.push(reservation);
+    budget.dailyAttempts += 1;
+    scopedBudgets.set(scope, budget);
+    trialAttempts += 1;
+    return reservation;
+  };
+
+  const calibrateReservation = (
+    reservation: BudgetReservation,
+    usage: GeminiResearchUsage,
+  ): void => {
+    if (
+      usage.totalTokens !== null &&
+      usage.totalTokens > reservation.chargedTokens
+    ) {
+      reservation.chargedTokens = usage.totalTokens;
+    }
+  };
 
   return {
     GET: async (): Promise<Response> =>
@@ -720,7 +855,7 @@ export const createGeminiResearchHttpHandlers = ({
 
     POST: async (request: Request): Promise<Response> => {
     const requestedModel = configuredModel(environment);
-    const requestStartedAt = Date.now();
+    const requestStartedAt = clock();
     try {
       assertSameOrigin(request);
       const query = await parseResearchQuery(request);
@@ -740,6 +875,11 @@ export const createGeminiResearchHttpHandlers = ({
           "已有一项 Gemini 研究正在进行，请等待完成。",
         );
       }
+      const reservation = reserveBudget(
+        resolved.configuration,
+        query,
+        clock(),
+      );
       requestInFlight = true;
       let generated: {
         result: GeminiResearchResult;
@@ -755,6 +895,7 @@ export const createGeminiResearchHttpHandlers = ({
         requestInFlight = false;
       }
       const { result, upstreamHttpStatus } = generated;
+      calibrateReservation(reservation, result.usage);
       logger?.({
         status: "success",
         model: result.returnedModel ?? result.requestedModel,
@@ -771,7 +912,7 @@ export const createGeminiResearchHttpHandlers = ({
         model: requestedModel,
         usage: null,
         errorCode: safe.code,
-        durationMs: Math.max(0, Date.now() - requestStartedAt),
+        durationMs: Math.max(0, clock() - requestStartedAt),
         upstreamHttpStatus: safe.upstreamHttpStatus,
       });
       return jsonResponse(

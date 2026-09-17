@@ -98,6 +98,10 @@ test("free-tier gate binds the confirmed model, project and exact API key hash",
     ...environment,
     GEMINI_RESEARCH_KEY_SHA256: "0".repeat(64),
   })).reason, "key_hash_mismatch");
+  assert.equal((await getGeminiResearchConfigurationStatus({
+    ...environment,
+    GEMINI_RESEARCH_MAX_REQUESTS: "21",
+  })).reason, "invalid_max_requests");
 });
 
 test("GET exposes only readiness and the configurable default model with no-store", async () => {
@@ -121,7 +125,7 @@ test("POST performs one generateContent call with google_search and returns veri
   const environment = await readyEnvironment();
   const calls = [];
   const logs = [];
-  const times = [1_000, 1_275];
+  const times = [500, 750, 1_000, 1_275];
   const handlers = createGeminiResearchHttpHandlers({
     environment,
     now: () => times.shift(),
@@ -157,6 +161,21 @@ test("POST performs one generateContent call with google_search and returns veri
   assert.equal(logs[0].upstreamHttpStatus, 200);
   assert.doesNotMatch(JSON.stringify(result), new RegExp(key));
   assert.doesNotMatch(JSON.stringify(logs), /研究欧洲眼镜零售趋势/u);
+});
+
+test("protobuf-default segment offsets may omit zero startIndex and partIndex", async () => {
+  const environment = await readyEnvironment();
+  const payload = groundedPayload();
+  const segment = payload.candidates[0].groundingMetadata.groundingSupports[0].segment;
+  delete segment.startIndex;
+  delete segment.partIndex;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    fetcher: async () => jsonResponse(payload),
+  });
+  const result = await (await handlers.POST(request())).json();
+  assert.equal(result.groundingStatus, "verified");
+  assert.deepEqual(result.supports, [{ startIndex: 0, endIndex: 4, sourceIndices: [0] }]);
 });
 
 test("missing grounding and unsafe URLs are returned as unverified without unsafe citations", async () => {
@@ -286,7 +305,7 @@ test("one warm isolate rejects concurrent research without a second Gemini call"
     environment,
     fetcher: async () => {
       calls += 1;
-      return upstream;
+      return calls === 1 ? upstream : jsonResponse(groundedPayload());
     },
   });
   const first = handlers.POST(request());
@@ -297,6 +316,11 @@ test("one warm isolate rejects concurrent research without a second Gemini call"
   assert.equal(calls, 1);
   release(jsonResponse(groundedPayload()));
   assert.equal((await first).status, 200);
+  assert.equal((await handlers.POST(request({ query: "第二项研究" }))).status, 200);
+  const capped = await handlers.POST(request({ query: "第三项研究" }));
+  assert.equal(capped.status, 429);
+  assert.equal((await capped.json()).error, "gemini_local_trial_limit");
+  assert.equal(calls, 2);
 });
 
 test("request and response size limits fail closed before parsing oversized content", async () => {
@@ -410,4 +434,147 @@ test("non-success upstream responses are cancelled without reading their body", 
   assert.equal(response.status, 502);
   assert.equal((await response.json()).error, "gemini_authentication_failed");
   assert.equal(cancelled, true);
+});
+
+test("302 and 307 redirects are never followed and never receive a second credentialed request", async () => {
+  const environment = await readyEnvironment();
+  for (const status of [302, 307]) {
+    let cancelled = false;
+    const calls = [];
+    const handlers = createGeminiResearchHttpHandlers({
+      environment,
+      fetcher: async (url, init) => {
+        calls.push({ url: String(url), init });
+        return new Response(new ReadableStream({
+          pull() { return new Promise(() => undefined); },
+          cancel() { cancelled = true; },
+        }), {
+          status,
+          headers: { Location: "https://redirect.example.test/collect" },
+        });
+      },
+    });
+    const response = await handlers.POST(request());
+    const result = await response.json();
+    assert.equal(response.status, 502);
+    assert.equal(result.error, "gemini_redirect_rejected");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].init.redirect, "manual");
+    assert.match(calls[0].url, /^https:\/\/generativelanguage\.googleapis\.com\//u);
+    assert.equal(calls[0].init.headers["x-goog-api-key"], key);
+    assert.equal(cancelled, true);
+  }
+});
+
+test("warm-isolate guard enforces 5 rolling requests per project and model", async () => {
+  const environment = await readyEnvironment({ GEMINI_RESEARCH_MAX_REQUESTS: "20" });
+  let currentTime = Date.UTC(2026, 8, 17, 12, 0, 0);
+  let calls = 0;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    now: () => currentTime,
+    fetcher: async () => {
+      calls += 1;
+      return jsonResponse(groundedPayload());
+    },
+  });
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal((await handlers.POST(request())).status, 200);
+    currentTime += 1;
+  }
+  const limited = await handlers.POST(request());
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "gemini_local_rpm_limit");
+  assert.equal(calls, 5);
+
+  currentTime += 60_000;
+  assert.equal((await handlers.POST(request())).status, 200);
+  assert.equal(calls, 6);
+});
+
+test("rate scope follows project and model while key changes cannot reset it", async () => {
+  const environment = await readyEnvironment({ GEMINI_RESEARCH_MAX_REQUESTS: "20" });
+  const now = Date.UTC(2026, 8, 17, 12, 0, 0);
+  let calls = 0;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    now: () => now,
+    fetcher: async () => {
+      calls += 1;
+      return jsonResponse(groundedPayload());
+    },
+  });
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    assert.equal((await handlers.POST(request())).status, 200);
+  }
+
+  const replacementKey = "replacement-key-in-same-project";
+  environment.GEMINI_API_KEY = replacementKey;
+  environment.GEMINI_RESEARCH_KEY_SHA256 = await sha256(replacementKey);
+  const sameProject = await handlers.POST(request());
+  assert.equal((await sameProject.json()).error, "gemini_local_rpm_limit");
+
+  environment.GEMINI_RESEARCH_PROJECT_ID = "second-free-project";
+  assert.equal((await handlers.POST(request())).status, 200);
+  assert.equal(calls, 6);
+});
+
+test("20 requests are capped per Pacific natural day", async () => {
+  const environment = await readyEnvironment({ GEMINI_RESEARCH_MAX_REQUESTS: "20" });
+  let currentTime = Date.UTC(2026, 8, 17, 8, 0, 0);
+  let calls = 0;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    now: () => currentTime,
+    fetcher: async () => {
+      calls += 1;
+      return jsonResponse(groundedPayload());
+    },
+  });
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    assert.equal((await handlers.POST(request())).status, 200);
+    currentTime += 60_001;
+  }
+  const limited = await handlers.POST(request());
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "gemini_local_daily_limit");
+  assert.equal(calls, 20);
+});
+
+test("timeouts consume the global trial cap and do not refund attempts", async () => {
+  const environment = await readyEnvironment();
+  let calls = 0;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    fetcher: async () => {
+      calls += 1;
+      throw new DOMException("timeout", "TimeoutError");
+    },
+  });
+  assert.equal((await handlers.POST(request())).status, 504);
+  assert.equal((await handlers.POST(request())).status, 504);
+  const capped = await handlers.POST(request());
+  assert.equal(capped.status, 429);
+  assert.equal((await capped.json()).error, "gemini_local_trial_limit");
+  assert.equal(calls, 2);
+});
+
+test("actual usage may increase but never reduce a conservative TPM reservation", async () => {
+  const environment = await readyEnvironment({ GEMINI_RESEARCH_MAX_REQUESTS: "20" });
+  let calls = 0;
+  const highUsage = groundedPayload();
+  highUsage.usageMetadata.totalTokenCount = 249_000;
+  const handlers = createGeminiResearchHttpHandlers({
+    environment,
+    now: () => Date.UTC(2026, 8, 17, 12, 0, 0),
+    fetcher: async () => {
+      calls += 1;
+      return jsonResponse(highUsage);
+    },
+  });
+  assert.equal((await handlers.POST(request())).status, 200);
+  const limited = await handlers.POST(request());
+  assert.equal(limited.status, 429);
+  assert.equal((await limited.json()).error, "gemini_local_tpm_limit");
+  assert.equal(calls, 1);
 });

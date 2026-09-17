@@ -14,6 +14,7 @@ interface Env {
   GEMINI_RESEARCH_VERIFIED_MODEL?: string;
   GEMINI_RESEARCH_PROJECT_ID?: string;
   GEMINI_RESEARCH_KEY_SHA256?: string;
+  GEMINI_RESEARCH_MAX_REQUESTS?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
